@@ -11,6 +11,7 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "build": "node src/tools/build.js",
+    "build:vercel": "node src/tools/build.js && node scripts/assemble-public.mjs",
     "audit:links": "node src/tools/link-audit.mjs",
     "seed": "node server/seed.js",
     "convex:push": "convex dev --once --env-file .env.convex-dev",
