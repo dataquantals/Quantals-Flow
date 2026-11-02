@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in | QuantalFlow</title>
+  <meta name="description" content="Log in to your QuantalFlow account." />
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=998ca299" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=ce1bb076" />
+  <link rel="stylesheet" href="/assets/css/project-planning.css?v=d3b3fc76" />
+  <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
+  <script src="/assets/js/save-state.js?v=622b21ef"></script>
+</head>
+<body class="auth-body">
+
+  <a class="auth-logo" href="/" aria-label="QuantalFlow home">
+    <img class="logo__mark" src="/assets/img/logo.png?v=d12f8ae3" width="34" height="34" alt="" />
+    <span>QuantalFlow</span>
+  </a>
+
+  <main class="auth">
+    <div class="auth__card reveal is-in">
+      <h1 class="auth__title">Log in to your account</h1>
+      <p class="auth__sub">Welcome back. Pick up right where you left off.</p>
+
+      <div class="auth__sso">
+        <button class="sso" type="button" data-sso="google">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8Z"/><path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.5 1.1-4 1.1-3.1 0-5.7-2.1-6.6-4.9H1.4v3.1A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.4 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.4a12 12 0 0 0 0 10.8l4-3.1Z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.4 6.6l4 3.1C6.3 6.9 8.9 4.8 12 4.8Z"/></svg>
+          Continue with Google
+        </button>
+        <button class="sso" type="button" data-sso="microsoft">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
+          Continue with Microsoft
+        </button>
+        <button class="sso" type="button" data-sso="sso">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="2" y="2" width="9" height="9" rx="1.5" fill="#F25022"/><rect x="13" y="2" width="9" height="9" rx="1.5" fill="#7FBA00"/><rect x="2" y="13" width="9" height="9" rx="1.5" fill="#00A4EF"/><rect x="13" y="13" width="9" height="9" rx="1.5" fill="#FFB900"/></svg>
+          Continue with SSO
+        </button>
+      </div>
+
+      <div class="auth__divider"><span>or</span></div>
+
+      <form class="auth__form" id="login-form" novalidate>
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="email" placeholder="Enter your work email" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <div class="field__row">
+            <label for="login-password">Password</label>
+            <a class="field__forgot" href="/resources/#help">Forgot password?</a>
+          </div>
+          <div class="field__pass">
+            <input id="login-password" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button class="field__toggle" type="button" id="toggle-pass" aria-label="Show password">Show</button>
+          </div>
+        </div>
+
+        <p class="auth__msg" id="login-msg" role="alert" aria-live="polite"></p>
+
+        <button class="btn btn--blue auth__submit" type="submit" id="login-submit">Log in</button>
+      </form>
+
+      <p class="auth__foot">
+        Don't have an account? <a href="/get-started/">Sign up free</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="auth-footer">
+    <span>QuantalFlow &copy; 2026</span>
+    <button class="lang" type="button">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+      English
+    </button>
+  </footer>
+
+<script src="/assets/js/login.js?v=a0dd4d42"></script>
+</body>
+</html>

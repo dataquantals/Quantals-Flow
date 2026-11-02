@@ -1,0 +1,23 @@
+# Runtime database (contains password hashes and session tokens)
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Logs and local env
+*.log
+.env
+.env*
+.clerk/
+
+# Local agent tooling and scratch output
+.agents/
+shots/
+_verify-pp/
+dashboard-preview-tmp/
+
+node_modules/
+
+# OS noise
+.DS_Store
+Thumbs.db

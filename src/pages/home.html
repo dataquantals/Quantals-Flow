@@ -1,0 +1,403 @@
+---
+title: QuantalFlow | AI Innovation Workspace
+description: The Intelligent Canvas where your team and agents think, plan, and build together.
+route: /
+nav: home
+---
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="get-started">
+      <div class="hero__glow" aria-hidden="true"></div>
+      <div class="container hero__inner">
+        <div class="hero__copy">
+          <p class="pill reveal">
+            <span class="pill__spark">✦</span> QuantalFlow AI
+            <span class="pill__divider"></span>
+            The new Intelligent Canvas is here
+          </p>
+          <h1 class="hero__title reveal">
+            Human collaboration<br />at the speed of <span class="hl">AI</span>
+          </h1>
+          <p class="hero__sub reveal">
+            The Intelligent Canvas where your team and agents think, plan, and build together
+          </p>
+
+          <form class="signup reveal" id="hero-email-form" novalidate>
+            <label class="sr-only" for="email">Work email</label>
+            <input id="email" type="email" name="email" placeholder="Enter your work email" autocomplete="email" required />
+            <button class="btn btn--blue" type="submit">Get Started Free</button>
+          </form>
+          <p class="signup__note reveal">Free forever. No credit card required.</p>
+        </div>
+
+        <!-- floating canvas collage -->
+        <div class="hero__canvas reveal" aria-hidden="true">
+          <div class="board">
+            <div class="board__grid"></div>
+
+            <div class="cursor cursor--andrey" data-parallax="0.02">
+              <span class="cursor__dot"></span>
+              <span class="cursor__label">Andrey</span>
+            </div>
+            <div class="cursor cursor--rad" data-parallax="-0.03">
+              <span class="cursor__dot cursor__dot--pink"></span>
+              <span class="cursor__label">Rad</span>
+            </div>
+            <div class="cursor cursor--brie" data-parallax="0.04">
+              <span class="cursor__dot cursor__dot--blue"></span>
+              <span class="cursor__label">Brie</span>
+            </div>
+
+            <div class="sticky sticky--yellow" data-parallax="-0.015">Map this process as a workflow diagram so the whole team can follow it</div>
+            <div class="sticky sticky--mint" data-parallax="0.025">Research</div>
+            <div class="sticky sticky--blue" data-parallax="-0.02">Diagrams</div>
+            <div class="sticky sticky--violet" data-parallax="0.03">Journey map</div>
+
+            <div class="node node--start" data-parallax="-0.01">Start</div>
+            <div class="node node--mid" data-parallax="0.015">Review</div>
+            <div class="node node--end" data-parallax="-0.02">Ship</div>
+            <svg class="board__links" viewBox="0 0 520 360" preserveAspectRatio="none">
+              <path d="M96 128 C 160 128, 150 176, 214 176" />
+              <path d="M300 176 C 360 176, 348 128, 410 128" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="container logos reveal">
+        <p class="logos__label">Trusted by 250,000+ companies</p>
+        <div class="logos__row">
+          <span>Cisco</span><span>Dell</span><span>Nike</span><span>Salesforce</span>
+          <span>PwC</span><span>Deloitte</span><span>DocuSign</span><span>Asana</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TABBED USE CASES ============ -->
+    <section class="tabs section">
+      <div class="container">
+        <div class="tabs__bar" role="tablist">
+          <button class="tab is-active" type="button" role="tab" id="tab-research" aria-controls="panel-research" aria-selected="true" tabindex="0" data-tab="research">Research</button>
+          <button class="tab" type="button" role="tab" id="tab-roadmap" aria-controls="panel-roadmap" aria-selected="false" tabindex="-1" data-tab="roadmap">Roadmap &amp; Planning</button>
+          <button class="tab" type="button" role="tab" id="tab-diagrams" aria-controls="panel-diagrams" aria-selected="false" tabindex="-1" data-tab="diagrams">Diagrams</button>
+          <button class="tab" type="button" role="tab" id="tab-workshops" aria-controls="panel-workshops" aria-selected="false" tabindex="-1" data-tab="workshops">Workshops</button>
+          <button class="tab" type="button" role="tab" id="tab-journey" aria-controls="panel-journey" aria-selected="false" tabindex="-1" data-tab="journey">Journey map</button>
+          <button class="tab" type="button" role="tab" id="tab-design" aria-controls="panel-design" aria-selected="false" tabindex="-1" data-tab="design">Product design</button>
+        </div>
+
+        <div class="tabs__panels">
+          <div class="tabpanel is-active" role="tabpanel" id="panel-research" aria-labelledby="tab-research" tabindex="0" data-panel="research">
+            <div class="tabpanel__copy">
+              <h2>Turn research into shared direction</h2>
+              <ul class="checklist">
+                <li>Pull outputs from Claude, NotebookLM, or any research tool into one canvas</li>
+                <li>Review and surface what matters, together</li>
+                <li>Flow insights back out to roadmaps, specs, or your next AI prompt</li>
+              </ul>
+              <a class="link-arrow" href="/solutions/research-synthesis/">Explore research <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="tabpanel__art">
+              <div class="art art--research">
+                <div class="sticky sticky--yellow sm">Interview notes</div>
+                <div class="sticky sticky--mint sm">Insight</div>
+                <div class="sticky sticky--violet sm">Theme</div>
+                <div class="sticky sticky--blue sm">Opportunity</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-roadmap" aria-labelledby="tab-roadmap" tabindex="0" data-panel="roadmap">
+            <div class="tabpanel__copy">
+              <h2>Plan the roadmap everyone can rally behind</h2>
+              <ul class="checklist">
+                <li>Shape priorities with live, editable timelines</li>
+                <li>Align stakeholders in a single visual source of truth</li>
+                <li>Connect strategy to delivery without switching tools</li>
+              </ul>
+              <a class="link-arrow" href="/solutions/roadmapping/">Explore roadmapping <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="tabpanel__art">
+              <div class="art art--roadmap">
+                <div class="bar" style="--h:52%"><span>Q1</span></div>
+                <div class="bar" style="--h:78%"><span>Q2</span></div>
+                <div class="bar" style="--h:64%"><span>Q3</span></div>
+                <div class="bar" style="--h:88%"><span>Q4</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-diagrams" aria-labelledby="tab-diagrams" tabindex="0" data-panel="diagrams">
+            <div class="tabpanel__copy">
+              <h2>Map systems so the whole team can follow</h2>
+              <ul class="checklist">
+                <li>Diagram flows, architectures, and processes fast</li>
+                <li>Auto-layout keeps every connection clean</li>
+                <li>Turn a prompt into a diagram in seconds</li>
+              </ul>
+              <a class="link-arrow" href="/solutions/diagramming/">Explore diagrams <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="tabpanel__art">
+              <div class="art art--diagrams">
+                <div class="node sm node--a">Client</div>
+                <div class="node sm node--b">API</div>
+                <div class="node sm node--c">Data</div>
+                <svg viewBox="0 0 400 240" class="art__lines">
+                  <path d="M90 70 C 150 70, 150 150, 200 150" />
+                  <path d="M250 150 C 300 150, 300 190, 340 190" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-workshops" aria-labelledby="tab-workshops" tabindex="0" data-panel="workshops">
+            <div class="tabpanel__copy">
+              <h2>Run workshops that actually move work forward</h2>
+              <ul class="checklist">
+                <li>Facilitate with timers, voting, and breakout boards</li>
+                <li>Capture decisions as they happen</li>
+                <li>Leave with a plan, not just a wall of notes</li>
+              </ul>
+              <a class="link-arrow" href="/solutions/workshops/">Explore workshops <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="tabpanel__art">
+              <div class="art art--workshops">
+                <div class="sticky sticky--pink sm">Idea 💡</div>
+                <div class="sticky sticky--yellow sm">Vote 👍</div>
+                <div class="sticky sticky--mint sm">Decide ✅</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-journey" aria-labelledby="tab-journey" tabindex="0" data-panel="journey">
+            <div class="tabpanel__copy">
+              <h2>See the customer journey end to end</h2>
+              <ul class="checklist">
+                <li>Map every touchpoint across stages and teams</li>
+                <li>Spot friction and moments that matter</li>
+                <li>Turn insight into experience improvements</li>
+              </ul>
+              <a class="link-arrow" href="/solutions/customer-journeys/">Explore journey mapping <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="tabpanel__art">
+              <div class="art art--journey">
+                <div class="journey__col"><span>Aware</span></div>
+                <div class="journey__col"><span>Evaluate</span></div>
+                <div class="journey__col"><span>Buy</span></div>
+                <div class="journey__col"><span>Advocate</span></div>
+                <svg viewBox="0 0 400 120" class="art__lines">
+                  <path d="M20 80 C 100 20, 140 100, 200 60 S 320 20, 380 70" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabpanel" role="tabpanel" id="panel-design" aria-labelledby="tab-design" tabindex="0" data-panel="design">
+            <div class="tabpanel__copy">
+              <h2>Design products in the open</h2>
+              <ul class="checklist">
+                <li>Wireframe, prototype, and critique on one canvas</li>
+                <li>Keep research, design, and engineering in sync</li>
+                <li>Go from prompt to prototype in minutes</li>
+              </ul>
+              <a class="link-arrow" href="/product/prototypes/">Explore product design <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="tabpanel__art">
+              <div class="art art--design">
+                <div class="wire"><div class="wire__bar"></div><div class="wire__row"><i></i><i></i><i></i></div><div class="wire__block"></div></div>
+                <div class="wire wire--alt"><div class="wire__bar"></div><div class="wire__block"></div><div class="wire__row"><i></i><i></i></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROOF / STAT CARDS ============ -->
+    <section class="proof section">
+      <div class="container">
+        <h2 class="section__title reveal">The only thing more important than moving fast<br />is moving the needle</h2>
+        <p class="section__sub reveal">See how over 250,000 companies are getting great done in QuantalFlow</p>
+
+        <div class="proof__grid">
+          <article class="stat-card reveal">
+            <div class="stat-card__media media--a">
+              <div class="mini-board">
+                <div class="sticky sticky--yellow sm">Sprint 24</div>
+                <div class="sticky sticky--mint sm">Done</div>
+                <div class="cursor cursor--sm"><span class="cursor__dot"></span><span class="cursor__label">Aida</span></div>
+              </div>
+            </div>
+            <div class="stat-card__foot">
+              <p class="stat-card__num">3.6x</p>
+              <p class="stat-card__label">faster time to market</p>
+            </div>
+          </article>
+
+          <article class="stat-card reveal">
+            <div class="stat-card__media media--b">
+              <div class="mini-board">
+                <div class="sticky sticky--violet sm">Kickoff</div>
+                <div class="sticky sticky--blue sm">Scope</div>
+                <div class="sticky sticky--pink sm">Timeline</div>
+              </div>
+            </div>
+            <div class="stat-card__foot">
+              <p class="stat-card__num">50%</p>
+              <p class="stat-card__label">shorter planning process</p>
+            </div>
+          </article>
+
+          <article class="stat-card reveal">
+            <div class="stat-card__media media--c">
+              <div class="mini-board">
+                <div class="flow-node">Idea</div>
+                <div class="flow-node flow-node--alt">Build</div>
+                <div class="flow-node flow-node--end">Launch</div>
+              </div>
+            </div>
+            <div class="stat-card__foot">
+              <p class="stat-card__num">2x</p>
+              <p class="stat-card__label">faster time to market</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="numbers">
+          <div class="number reveal">
+            <p class="number__value" data-count="100" data-suffix="M+">0</p>
+            <p class="number__label">people collaborating on QuantalFlow</p>
+          </div>
+          <div class="number reveal">
+            <p class="number__value" data-count="250" data-suffix="+">0</p>
+            <p class="number__label">apps and integrations</p>
+          </div>
+          <div class="number reveal">
+            <p class="number__value" data-count="6000" data-suffix="+">0</p>
+            <p class="number__label">templates</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ INTELLIGENT CANVAS FEATURES ============ -->
+    <section class="canvas section" id="intelligent-canvas">
+      <div class="container">
+        <h2 class="section__title reveal">Experience the Intelligent Canvas</h2>
+
+        <div class="bento">
+          <article class="bento__card bento__card--wide reveal">
+            <div class="bento__copy">
+              <h3>Intelligent Canvas</h3>
+              <p>See and shape the work on a shared visual canvas and decide what happens next</p>
+              <a class="link-arrow" href="/product/intelligent-canvas/">Learn more <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="bento__art art-canvas">
+              <div class="sticky sticky--yellow sm">Goals</div>
+              <div class="sticky sticky--mint sm">Metrics</div>
+              <div class="sticky sticky--violet sm">Next</div>
+            </div>
+          </article>
+
+          <article class="bento__card reveal">
+            <div class="bento__copy">
+              <h3>Create anything from anything</h3>
+              <p>Turn a prompt, a doc, or your data into a diagram, a timeline, or a deck, all on one canvas.</p>
+              <a class="link-arrow" href="/product/ai-workflows/">Learn more <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="bento__art art-prompt">
+              <div class="prompt-bar"><span class="prompt-dot"></span>Turn this doc into a diagram</div>
+              <div class="prompt-out"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+
+          <article class="bento__card reveal">
+            <div class="bento__copy">
+              <h3>MCP</h3>
+              <p>Any agent can work on the canvas</p>
+              <a class="link-arrow" href="/product/mcp/">Learn more <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="bento__art art-mcp">
+              <div class="chip">Claude</div>
+              <div class="chip">ChatGPT</div>
+              <div class="chip chip--center">QuantalFlow MCP</div>
+              <div class="chip">Cursor</div>
+            </div>
+          </article>
+
+          <article class="bento__card bento__card--wide reveal">
+            <div class="bento__copy">
+              <h3>Connect your tools</h3>
+              <p>Teams and AI work from shared context pulled from the tools you already use</p>
+              <a class="link-arrow" href="/product/integrations/">Learn more <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="bento__art art-tools">
+              <div class="tool">Jira</div>
+              <div class="tool">Slack</div>
+              <div class="tool">Figma</div>
+              <div class="tool">Notion</div>
+              <div class="tool">GitHub</div>
+              <div class="tool">Drive</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ AI PLATFORM CTA ============ -->
+    <section class="platform section">
+      <div class="container">
+        <div class="platform__card reveal">
+          <div class="platform__glow" aria-hidden="true"></div>
+          <div class="platform__copy">
+            <p class="platform__eyebrow">✦ The AI platform for teamwork</p>
+            <h2>Move beyond individual AI productivity to team and cross-team collaboration with AI.</h2>
+            <a class="btn btn--yellow" href="/product/intelligent-canvas/">Explore Intelligent Canvas</a>
+          </div>
+          <div class="platform__art">
+            <div class="avatar avatar--1">C</div>
+            <div class="avatar avatar--2">✦</div>
+            <div class="avatar avatar--3">A</div>
+            <div class="avatar avatar--4">R</div>
+            <div class="cursor cursor--platform"><span class="cursor__dot cursor__dot--blue"></span><span class="cursor__label">Chris</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HELP CARDS ============ -->
+    <section class="help section">
+      <div class="container">
+        <h2 class="section__title reveal">Need help getting started?</h2>
+        <div class="help__grid">
+          <a class="help__card reveal" href="/pricing/">
+            <div class="help__thumb thumb--1"></div>
+            <p class="help__eyebrow">Pricing</p>
+            <h3>Select a plan</h3>
+          </a>
+          <a class="help__card reveal" href="/resources/templates/">
+            <div class="help__thumb thumb--2"></div>
+            <p class="help__eyebrow">Templates</p>
+            <h3>Get started fast</h3>
+          </a>
+          <a class="help__card reveal" href="/resources/partners/">
+            <div class="help__thumb thumb--3"></div>
+            <p class="help__eyebrow">Solution Partners</p>
+            <h3>Explore the network</h3>
+          </a>
+          <a class="help__card reveal" href="/resources/community/">
+            <div class="help__thumb thumb--4"></div>
+            <p class="help__eyebrow">Community</p>
+            <h3>Connect with QuantalFlow users</h3>
+          </a>
+          <a class="help__card reveal" href="/resources/blog/">
+            <div class="help__thumb thumb--5"></div>
+            <p class="help__eyebrow">Blog</p>
+            <h3>Dive in to ways of working</h3>
+          </a>
+          <a class="help__card reveal" href="/resources/academy/">
+            <div class="help__thumb thumb--6"></div>
+            <p class="help__eyebrow">Academy</p>
+            <h3>Get started with QuantalFlow</h3>
+          </a>
+        </div>
+      </div>
+    </section>

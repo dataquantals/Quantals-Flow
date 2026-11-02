@@ -1,0 +1,2133 @@
+/* ==========================================================================
+   Enterprise Project Planning Workspace — Human-Crafted Aesthetic
+   Principles:
+   - Emil Kowalski & Apple HIG Craft: Restraint, intentional whitespace, tactile micro-interactions
+   - Anti-AI: No noisy neon gradients, no rainbow badge soup, no cluttered Excel grids
+   - Color Palette: Solid white (#ffffff), calm neutral slate (#f8fafc), subtle 1px border (#e2e8f0),
+     deep navy sidebar (#0f172a), primary action blue (#2563eb) strictly reserved for key interactions
+   ========================================================================== */
+
+:root {
+  --pp-navy: #0f172a;
+  --pp-navy-deep: #090d16;
+  --pp-navy-subtle: #1e293b;
+  --pp-navy-border: rgba(255, 255, 255, 0.08);
+  --pp-blue: #2563eb;
+  --pp-blue-hover: #1d4ed8;
+  --pp-blue-soft: #eff6ff;
+  --pp-surface: #ffffff;
+  --pp-bg: #f8fafc;
+  --pp-border: #e2e8f0;
+  --pp-border-subtle: #f1f5f9;
+  --pp-ink: #0f172a;
+  --pp-ink-muted: #334155;
+  --pp-muted: #64748b;
+  --pp-muted-light: #94a3b8;
+  --pp-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --pp-radius: 8px;
+  --pp-radius-sm: 6px;
+  --pp-radius-lg: 12px;
+}
+
+/* ---------- Dashboard Sidebar Integration ---------- */
+.dash-sidebar {
+  background: var(--pp-navy) !important;
+  border-right: 1px solid var(--pp-navy-subtle) !important;
+  color: #f8fafc;
+  padding: 24px 16px;
+}
+.dash-sidebar .dash-nav__item {
+  color: rgba(248, 250, 252, 0.72);
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 9px 12px;
+  transition: background 0.18s var(--pp-ease), color 0.18s var(--pp-ease);
+}
+.dash-sidebar .dash-nav__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+.dash-sidebar .dash-nav__item.is-active {
+  background: var(--pp-blue);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+.dash-sidebar__section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(248, 250, 252, 0.4);
+  padding: 12px 12px 6px;
+}
+.dash-nav__badge {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+/* Clean Modal Pick Card (Anti-AI refactor) */
+.template-pick-card--clean,
+.template-pick-card--featured {
+  grid-column: span 2;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 14px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: border-color 0.18s var(--pp-ease), box-shadow 0.18s var(--pp-ease) !important;
+}
+.template-pick-card--clean:hover,
+.template-pick-card--featured:hover,
+.template-pick-card--clean.is-selected,
+.template-pick-card--featured.is-selected {
+  border-color: var(--pp-blue) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Subtle Semantic Badges */
+.pp-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+.pp-badge--minimal,
+.pp-badge--slate {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+.pp-badge--blue {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #dbeafe;
+}
+.pp-badge--green {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #dcfce7;
+}
+.pp-badge--amber {
+  background: #fffbeb;
+  color: #9a3412;
+  border-color: #fef3c7;
+}
+.pp-badge--red {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fee2e2;
+}
+.pp-badge--purple {
+  background: #f5f3ff;
+  color: #5b21b6;
+  border-color: #ede9fe;
+}
+
+/* ---------- Main Workspace Shell ---------- */
+.pp-workspace[hidden] {
+  display: none !important;
+}
+.pp-workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  background: var(--pp-surface);
+  color: var(--pp-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+}
+
+/* ---------- Left Dark Blue Navigation Sidebar ---------- */
+.pp-sidebar {
+  background: var(--pp-navy);
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--pp-navy-subtle);
+  user-select: none;
+  overflow-y: auto;
+}
+.pp-sidebar__brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--pp-navy-border);
+}
+.pp-sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+}
+.pp-sidebar__suite-tag {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+.pp-sidebar__back-wrap {
+  padding: 12px 14px 4px;
+}
+.pp-sidebar__back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(248, 250, 252, 0.85);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.16s var(--pp-ease), border-color 0.16s var(--pp-ease), color 0.16s var(--pp-ease), transform 0.1s var(--pp-ease);
+}
+.pp-sidebar__back-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.pp-sidebar__back-btn:active {
+  transform: scale(0.98);
+}
+
+/* Destructive exit sits at the foot of the rail, away from everyday nav. */
+.pp-sidebar__danger {
+  margin-top: auto;
+  padding-top: 16px;
+}
+.pp-sidebar__delete {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  background: transparent;
+  color: rgba(248, 113, 113, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.16s var(--pp-ease), border-color 0.16s var(--pp-ease), color 0.16s var(--pp-ease);
+}
+.pp-sidebar__delete:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+}
+.pp-sidebar__delete:active { transform: scale(0.98); }
+.pp-sidebar__delete:focus-visible {
+  outline: 2px solid #f87171;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-sidebar__delete { transition: none; }
+  .pp-sidebar__delete:active { transform: none; }
+}
+.pp-sidebar__quick-create {
+  margin: 4px 14px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--pp-blue);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background 0.16s var(--pp-ease);
+}
+.pp-sidebar__quick-create:hover {
+  background: var(--pp-blue-hover);
+}
+.pp-sidebar__section-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(248, 250, 252, 0.4);
+  padding: 14px 18px 6px;
+}
+.pp-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px;
+}
+.pp-nav__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(248, 250, 252, 0.72);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s var(--pp-ease), color 0.16s var(--pp-ease);
+}
+.pp-nav__btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+.pp-nav__btn.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+}
+.pp-nav__badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* ---------- Main Right Workspace Area ---------- */
+.pp-main {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #ffffff;
+}
+.pp-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--pp-border);
+  background: #ffffff;
+  gap: 16px;
+}
+.pp-topbar__title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pp-topbar__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pp-ink);
+  letter-spacing: -0.01em;
+}
+.pp-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Viewport for sub-modules */
+.pp-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+  background: #ffffff;
+}
+.pp-pane {
+  display: none;
+}
+.pp-pane.is-active {
+  display: block;
+}
+
+/* ==========================================================================
+   EDIT WITH AI — a quiet, always-present composer at the foot of every module.
+   It is a sibling of the scrolling viewport, so it never covers content.
+   ========================================================================== */
+.pp-ai-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 32px;
+  border-top: 1px solid var(--pp-border);
+  background: #fbfcfe;
+}
+.pp-ai-bar__label {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--pp-ink);
+  white-space: nowrap;
+}
+.pp-ai-bar__input {
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--pp-ink);
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 0.16s var(--pp-ease), box-shadow 0.16s var(--pp-ease);
+}
+.pp-ai-bar__input::placeholder {
+  color: #94a3b8;
+}
+.pp-ai-bar__input:focus {
+  outline: none;
+  border-color: var(--pp-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.pp-ai-bar__send {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border: 1px solid var(--pp-blue);
+  border-radius: 8px;
+  background: var(--pp-blue);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s var(--pp-ease), transform 0.12s var(--pp-ease), opacity 0.16s var(--pp-ease);
+}
+.pp-ai-bar__send:hover { background: #1d4ed8; }
+.pp-ai-bar__send:active { transform: scale(0.97); }
+.pp-ai-bar__send:disabled { opacity: 0.6; cursor: progress; }
+.pp-ai-bar__send:focus-visible {
+  outline: 2px solid var(--pp-blue);
+  outline-offset: 2px;
+}
+.pp-ai-bar__status {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--pp-muted);
+  min-height: 0;
+}
+.pp-ai-bar__status:empty { display: none; }
+.pp-ai-bar__status.is-ok { color: #15803d; }
+.pp-ai-bar__status.is-error { color: #b91c1c; }
+.pp-ai-bar__status.is-busy { color: var(--pp-blue); }
+.pp-ai-bar__status.is-muted { color: var(--pp-muted); }
+.pp-ai-bar.is-busy .pp-ai-bar__input { opacity: 0.7; }
+
+@media (max-width: 720px) {
+  .pp-ai-bar { padding: 10px 16px; gap: 8px; }
+  .pp-ai-bar__input { flex: 1 1 100%; }
+  .pp-ai-bar__send { flex: 1 1 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-ai-bar__input,
+  .pp-ai-bar__send { transition: none; }
+  .pp-ai-bar__send:active { transform: none; }
+}
+
+/* Conflict Alert (De-cluttered & quiet) */
+.pp-conflict-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 6px;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.pp-conflict-banner--ok {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+/* Shared UI Components */
+.pp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--pp-border);
+  background: #ffffff;
+  color: var(--pp-ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.16s var(--pp-ease);
+}
+.pp-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--pp-ink);
+}
+.pp-btn--primary {
+  background: var(--pp-blue);
+  border-color: var(--pp-blue);
+  color: #ffffff;
+}
+.pp-btn--primary:hover {
+  background: var(--pp-blue-hover);
+  border-color: var(--pp-blue-hover);
+  color: #ffffff;
+}
+.pp-btn--sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Destructive actions stay quiet until hovered, then read unmistakably. */
+.pp-btn--danger {
+  background: #ffffff;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.pp-btn--danger:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #991b1b;
+}
+.pp-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pp-muted);
+  cursor: pointer;
+  transition: background 0.15s var(--pp-ease), color 0.15s var(--pp-ease), border-color 0.15s var(--pp-ease);
+}
+.pp-icon-btn:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.pp-icon-btn:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
+}
+
+.pp-segmented {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--pp-border);
+}
+.pp-seg-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pp-muted);
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.14s var(--pp-ease);
+}
+.pp-seg-btn:hover {
+  color: var(--pp-ink);
+}
+.pp-seg-btn.is-active {
+  background: #ffffff;
+  color: var(--pp-ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.pp-section-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.pp-section-bar__title h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pp-ink);
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.pp-section-bar__title p {
+  font-size: 13px;
+  color: var(--pp-muted);
+  margin: 0;
+}
+
+/* Clean Tables (Flat, borders-only) */
+.pp-table-card {
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+  margin-bottom: 24px;
+}
+.pp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+.pp-table th {
+  background: #f8fafc;
+  color: var(--pp-muted);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--pp-border);
+}
+.pp-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--pp-border);
+  color: var(--pp-ink-muted);
+}
+.pp-table tr:last-child td {
+  border-bottom: none;
+}
+.pp-table tr:hover td {
+  background: #fbfcfd;
+}
+
+/* Avatars */
+.pp-avatar-xs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+/* ==========================================================================
+   MODULE A: GANTT CHART & ROADMAP (Spatial clarity, hover-only dependencies)
+   ========================================================================== */
+.pp-gantt-container {
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  user-select: none;
+}
+.pp-gantt-left {
+  border-right: 1px solid var(--pp-border);
+  background: #ffffff;
+}
+.pp-gantt-left__header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pp-muted);
+  background: #f8fafc;
+  border-bottom: 1px solid var(--pp-border);
+}
+.pp-gantt-left__row {
+  height: 40px;
+  display: grid;
+  grid-template-columns: 48px 1fr 32px 48px;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--pp-border-subtle);
+  transition: background 0.12s ease;
+  cursor: pointer;
+}
+.pp-gantt-left__row:hover {
+  background: #f8fafc;
+}
+.pp-gantt-left__row--phase {
+  background: #f8fafc;
+  font-weight: 600;
+  color: var(--pp-ink);
+  cursor: default;
+}
+.pp-wbs-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--pp-muted);
+  font-weight: 500;
+}
+
+.pp-gantt-right {
+  overflow-x: auto;
+  position: relative;
+  background: #ffffff;
+}
+.pp-gantt-timeline-head {
+  height: 48px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--pp-border);
+  display: flex;
+  flex-direction: column;
+}
+.pp-gantt-timeline-top {
+  height: 24px;
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pp-muted);
+  border-bottom: 1px solid #f1f5f9;
+  padding-left: 6px;
+  align-items: center;
+}
+.pp-gantt-timeline-bot {
+  height: 24px;
+  display: flex;
+  font-size: 10.5px;
+  color: var(--pp-muted);
+}
+.pp-gantt-time-cell {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #f1f5f9;
+}
+.pp-gantt-time-cell.is-weekend {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.pp-gantt-body {
+  position: relative;
+}
+.pp-gantt-row-track {
+  height: 40px;
+  position: relative;
+  border-bottom: 1px solid var(--pp-border-subtle);
+}
+.pp-gantt-row-track:hover {
+  background: rgba(248, 250, 252, 0.5);
+}
+
+/* Crisp Task Bars (No gradient fills, clean solid palette) */
+.pp-gantt-bar {
+  position: absolute;
+  top: 9px;
+  height: 22px;
+  background: var(--pp-blue);
+  color: #ffffff;
+  border-radius: 4px;
+  cursor: grab;
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: box-shadow 0.16s var(--pp-ease), background 0.16s ease;
+  z-index: 2;
+}
+.pp-gantt-bar:hover {
+  background: var(--pp-blue-hover);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
+}
+.pp-gantt-bar__progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+.pp-gantt-bar__label {
+  position: relative;
+  z-index: 1;
+}
+.pp-gantt-bar__resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: rgba(255, 255, 255, 0.2);
+}
+.pp-gantt-bar--done {
+  background: #334155;
+}
+.pp-gantt-bar--done:hover {
+  background: #1e293b;
+}
+
+/* Phase summary bar */
+.pp-gantt-bar--phase {
+  background: #e2e8f0;
+  height: 6px;
+  top: 17px;
+  border-radius: 3px;
+  cursor: default;
+}
+/* A phase with no deliverables yet still occupies its row, so the plan never
+   looks like the phase vanished after it was added. */
+.pp-gantt-bar--phase.pp-gantt-bar--empty {
+  background: transparent;
+  border-top: 1px dashed #d7dce5;
+  height: 0;
+  top: 20px;
+}
+.pp-gantt-left__row--phase.is-empty {
+  color: var(--pp-muted);
+  font-weight: 500;
+}
+
+/* Monochrome Sharp Milestone Diamond Points */
+.pp-gantt-milestone {
+  position: absolute;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  background: #0f172a;
+  border: 2px solid #ffffff;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+  z-index: 3;
+  transition: transform 0.16s var(--pp-ease);
+}
+.pp-gantt-milestone:hover {
+  transform: rotate(45deg) scale(1.2);
+  background: var(--pp-blue);
+}
+.pp-gantt-milestone__tag {
+  position: absolute;
+  top: 11px;
+  margin-left: 18px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pp-muted);
+  white-space: nowrap;
+}
+
+/* Dependencies: Hidden by default; revealed only on task hover/focus */
+.pp-gantt-dep-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.pp-gantt-dep-path {
+  opacity: 0;
+  stroke: var(--pp-muted-light);
+  stroke-width: 1.5;
+  transition: opacity 0.22s var(--pp-ease), stroke 0.2s ease, stroke-width 0.2s ease;
+}
+.pp-gantt-dep-path.is-active-dep {
+  opacity: 1;
+  stroke: var(--pp-blue);
+  stroke-width: 2;
+}
+
+/* ==========================================================================
+   MODULE B: TASK MANAGEMENT (Nested WBS Outline Tree & Calm Kanban)
+   ========================================================================== */
+
+/* WBS Visual Tree Diagram (Org-Chart Hierarchical Architecture) */
+.pp-wbs-diagram-wrap {
+  border: 1px solid var(--pp-border);
+  border-radius: 10px;
+  background: #f8fafc;
+  background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px);
+  background-size: 20px 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 24px 20px 40px;
+  margin-bottom: 24px;
+  min-height: 520px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pp-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 28px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.pp-tree-toolbar__legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 11.5px;
+  color: #475569;
+  flex-wrap: wrap;
+}
+.pp-tree-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+/* Tree Orthogonal Graph */
+.pp-tree {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+  user-select: none;
+  min-width: fit-content;
+}
+
+.pp-tree-node-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.pp-tree-stem-down {
+  width: 2px;
+  height: 24px;
+  background: #94a3b8;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+.pp-tree-children {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  position: relative;
+  padding-top: 24px;
+}
+
+.pp-tree-children::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #94a3b8;
+}
+
+.pp-tree-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.pp-tree-child::after {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  width: 2px;
+  height: 24px;
+  background: #94a3b8;
+  transform: translateX(-50%);
+}
+
+.pp-tree-child:first-child:not(:only-child)::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: -24px;
+  right: 50%;
+  height: 24px;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.pp-tree-child:last-child:not(:only-child)::before {
+  content: '';
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  right: -24px;
+  height: 24px;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.pp-tree-child:only-child::before {
+  display: none;
+}
+
+/* Node Cards */
+.pp-wbs-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, border-color 0.14s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+/* Level 1: Project Root */
+.pp-wbs-node--root {
+  background: #65a30d; /* Olive / lime green */
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  border: 2px solid #4d7c0f;
+}
+.pp-wbs-node--root .pp-wbs-node__sub {
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 2px 9px;
+  border-radius: 9999px;
+  margin-left: 4px;
+}
+
+/* Level 2: Deliverable / Phase */
+.pp-wbs-node--phase {
+  background: #4f46e5; /* Deep Indigo / Purple */
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 12.5px;
+  border: 2px solid #4338ca;
+  cursor: pointer;
+}
+.pp-wbs-node--phase:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.32);
+}
+.pp-wbs-node--phase .pp-wbs-node__badge {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 2px 7px;
+  border-radius: 9999px;
+}
+.pp-wbs-node__chev {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #ffffff;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 2px;
+  line-height: 1;
+}
+
+/* Level 3: Work Package */
+.pp-wbs-node--package {
+  background: #059669; /* Emerald Green */
+  color: #ffffff;
+  padding: 7px 15px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 12px;
+  border: 1.5px solid #047857;
+  cursor: pointer;
+}
+.pp-wbs-node--package:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.3);
+}
+.pp-wbs-node--package .pp-wbs-node__badge {
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 1.5px 6px;
+  border-radius: 9999px;
+}
+
+/* Level 4: Tasks (Granular Deliverables) */
+.pp-tree-tasks-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  position: relative;
+}
+
+.pp-wbs-node--task {
+  background: #ffffff;
+  border: 1.5px solid #fed7aa;
+  border-left: 4px solid #ea580c; /* Warm amber / orange */
+  color: var(--pp-ink);
+  padding: 8px 12px;
+  border-radius: 8px;
+  min-width: 180px;
+  max-width: 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  cursor: pointer;
+  text-align: left;
+  white-space: normal;
+  position: relative;
+}
+.pp-wbs-node--task:hover {
+  transform: translateY(-2px);
+  border-color: #ea580c;
+  box-shadow: 0 6px 14px rgba(234, 88, 12, 0.16);
+}
+
+.pp-tree-tasks-stack .pp-wbs-node--task:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  width: 2px;
+  height: 10px;
+  background: #cbd5e1;
+  transform: translateX(-50%);
+}
+
+.pp-wbs-task-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11px;
+}
+.pp-wbs-task-title {
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #0f172a;
+}
+.pp-wbs-task-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.pp-wbs-quick-add-task {
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  color: var(--pp-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.14s ease;
+  margin-top: 2px;
+}
+.pp-wbs-quick-add-task:hover {
+  background: #f1f5f9;
+  border-color: var(--pp-blue);
+  color: var(--pp-blue);
+}
+
+/* Nested WBS Tree Outline (Compact List View) */
+.pp-wbs-tree {
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.pp-wbs-tree__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--pp-border-subtle);
+  font-size: 13px;
+  transition: background 0.14s ease;
+}
+.pp-wbs-tree__row:hover {
+  background: #f8fafc;
+}
+.pp-wbs-tree__row:last-child {
+  border-bottom: none;
+}
+.pp-wbs-tree__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+.pp-wbs-tree__chevron {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--pp-muted);
+  padding: 2px 4px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.16s var(--pp-ease), color 0.14s ease;
+}
+.pp-wbs-tree__chevron:hover {
+  color: var(--pp-ink);
+}
+.pp-wbs-tree__title {
+  font-weight: 500;
+  color: var(--pp-ink);
+}
+.pp-wbs-tree__title--clickable {
+  cursor: pointer;
+}
+.pp-wbs-tree__title--clickable:hover {
+  color: var(--pp-blue);
+}
+
+/* Inline rename: the text becomes an input in place, so nothing jumps. */
+.pp-wbs-tree__title--editable,
+.wbs-pillar-title {
+  border-radius: 4px;
+  transition: background 0.15s var(--pp-ease);
+}
+.pp-wbs-tree__title--editable {
+  cursor: text;
+}
+.pp-wbs-tree__title--editable:hover,
+[data-pillar-header]:hover .wbs-pillar-title {
+  background: rgba(13, 82, 154, 0.08);
+  box-shadow: 0 0 0 2px rgba(13, 82, 154, 0.08);
+}
+.pp-inline-input {
+  width: 100%;
+  min-width: 90px;
+  max-width: 260px;
+  padding: 2px 6px;
+  border: 1px solid var(--pp-blue);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--pp-ink);
+  font: inherit;
+  font-weight: 600;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 82, 154, 0.15);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-wbs-tree__title--editable,
+  .wbs-pillar-title { transition: none; }
+}
+.pp-wbs-tree__row--lvl1 {
+  background: #f8fafc;
+  font-weight: 600;
+}
+.pp-wbs-tree__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 4px 0;
+}
+.pp-wbs-tree__row--lvl2 {
+  padding-left: 36px;
+}
+.pp-wbs-tree__row--lvl3 {
+  padding-left: 60px;
+}
+
+/* Kanban Board (Spacious, minimal cards) */
+.pp-kanban-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.pp-kanban-col {
+  background: #f8fafc;
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pp-kanban-col__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+}
+.pp-kanban-col__title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--pp-ink);
+}
+.pp-kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+
+/* Minimalist Task Card: Title + Small Initial Only */
+.pp-task-card {
+  background: #ffffff;
+  border: 1px solid var(--pp-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  cursor: grab;
+  transition: border-color 0.16s var(--pp-ease), box-shadow 0.16s var(--pp-ease);
+}
+.pp-task-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+.pp-task-card__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pp-ink);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.pp-task-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pp-task-card__id {
+  font-size: 11px;
+  color: var(--pp-muted);
+  font-family: ui-monospace, monospace;
+}
+
+/* Per-column add affordance: quiet until hovered, never competes with the cards. */
+.pp-kanban-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px dashed #d7dce5;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pp-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.16s var(--pp-ease), color 0.16s var(--pp-ease), background 0.16s var(--pp-ease);
+}
+.pp-kanban-add:hover {
+  border-color: var(--pp-blue);
+  background: #ffffff;
+  color: var(--pp-blue);
+}
+.pp-kanban-add:active {
+  transform: scale(0.985);
+}
+.pp-kanban-add:focus-visible {
+  outline: 2px solid var(--pp-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-kanban-add { transition: none; }
+  .pp-kanban-add:active { transform: none; }
+}
+
+/* ==========================================================================
+   MODULE C: RESOURCE & TIME TRACKING (Ultra-thin capacity meters)
+   ========================================================================== */
+.pp-capacity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.pp-capacity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pp-capacity-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+.pp-capacity-meta__name {
+  font-weight: 500;
+  color: var(--pp-ink);
+}
+.pp-capacity-meta__role {
+  color: var(--pp-muted);
+  font-size: 11.5px;
+  margin-left: 6px;
+}
+.pp-capacity-bar {
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.pp-capacity-bar__fill {
+  height: 100%;
+  background: var(--pp-blue);
+  border-radius: 2px;
+  transition: width 0.3s var(--pp-ease);
+}
+.pp-capacity-bar__fill--over {
+  background: #dc2626;
+}
+
+/* Distraction-Free Timesheet Input */
+.pp-hour-cell {
+  padding: 4px 6px !important;
+}
+.pp-hour-input {
+  width: 100%;
+  max-width: 48px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 4px 6px;
+  font-size: 12.5px;
+  text-align: center;
+  color: var(--pp-ink);
+  border-radius: 4px;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.pp-hour-input:focus {
+  border-color: var(--pp-blue);
+  background: #ffffff;
+  outline: none;
+}
+
+/* ==========================================================================
+   MODULE D: COLLABORATION (Flyout Slide-Over Action Drawer)
+   ========================================================================== */
+.pp-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(2px);
+  z-index: 160;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s var(--pp-ease);
+}
+.pp-drawer-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pp-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 460px;
+  max-width: 92vw;
+  background: #ffffff;
+  border-left: 1px solid var(--pp-border);
+  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.08);
+  z-index: 170;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s var(--pp-ease);
+}
+.pp-drawer.is-open {
+  transform: translateX(0);
+}
+
+.pp-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--pp-border);
+}
+.pp-drawer__header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--pp-ink);
+}
+.pp-drawer__close {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: var(--pp-muted);
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.14s ease;
+}
+.pp-drawer__close:hover {
+  color: var(--pp-ink);
+}
+
+.pp-drawer__nav {
+  display: flex;
+  border-bottom: 1px solid var(--pp-border);
+  padding: 0 16px;
+  gap: 8px;
+}
+.pp-drawer__tab {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--pp-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.14s ease;
+}
+.pp-drawer__tab.is-active {
+  color: var(--pp-blue);
+  border-bottom-color: var(--pp-blue);
+  font-weight: 600;
+}
+
+.pp-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Threaded comments in drawer */
+.pp-comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.pp-comment-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid var(--pp-border-subtle);
+  font-size: 12.5px;
+}
+.pp-comment-item__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--pp-muted);
+  font-size: 11px;
+}
+.pp-comment-item__text {
+  color: var(--pp-ink);
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   MODULE E: CALM REPORTING & EXECUTIVE DIGEST (Single High-Fidelity Area Chart)
+   ========================================================================== */
+.pp-report-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.pp-report-chart-box {
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  padding: 20px;
+  background: #ffffff;
+}
+.pp-digest-card {
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  padding: 24px;
+  background: #ffffff;
+}
+.pp-digest-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pp-ink);
+  margin: 0 0 12px;
+}
+.pp-digest-points {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--pp-ink-muted);
+  line-height: 1.5;
+}
+.pp-digest-point {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.pp-digest-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--pp-blue);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   MODULE F: RISK & CHANGE PIPELINE (Flat RAID & Single-Column Timeline)
+   ========================================================================== */
+.pp-cr-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  padding-left: 20px;
+}
+.pp-cr-timeline::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--pp-border);
+}
+.pp-cr-node {
+  position: relative;
+  border: 1px solid var(--pp-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pp-cr-node::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid var(--pp-blue);
+}
+.pp-cr-node__main {
+  flex: 1;
+}
+.pp-cr-node__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--pp-ink);
+}
+.pp-cr-node__sub {
+  font-size: 12px;
+  color: var(--pp-muted);
+  margin-top: 2px;
+}
+
+/* ==========================================================================
+   EMPTY STATES
+   A brand-new workspace has no demo content, so every pane needs a truthful
+   "nothing here yet" panel that also offers the next action. These build on
+   the same tokens as the rest of the suite: white surface, 1px border,
+   muted copy, centred, generous padding.
+   ========================================================================== */
+.pp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 56px 32px;
+  border: 1px solid var(--pp-border);
+  border-radius: var(--pp-radius-lg);
+  background: var(--pp-surface);
+}
+.pp-empty-state__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 6px;
+  border: 1px solid var(--pp-border);
+  border-radius: 50%;
+  background: var(--pp-bg);
+  color: var(--pp-muted-light);
+  font-size: 17px;
+  line-height: 1;
+  user-select: none;
+}
+.pp-empty-state h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--pp-ink);
+}
+.pp-empty-state p {
+  margin: 0;
+  max-width: 460px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--pp-muted);
+}
+.pp-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.pp-empty-inline {
+  padding: 20px 16px;
+  border: 1px dashed var(--pp-border);
+  border-radius: var(--pp-radius);
+  background: var(--pp-bg);
+  color: var(--pp-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+.pp-empty-cell {
+  padding: 28px 16px !important;
+  color: var(--pp-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+@media (max-width: 720px) {
+  .pp-empty-state {
+    padding: 36px 20px;
+  }
+  .pp-empty-state__actions {
+    flex-direction: column;
+    align-self: stretch;
+  }
+  .pp-empty-state__actions .pp-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   WBS Tree Diagram Styles (Faithful to Architectural Reference Layout)
+   Apple Design & Emil Kowalski Design Engineering Principles:
+   - Deep Royal Blue Double-Border Root Capsule
+   - Crisp Orthogonal Stems & Crossbar with Solid Junction Dots
+   - Level-1 White Category Capsules with Dark Borders
+   - Alternating Soft Slate/Blue vs Deep Navy Blue Task Capsules
+   ========================================================================== */
+
+.wbs-tree-canvas {
+  width: 100%;
+  min-height: 580px;
+  background: #f8fafc;
+  background-image: radial-gradient(#cbd5e1 1.2px, transparent 1.2px);
+  background-size: 20px 20px;
+  border: 1px solid var(--pp-border);
+  border-radius: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 36px 24px 50px;
+  margin-bottom: 24px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  user-select: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom sleek scrollbar for horizontal canvas */
+.wbs-tree-canvas::-webkit-scrollbar {
+  height: 8px;
+}
+.wbs-tree-canvas::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.6);
+  border-radius: 9999px;
+}
+.wbs-tree-canvas::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+}
+.wbs-tree-canvas::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.wbs-tree-stage {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: fit-content;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* 1. Root Node */
+.wbs-root-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 5;
+}
+
+.wbs-root-node {
+  background: #0d529a;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 14px 44px;
+  min-width: 280px;
+  max-width: 540px;
+  border: 2.5px solid #ffffff;
+  outline: 3px solid #0d529a;
+  box-shadow: 0 10px 25px -5px rgba(13, 82, 154, 0.35), 0 4px 6px -2px rgba(13, 82, 154, 0.15);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+}
+
+.wbs-root-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -5px rgba(13, 82, 154, 0.45);
+}
+
+.wbs-root-title {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.wbs-root-stem {
+  width: 2px;
+  height: 32px;
+  background: #0f172a;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+/* 2. Pillars Row */
+.wbs-pillars-row {
+  display: flex;
+  justify-content: center;
+  gap: 36px;
+  position: relative;
+  padding-top: 26px;
+  min-width: fit-content;
+}
+
+/* Horizontal crossbar connecting from center of 1st column to last column */
+.wbs-pillar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 195px;
+  flex-shrink: 0;
+}
+
+/* Pure CSS crossbar arms: exact alignment to center of column */
+.wbs-pillar::before {
+  content: '';
+  position: absolute;
+  top: -26px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #0f172a;
+}
+.wbs-pillar:first-child:not(:only-child)::before {
+  left: 50%;
+  right: 0;
+}
+.wbs-pillar:last-child:not(:only-child)::before {
+  left: 0;
+  right: 50%;
+}
+.wbs-pillar:only-child::before {
+  display: none;
+}
+
+.wbs-pillar-stem-top {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 26px;
+  background: #0f172a;
+}
+
+/* Junction Dot sitting right on the top border of the Category Capsule */
+.wbs-pillar-junction-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0f172a;
+  position: relative;
+  margin-top: -4px;
+  margin-bottom: 2px;
+  z-index: 4;
+}
+
+/* Level-1 Category Header Capsule */
+.wbs-pillar-header {
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  border-radius: 9999px;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 13.5px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+  margin-bottom: 16px;
+  line-height: 1.25;
+  position: relative;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.wbs-pillar-header:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 5px 12px rgba(15, 23, 42, 0.1);
+}
+
+/* Delete stays invisible until the pillar is hovered, so the diagram stays calm. */
+.wbs-pillar-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #b91c1c;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.14s ease, transform 0.14s ease, background 0.14s ease;
+}
+.wbs-pillar-header:hover .wbs-pillar-delete,
+.wbs-pillar-delete:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.wbs-pillar-delete:hover { background: #fef2f2; }
+.wbs-pillar-delete:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wbs-pillar-delete { transition: none; transform: none; }
+}
+
+.wbs-pillar-title {
+  display: inline-block;
+  word-break: break-word;
+}
+
+/* 3. Pillar Bracket Trunk & Child Tasks Stack */
+.wbs-pillar-stack-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-left: 16px;
+}
+
+/* Vertical trunk line along the left of child tasks */
+.wbs-pillar-stack-wrap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -14px;
+  bottom: 22px;
+  width: 2px;
+  background: #94a3b8;
+}
+
+.wbs-pillar-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 12px;
+}
+
+.wbs-task-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* Horizontal branch arm connecting trunk into left center of child capsule */
+.wbs-branch-arm {
+  position: absolute;
+  left: -16px;
+  width: 16px;
+  height: 2px;
+  background: #94a3b8;
+}
+
+/* Level-2 Child Task Capsules */
+.wbs-capsule {
+  border-radius: 9999px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease;
+  outline: none;
+  word-break: break-word;
+  position: relative;
+}
+
+.wbs-capsule:focus-visible {
+  box-shadow: 0 0 0 3px rgba(66, 98, 255, 0.4);
+}
+
+.wbs-capsule:hover {
+  transform: translateY(-2px);
+}
+
+.wbs-capsule:active {
+  transform: scale(0.98);
+}
+
+/* Alternating Column 1: Light subtle blue/gray */
+.wbs-capsule--light {
+  background: #b6cde6;
+  color: #0b223c;
+  border: 1.5px solid #9cbcd8;
+  box-shadow: 0 2px 4px rgba(11, 34, 60, 0.05);
+}
+.wbs-capsule--light:hover {
+  box-shadow: 0 6px 14px rgba(11, 34, 60, 0.14);
+  background: #bed4ec;
+}
+
+/* Alternating Column 2: Deep rich navy blue */
+.wbs-capsule--navy {
+  background: #092143;
+  color: #ffffff;
+  border: 1.5px solid #05152c;
+  box-shadow: 0 3px 6px rgba(9, 33, 67, 0.2);
+}
+.wbs-capsule--navy:hover {
+  box-shadow: 0 6px 18px rgba(9, 33, 67, 0.38);
+  background: #0d2a54;
+}
+
+/* Quick Add Task Button */
+.wbs-pillar-add-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.wbs-btn-add-item {
+  width: 100%;
+  height: 32px;
+  border-radius: 9999px;
+  border: 1.5px dashed #cbd5e1;
+  background: transparent;
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wbs-btn-add-item:hover {
+  border-color: #0d529a;
+  color: #0d529a;
+  background: rgba(13, 82, 154, 0.04);
+}

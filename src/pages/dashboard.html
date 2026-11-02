@@ -1,0 +1,146 @@
+---
+title: Dashboard | QuantalFlow
+description: Your QuantalFlow workspace hub. Create, search, and collaborate on intelligent boards.
+route: /dashboard/
+layout: standalone
+body_class: dash-body
+scripts: /assets/js/dashboard.js
+---
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+
+    <div class="dash-search-bar">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="dash-search-input" placeholder="Search boards, spaces, or templates…" aria-label="Search boards" />
+    </div>
+
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span>Profile</span>
+      </a>
+      <button class="btn btn--dark" type="button" id="logout">Log out</button>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <!-- Left Workspace Sidebar -->
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <button class="btn btn--blue dash-sidebar__create" id="btn-create-board" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </button>
+
+      <nav class="dash-nav">
+        <button class="dash-nav__item is-active" data-filter="all" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>All Boards</span>
+        </button>
+        <button class="dash-nav__item" data-filter="starred" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred</span>
+        </button>
+        <button class="dash-nav__item" data-filter="AI & Product Strategy" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>
+          <span>AI &amp; Strategy Space</span>
+        </button>
+        <button class="dash-nav__item" data-filter="Engineering & Delivery" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <span>Engineering Space</span>
+        </button>
+        <button class="dash-nav__item" data-filter="UX & Discovery" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
+          <span>UX &amp; Discovery</span>
+        </button>
+
+        <div class="dash-sidebar__section-label">Workspaces</div>
+        <a class="dash-nav__item" id="nav-project-planning" href="/app/project-planning-workspace" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+          <span>Project Planning</span>
+        </a>
+
+        <a class="dash-nav__item" href="/resources/templates/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+        </a>
+
+
+        <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Profile &amp; Settings</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="dash">
+      <section class="dash__hero">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
+          <div>
+            <h1>Welcome back, <span id="dash-name">&mdash;</span></h1>
+            <p>Pick up where your team left off or launch an AI-assisted canvas.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <a class="btn btn--ghost" href="/resources/templates/">Browse templates</a>
+            <a class="btn btn--blue" href="/app/">Open Active Canvas</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dynamic Boards Grid -->
+      <div class="dash-section-header" style="margin-top: 28px;">
+        <h2 id="dash-boards-heading">Boards in this workspace</h2>
+      </div>
+
+      <section class="dash__grid" id="dash-boards-grid">
+        <a class="dash-card dash-card--new" href="/app/" id="card-new-blank">
+          <span class="dash-card__plus" aria-hidden="true">+</span>
+          <p class="dash-card__new-title"><span>Start New</span><span>Collaborative Board</span></p>
+        </a>
+        <a class="dash-card dash-card--tinted" style="--dash-tint:210" href="/app/"><p>Q4 Intelligent Canvas &amp; Architecture</p><span class="dash-card__meta">Edited just now &bull; Open in App &rarr;</span></a>
+        <a class="dash-card dash-card--tinted" style="--dash-tint:275" href="/app/"><p>Product Roadmap Q4</p><span class="dash-card__meta">Edited 2h ago &bull; Open in App &rarr;</span></a>
+        <a class="dash-card dash-card--tinted" style="--dash-tint:148" href="/app/"><p>Customer Research Synthesis</p><span class="dash-card__meta">Edited yesterday &bull; Open in App &rarr;</span></a>
+      </section>
+
+      <section class="dash__stats">
+        <div class="dash-stat"><p class="dash-stat__num" id="dash-board-count">4</p><p>Boards</p></div>
+        <div class="dash-stat"><p class="dash-stat__num" id="dash-starred-count">2</p><p>Starred boards</p></div>
+        <div class="dash-stat"><p class="dash-stat__num">3</p><p>Team Spaces</p></div>
+        <div class="dash-stat"><p class="dash-stat__num" id="dash-role-stat">&mdash;</p><p>Your role</p></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- New Collaborative Board Modal -->
+  <div class="quantalflow-modal-backdrop" id="modal-create-board" hidden style="display: none;">
+    <div class="quantalflow-modal" style="max-width: 480px;">
+      <button class="quantalflow-modal__close" id="modal-create-close" type="button" aria-label="Close modal">&times;</button>
+      <h3>New Collaborative Board</h3>
+      <p>Name your board and pick the space it belongs to. It opens on an empty canvas.</p>
+
+      <div style="display:grid; grid-template-columns: 1fr; gap:14px; margin-bottom:24px;">
+        <div>
+          <label for="new-board-title" style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;">Board Name</label>
+          <input type="text" id="new-board-title" value="New Collaborative Board" placeholder="e.g. New Collaborative Board" style="width:100%; padding:10px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; outline:none;" />
+        </div>
+        <div>
+          <label for="new-board-space" style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;">Workspace Space</label>
+          <select id="new-board-space" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; background:#fff; outline:none;">
+            <option value="AI & Product Strategy">AI &amp; Product Strategy</option>
+            <option value="Engineering & Delivery">Engineering &amp; Delivery</option>
+            <option value="UX & Discovery">UX &amp; Discovery</option>
+            <option value="Strategy & Planning">Strategy &amp; Planning</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn btn--ghost" id="modal-create-cancel" type="button">Cancel</button>
+        <button class="btn btn--blue" id="modal-create-submit" type="button">Create Collaborative Board &rarr;</button>
+      </div>
+    </div>
+  </div>

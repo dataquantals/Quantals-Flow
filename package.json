@@ -1,0 +1,23 @@
+{
+  "name": "quantalflow-clone",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QuantalFlow homepage clone with a real backend for authentication",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "build": "node src/tools/build.js",
+    "audit:links": "node src/tools/link-audit.mjs",
+    "seed": "node server/seed.js",
+    "convex:push": "convex dev --once --env-file .env.convex-dev",
+    "convex:backfill": "node scripts/convex-backfill.mjs",
+    "test": "node --test server/tests/*.test.js"
+  },
+  "dependencies": {
+    "convex": "^1.46.0"
+  }
+}

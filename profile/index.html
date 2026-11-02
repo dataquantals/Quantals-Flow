@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Profile | QuantalFlow</title>
+  <meta name="description" content="Manage your personal identity, role, workspace preferences, and security credentials." />
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=998ca299" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=ce1bb076" />
+  <link rel="stylesheet" href="/assets/css/project-planning.css?v=d3b3fc76" />
+  <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
+  <script src="/assets/js/save-state.js?v=622b21ef"></script>
+</head>
+<body class="profile-body">
+
+  <!-- Profile Navigation Header -->
+  <header class="dash-top">
+    <div style="display:flex; align-items:center; gap:16px;">
+      <a class="logo" href="/dashboard/" aria-label="QuantalFlow dashboard">
+        <img class="logo__mark" src="/assets/img/logo.png?v=d12f8ae3" width="30" height="30" alt="" />
+        <span class="logo__word">QuantalFlow</span>
+      </a>
+      <span style="color:#cbd5e1; font-size:16px;" aria-hidden="true">/</span>
+      <span style="font-size:14px; font-weight:500; color:#475569;">Profile &amp; Settings</span>
+    </div>
+
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn is-active" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="prof-header-initial">&mdash;</span>
+        <span>Profile</span>
+      </a>
+      <a class="btn btn--ghost" href="/dashboard/" style="padding: 7px 14px; font-size: 13px;">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px; vertical-align:-2px;"><path d="m15 18-6-6 6-6"/></svg>
+        Workspace Hub
+      </a>
+      <a class="btn btn--ghost" href="/app/" style="padding: 7px 14px; font-size: 13px;">Open Canvas</a>
+      <button class="btn btn--dark" type="button" id="profile-logout">Log out</button>
+    </div>
+  </header>
+
+  <!-- Main Profile Viewport -->
+  <main class="profile-container">
+    <div class="profile-hero">
+      <div class="profile-hero__meta">
+        <h1 class="profile-hero__title">Account &amp; Profile</h1>
+        <p class="profile-hero__sub">Manage your personal workspace identity, organizational roles, and security credentials.</p>
+      </div>
+      <div class="profile-hero__badge-wrap">
+        <span class="profile-role-badge" id="profile-role-badge">Member</span>
+      </div>
+    </div>
+
+    <!-- Personal Identity Section -->
+    <section class="profile-card">
+      <div class="profile-card__header">
+        <div>
+          <h2 class="profile-card__title">Personal Identity</h2>
+          <p class="profile-card__desc">This information is visible to your team members across collaborative boards, WBS tasks, and timesheets.</p>
+        </div>
+      </div>
+
+      <div class="profile-avatar-row">
+        <div class="profile-avatar-wrap" style="position:relative; flex-shrink:0;">
+          <div class="profile-avatar" id="profile-avatar-preview" style="overflow:hidden;">U</div>
+          <label for="profile-avatar-input" class="profile-avatar-badge" title="Upload new avatar (max 5MB)" style="position:absolute; bottom:-2px; right:-2px; width:26px; height:26px; border-radius:50%; background:#4262ff; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.2); transition:transform .15s ease, background .15s ease;">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <input type="file" id="profile-avatar-input" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" aria-label="Upload profile image" />
+          </label>
+        </div>
+        <div class="profile-avatar-info" style="flex:1;">
+          <div class="profile-avatar-name" id="profile-display-name">&mdash;</div>
+          <div class="profile-avatar-email" id="profile-display-email">&mdash;</div>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;">
+            <button type="button" class="btn btn--ghost" id="btn-trigger-upload" style="padding:5px 12px; font-size:12.5px; display:inline-flex; align-items:center; gap:6px;">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+              <span>Upload photo</span>
+            </button>
+            <button type="button" class="btn btn--ghost" id="btn-remove-avatar" style="padding:5px 10px; font-size:12.5px; color:#ef4444; border-color:#fecaca; display:none;" title="Remove current photo">
+              Remove
+            </button>
+            <span class="profile-avatar-note" style="margin:0; font-size:12px; color:#64748b;">JPG, PNG, WebP, GIF or SVG up to 5MB.</span>
+          </div>
+          <div id="profile-avatar-status" style="font-size:12.5px; margin-top:8px; display:none;"></div>
+        </div>
+      </div>
+
+      <form id="profile-info-form" novalidate>
+        <div class="profile-form-grid">
+          <div class="field">
+            <label for="prof-name">Full Name <span style="color:#ef4444;">*</span></label>
+            <input type="text" id="prof-name" name="name" required maxlength="80" autocomplete="name" />
+          </div>
+
+          <div class="field">
+            <label for="prof-email">Email Address</label>
+            <div style="position:relative;">
+              <input type="email" id="prof-email" name="email" readonly disabled style="background:#f8fafc; color:#64748b; cursor:not-allowed; padding-right:80px;" />
+              <span class="profile-verified-tag">Verified</span>
+            </div>
+            <small style="font-size:12px; color:#94a3b8; margin-top:4px; display:block;">Email is tied to your SSO session and cannot be changed directly.</small>
+          </div>
+
+          <div class="field">
+            <label for="prof-title">Job Title / Role</label>
+            <input type="text" id="prof-title" name="title" placeholder="e.g. Principal Product Architect" maxlength="100" />
+          </div>
+
+          <div class="field">
+            <label for="prof-company">Team or Department</label>
+            <input type="text" id="prof-company" name="company" placeholder="e.g. Core Experience &amp; Design Systems" maxlength="100" />
+          </div>
+
+          <div class="field field--full">
+            <label for="prof-bio">Bio / Work Focus</label>
+            <textarea id="prof-bio" name="bio" rows="3" placeholder="Briefly describe what you are currently working on or your team focus..." maxlength="500"></textarea>
+            <div class="profile-char-count"><span id="prof-bio-count">0</span> / 500</div>
+          </div>
+        </div>
+
+        <div class="profile-action-row">
+          <button type="submit" class="btn btn--blue profile-btn-submit" id="prof-info-submit">
+            Save Profile Changes
+          </button>
+          <div class="profile-status-msg" id="prof-info-msg" role="status" aria-live="polite"></div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Security & Password Section -->
+    <section class="profile-card">
+      <div class="profile-card__header">
+        <div>
+          <h2 class="profile-card__title">Security &amp; Password</h2>
+          <p class="profile-card__desc">Manage your password authentication credentials and local session tokens.</p>
+        </div>
+      </div>
+
+      <form id="profile-pass-form" novalidate>
+        <div class="profile-form-grid">
+          <div class="field field--full">
+            <label for="prof-current-pass">Current Password <span style="color:#ef4444;">*</span></label>
+            <div class="field__pass-wrap">
+              <input type="password" id="prof-current-pass" name="currentPassword" required autocomplete="current-password" />
+              <button type="button" class="field__pass-toggle" data-toggle-pass="prof-current-pass" aria-label="Toggle password visibility">Show</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="prof-new-pass">New Password <span style="color:#ef4444;">*</span></label>
+            <div class="field__pass-wrap">
+              <input type="password" id="prof-new-pass" name="newPassword" required minlength="6" autocomplete="new-password" />
+              <button type="button" class="field__pass-toggle" data-toggle-pass="prof-new-pass" aria-label="Toggle password visibility">Show</button>
+            </div>
+            <div class="strength" id="prof-strength" style="margin-top:6px;">
+              <div class="strength__bar" id="prof-strength-bar"></div>
+            </div>
+            <small class="strength__label" id="prof-strength-label" style="font-size:11.5px; color:#64748b; margin-top:3px; display:block;">Minimum 6 characters.</small>
+          </div>
+
+          <div class="field">
+            <label for="prof-confirm-pass">Confirm New Password <span style="color:#ef4444;">*</span></label>
+            <div class="field__pass-wrap">
+              <input type="password" id="prof-confirm-pass" name="confirmPassword" required minlength="6" autocomplete="new-password" />
+              <button type="button" class="field__pass-toggle" data-toggle-pass="prof-confirm-pass" aria-label="Toggle password visibility">Show</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-action-row">
+          <button type="submit" class="btn btn--blue profile-btn-submit" id="prof-pass-submit">
+            Update Password
+          </button>
+          <div class="profile-status-msg" id="prof-pass-msg" role="status" aria-live="polite"></div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Workspace Details & Integration Status -->
+    <section class="profile-card">
+      <div class="profile-card__header">
+        <div>
+          <h2 class="profile-card__title">Workspace Infrastructure</h2>
+          <p class="profile-card__desc">Diagnostic overview of active session, identity provider, and database sync status.</p>
+        </div>
+      </div>
+
+      <div class="profile-infra-grid">
+        <div class="profile-infra-item">
+          <span class="profile-infra-label">Account Identifier</span>
+          <strong class="profile-infra-val" id="profile-infra-id">&mdash;</strong>
+        </div>
+        <div class="profile-infra-item">
+          <span class="profile-infra-label">Account Role</span>
+          <strong class="profile-infra-val" id="profile-infra-role">&mdash;</strong>
+        </div>
+        <div class="profile-infra-item">
+          <span class="profile-infra-label">Member Since</span>
+          <strong class="profile-infra-val" id="profile-infra-date">&mdash;</strong>
+        </div>
+        <div class="profile-infra-item">
+          <span class="profile-infra-label">Storage Backend</span>
+          <strong class="profile-infra-val" style="color:#059669;">SQLite WAL</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script src="/assets/js/profile.js?v=c563ba65"></script>
+</body>
+</html>

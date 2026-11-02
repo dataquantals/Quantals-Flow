@@ -1,0 +1,68 @@
+---
+title: Get started free | QuantalFlow
+description: Create your free QuantalFlow account. No credit card required.
+route: /get-started/
+nav: get-started
+---
+    <section class="auth-section">
+      <div class="container auth-section__inner">
+        <div class="auth-section__copy">
+          <p class="pill"><span class="pill__spark" aria-hidden="true">&#10022;</span> Free forever</p>
+          <h1 class="page-hero__title">Get started with QuantalFlow</h1>
+          <p class="page-hero__sub">Create your account and open your first board in under a minute.</p>
+
+          <ul class="checklist checklist--lg">
+            <li>Unlimited collaborators on your first boards</li>
+            <li>6,000+ templates to start from</li>
+            <li>250+ integrations with the tools you already use</li>
+            <li>No credit card required</li>
+          </ul>
+
+          <div class="auth-section__proof">
+            <div class="stats-row stats-row--compact">
+              <div class="stats-row__item"><p class="stats-row__num">100M+</p><p>people collaborating</p></div>
+              <div class="stats-row__item"><p class="stats-row__num">250,000+</p><p>companies</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="auth-section__form">
+          <form class="form-card" id="signup-form" novalidate>
+            <h2 class="form-card__title">Create your account</h2>
+            <p class="form-card__sub">Already have one? <a href="/login/">Log in</a></p>
+
+            <div class="field">
+              <label for="s-name">Full name</label>
+              <input id="s-name" name="name" type="text" placeholder="Jane Doe" autocomplete="name" required />
+            </div>
+            <div class="field">
+              <label for="s-email">Work email</label>
+              <input id="s-email" name="email" type="email" placeholder="jane@company.com" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <div class="field__row">
+                <label for="s-password">Password</label>
+                <span class="field__hint">At least 6 characters</span>
+              </div>
+              <div class="field__pass">
+                <input id="s-password" name="password" type="password" placeholder="Create a password" autocomplete="new-password" minlength="6" required />
+                <button class="field__toggle" type="button" data-toggle-pass="s-password" aria-label="Show password">Show</button>
+              </div>
+            </div>
+
+            <div class="strength" id="strength" hidden>
+              <div class="strength__track"><div class="strength__bar" id="strength-bar"></div></div>
+              <p class="strength__label" id="strength-label">&nbsp;</p>
+            </div>
+
+            <p class="form-msg" id="signup-msg" role="alert" aria-live="polite"></p>
+
+            <button class="btn btn--blue form-card__submit" type="submit" id="signup-submit">Create account</button>
+
+            <p class="form-card__note">
+              By creating an account you agree to our <a href="/resources/#terms">Terms</a> and <a href="/resources/#privacy">Privacy Policy</a>.
+            </p>
+          </form>
+        </div>
+      </div>
+    </section>
