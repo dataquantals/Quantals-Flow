@@ -49,6 +49,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* The hidden attribute must always win, even over inline display styles
+   (e.g. the auth-swapped header links). */
+[hidden] { display: none !important; }
+
 html {
   scroll-behavior: smooth;
   /* Anchored sections (and every in-page subnav link) must clear the sticky

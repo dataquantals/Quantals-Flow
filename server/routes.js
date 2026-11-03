@@ -601,7 +601,12 @@ export function createApi(limiter) {
       const mode = String(body.mode || 'stickies').trim().toLowerCase();
       if (!prompt) return sendJson(res, 400, { error: 'Prompt is required.' });
 
-      const apiKey = config.deepseekApiKey || 'sk-295f99296f8743de980675646df93fcf';
+      const apiKey = config.deepseekApiKey;
+      if (!apiKey) {
+        return sendJson(res, 503, {
+          error: 'AI is not configured on this deployment. Set DEEPSEEK_API_KEY on the API host.'
+        });
+      }
 
       let systemPrompt = 'You are an intelligent visual whiteboard assistant for QuantalFlow. The user will provide a brainstorming, planning, or architecture prompt. Return 4 to 6 concise, high-value actionable ideas or key pillars as a valid JSON array of strings: ["Idea 1", "Idea 2", "Idea 3", "Idea 4"]. Output ONLY a valid JSON array without any markdown formatting, backticks, or extra commentary.';
 

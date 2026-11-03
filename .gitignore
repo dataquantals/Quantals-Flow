@@ -8,6 +8,7 @@ data/
 *.log
 .env
 .env*
+!.env.example
 .clerk/
 
 # Local agent tooling and scratch output

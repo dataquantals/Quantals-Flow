@@ -67,7 +67,11 @@ function isProtected(pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const { pathname } = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const { pathname: rawPathname } = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  // Pages normalise to a trailing slash (/pricing/), but the API router matches
+  // exact paths. Vercel's trailingSlash setting and hand-typed URLs both deliver
+  // /api/auth/me/ — strip it so that becomes a 401/200 instead of a 404.
+  const pathname = rawPathname.startsWith('/api/') ? rawPathname.replace(/\/+$/, '') : rawPathname;
 
   for (const [key, value] of Object.entries(securityHeaders())) res.setHeader(key, value);
 

@@ -18,7 +18,7 @@ const outDir = path.join(root, 'public');
 
 /* Top-level entries that are tooling, sources or secrets — never published. */
 const EXCLUDED = new Set([
-  '.agents', '.git', '.gitignore',
+  '.agents', '.git', '.gitignore', 'api',
   'convex', 'data', 'node_modules', 'public', 'scripts', 'server', 'shots', 'src',
   '_verify-pp', 'dashboard-preview-tmp'
 ]);

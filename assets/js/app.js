@@ -1708,33 +1708,15 @@
     });
     if (res.ok) return await res.json();
 
-    // Direct client fallback if needed
-    var apiKey = 'sk-295f99296f8743de980675646df93fcf';
-    var directRes = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: 'Return 4 concise ideas as a valid JSON array of strings: ["Idea 1", "Idea 2", "Idea 3", "Idea 4"].' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 350
-      })
-    });
-    if (!directRes.ok) throw new Error('DeepSeek API error');
-    var dData = await directRes.json();
-    var text = dData.choices?.[0]?.message?.content || '[]';
-    var m = text.match(/\[[\s\S]*\]/);
-    return {
-      success: true,
-      mode: mode,
-      ideas: m ? JSON.parse(m[0]) : [text]
-    };
+    // The DeepSeek key stays on the server — never call the API from the browser.
+    var detail = '';
+    try {
+      var errBody = await res.json();
+      if (errBody && errBody.error) detail = errBody.error;
+    } catch (e) {
+      /* non-JSON error body */
+    }
+    throw new Error(detail || 'AI request failed (' + res.status + ').');
   }
 
   var aiGenerateBtn = document.getElementById('ai-generate-btn');

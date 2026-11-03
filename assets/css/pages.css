@@ -410,20 +410,6 @@
 .top-action-btn:hover { background: var(--bg-warm); border-color: var(--line); color: var(--ink); }
 
 .quantalflow-topbar__right { display: flex; align-items: center; gap: 12px; }
-.quantalflow-avatars-stack { display: flex; align-items: center; }
-.quantalflow-avatar {
-  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
-  font-size: 12px; font-weight: 700; color: #fff; margin-left: -6px;
-  border: 2px solid #fff; box-shadow: var(--shadow-sm); position: relative;
-}
-.quantalflow-avatar--you { background: var(--ink); z-index: 5; margin-left: 0; }
-.quantalflow-avatar--andrey { background: #3b82f6; z-index: 4; }
-.quantalflow-avatar--rad { background: #ec4899; z-index: 3; }
-.quantalflow-avatar--brie { background: #8b5cf6; z-index: 2; }
-.quantalflow-avatar__dot {
-  position: absolute; bottom: 0; right: 0; width: 7px; height: 7px;
-  border-radius: 50%; background: #10b981; border: 1.5px solid #fff;
-}
 
 .quantalflow-viewport {
   position: relative; flex: 1; width: 100%; height: calc(100vh - 52px);

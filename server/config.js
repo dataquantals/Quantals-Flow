@@ -37,7 +37,9 @@ export const config = {
   convex: {
     cloudUrl: process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL || 'https://agreeable-starfish-202.convex.cloud',
     siteUrl: process.env.CONVEX_SITE_URL || 'https://agreeable-starfish-202.convex.site',
-    deployKey: process.env.CONVEX_DEPLOY_KEY || 'preview:data-quantals:quantals-flow|eyJ2MiI6IjY1OTE4MTEwYzgyMDRjMGU5MzNkZWQ1ZDUxMjRmZGZmIn0='
+    // Never default this. A deploy key is a write credential; keep it in
+    // .env.local (local) or the host's environment (production).
+    deployKey: process.env.CONVEX_DEPLOY_KEY || ''
   },
 
   clerk: {
@@ -50,7 +52,7 @@ export const config = {
     secretKey: process.env.CLERK_SECRET_KEY || ''
   },
 
-  deepseekApiKey: process.env.DEEPSEEK_API_KEY || 'sk-295f99296f8743de980675646df93fcf',
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY || '',
 
   // Failed sign-in attempts allowed per IP before a temporary lockout.
   rateLimit: {
@@ -67,3 +69,11 @@ export const config = {
 
   isProduction: process.env.NODE_ENV === 'production'
 };
+
+// Say so once at boot instead of failing silently on the first AI or Convex call.
+for (const [key, value] of [
+  ['CONVEX_DEPLOY_KEY', config.convex.deployKey],
+  ['DEEPSEEK_API_KEY', config.deepseekApiKey]
+]) {
+  if (!value) console.warn(`[config] ${key} is not set — that integration stays disabled.`);
+}
