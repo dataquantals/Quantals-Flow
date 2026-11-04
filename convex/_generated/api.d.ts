@@ -8,11 +8,11 @@
  * @module
  */
 
+import type * as authHelpers from "../authHelpers.js";
 import type * as boards from "../boards.js";
 import type * as files from "../files.js";
-import type * as http from "../http.js";
+import type * as migrations from "../migrations.js";
 import type * as projectPlanning from "../projectPlanning.js";
-import type * as seed from "../seed.js";
 import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 
@@ -23,11 +23,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  authHelpers: typeof authHelpers;
   boards: typeof boards;
   files: typeof files;
-  http: typeof http;
+  migrations: typeof migrations;
   projectPlanning: typeof projectPlanning;
-  seed: typeof seed;
   sessions: typeof sessions;
   users: typeof users;
 }>;

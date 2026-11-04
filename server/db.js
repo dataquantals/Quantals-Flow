@@ -80,6 +80,13 @@ db.exec(`
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_project_plans_updated ON project_plans(updated_at DESC)');
 
+// Row-level ownership. Every board and plan belongs to exactly one user; every
+// read, write and delete below is scoped by that user id. `ALTER TABLE` throws
+// when the column already exists, which is the idempotent path.
+try { db.exec('ALTER TABLE project_plans ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE'); } catch {}
+db.exec('CREATE INDEX IF NOT EXISTS idx_boards_user ON boards(user_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_project_plans_user ON project_plans(user_id)');
+
 const DEFAULT_BOARDS = [
   {
     id: 'q4-intelligent-canvas',
@@ -146,40 +153,92 @@ export function isDemoPlanFingerprint(plan) {
   return /Construction of a House/i.test(name) || /Enterprise Release/i.test(name);
 }
 
-(function ensureBlankProjectPlanningBoard() {
+/**
+ * The blank Project Planning workspace has one fixed public id so the dashboard
+ * shortcut can always open it. Board ids are global primary keys, so to keep it
+ * private per user the stored row id is namespaced as `<id>~<userId>`. Callers
+ * and the browser only ever see the public id.
+ */
+const USER_SCOPED_BOARD_IDS = new Set([BLANK_PROJECT_PLANNING_BOARD_ID]);
+
+export function scopeBoardId(id, userId) {
+  const raw = String(id || '');
+  return USER_SCOPED_BOARD_IDS.has(raw) ? `${raw}~${userId}` : raw;
+}
+
+export function publicBoardId(id) {
+  return String(id || '').split('~')[0];
+}
+
+function forbidden(message = 'Forbidden') {
+  const err = new Error(message);
+  err.status = 403;
+  return err;
+}
+
+function ownsRow(row, userId) {
+  return Boolean(row) && row.user_id != null && Number(row.user_id) === Number(userId);
+}
+
+/** Create the caller's own blank planning workspace once (never rewritten). */
+function ensureUserBlankBoard(userId) {
+  const internalId = scopeBoardId(BLANK_PROJECT_PLANNING_BOARD_ID, userId);
   const now = Date.now();
   db.prepare(`
     INSERT OR IGNORE INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
-    VALUES (?, NULL, ?, ?, 0, '{}', ?, ?)
-  `).run(
-    BLANK_PROJECT_PLANNING_BOARD_ID,
-    'New Project Planning Workspace',
-    'AI & Product Strategy',
-    now,
-    now
-  );
+    VALUES (?, ?, ?, ?, 0, '{}', ?, ?)
+  `).run(internalId, userId, 'New Project Planning Workspace', 'AI & Product Strategy', now, now);
+
   // The board opens the planning suite (not a blank canvas) via its
   // `workspaceMode` marker. It is merged in, never replaced, so a canvas save
   // (which writes `{version, items, paths}` and knows nothing about the marker)
   // can no longer strip it and drop the user on an empty canvas.
-  const blankRow = db.prepare('SELECT state_json FROM boards WHERE id = ?').get(BLANK_PROJECT_PLANNING_BOARD_ID);
-  const blankState = parseStateJson(blankRow && blankRow.state_json);
-  if (blankState.workspaceMode !== 'project-planning') {
-    blankState.workspaceMode = 'project-planning';
-    db.prepare('UPDATE boards SET state_json = ? WHERE id = ?')
-      .run(JSON.stringify(blankState), BLANK_PROJECT_PLANNING_BOARD_ID);
+  const row = db.prepare('SELECT state_json FROM boards WHERE id = ? AND user_id = ?').get(internalId, userId);
+  const state = parseStateJson(row && row.state_json);
+  if (row && state.workspaceMode !== 'project-planning') {
+    state.workspaceMode = 'project-planning';
+    db.prepare('UPDATE boards SET state_json = ? WHERE id = ? AND user_id = ?')
+      .run(JSON.stringify(state), internalId, userId);
+  }
+  const board = getBoardById(BLANK_PROJECT_PLANNING_BOARD_ID, userId);
+  if (board) syncBoardToConvex(board, userId, internalId);
+}
+
+/**
+ * Rows created before ownership existed have no owner and would be invisible to
+ * everyone. Hand them to the owner account once. Idempotent: it only touches
+ * rows that still have no user, so it is a no-op on every later boot.
+ */
+(function claimLegacyRows() {
+  const owner =
+    db.prepare("SELECT id FROM users WHERE email = 'dataquantals@gmail.com'").get() ||
+    db.prepare("SELECT id FROM users WHERE role = 'owner' ORDER BY id LIMIT 1").get();
+  if (!owner) return;
+
+  const blank = BLANK_PROJECT_PLANNING_BOARD_ID;
+  const scoped = `${blank}~${owner.id}`;
+  const hasScoped = db.prepare('SELECT 1 AS ok FROM boards WHERE id = ?').get(scoped);
+  if (!hasScoped) {
+    db.prepare('UPDATE boards SET id = ? WHERE id = ?').run(scoped, blank);
+    db.prepare('UPDATE project_plans SET board_id = ? WHERE board_id = ?').run(scoped, blank);
   }
 
-  // Keep Convex in step with the canonical row (INSERT OR IGNORE means it only
-  // appears locally once, but the deployment may be behind after a schema reset).
-  const blankBoard = getBoardById(BLANK_PROJECT_PLANNING_BOARD_ID);
-  if (blankBoard) syncBoardToConvex(blankBoard);
+  db.prepare('UPDATE boards SET user_id = ? WHERE user_id IS NULL').run(owner.id);
+  db.prepare(`
+    UPDATE project_plans
+       SET user_id = COALESCE((SELECT b.user_id FROM boards b WHERE b.id = project_plans.board_id), ?)
+     WHERE user_id IS NULL
+  `).run(owner.id);
 })();
 
-export function listBoards({ query = '', starredOnly = false } = {}) {
+/** The caller's boards only. `userId` is required: there is no unscoped listing. */
+export function listBoards({ query = '', starredOnly = false, userId } = {}) {
+  if (userId == null) throw forbidden();
+  ensureUserBlankBoard(userId);
+
   let sql = 'SELECT id, user_id, title, category, starred, state_json, created_at, updated_at FROM boards';
-  const clauses = [];
-  const params = [];
+  const clauses = ['user_id = ?'];
+  const params = [userId];
   if (starredOnly) {
     clauses.push('starred = 1');
   }
@@ -187,12 +246,10 @@ export function listBoards({ query = '', starredOnly = false } = {}) {
     clauses.push('(title LIKE ? OR category LIKE ?)');
     params.push(`%${query}%`, `%${query}%`);
   }
-  if (clauses.length) {
-    sql += ' WHERE ' + clauses.join(' AND ');
-  }
+  sql += ' WHERE ' + clauses.join(' AND ');
   sql += ' ORDER BY updated_at DESC';
   return db.prepare(sql).all(...params).map(row => ({
-    id: row.id,
+    id: publicBoardId(row.id),
     title: row.title,
     category: row.category,
     starred: Boolean(row.starred),
@@ -202,9 +259,11 @@ export function listBoards({ query = '', starredOnly = false } = {}) {
   }));
 }
 
-export function getBoardById(id) {
-  const row = db.prepare('SELECT * FROM boards WHERE id = ?').get(String(id || ''));
-  if (!row) return null;
+/** A board the caller owns, or null. Someone else's board looks like a missing one. */
+export function getBoardById(id, userId) {
+  if (userId == null) return null;
+  const row = db.prepare('SELECT * FROM boards WHERE id = ?').get(scopeBoardId(id, userId));
+  if (!ownsRow(row, userId)) return null;
   let state = null;
   try {
     state = row.state_json ? JSON.parse(row.state_json) : null;
@@ -213,7 +272,7 @@ export function getBoardById(id) {
     state = null;
   }
   return {
-    id: row.id,
+    id: publicBoardId(row.id),
     title: row.title,
     category: row.category,
     starred: Boolean(row.starred),
@@ -238,14 +297,15 @@ export function slugify(text) {
  * Resolve a pretty URL slug back to the board it belongs to. Titles are the
  * human-readable identity, so the newest / starred board wins a tie.
  */
-export function findBoardBySlug(slug) {
+export function findBoardBySlug(slug, userId) {
   const target = slugify(slug);
-  if (!target) return null;
+  if (!target || userId == null) return null;
+  ensureUserBlankBoard(userId);
   const row = db
-    .prepare('SELECT id, title FROM boards ORDER BY starred DESC, updated_at DESC')
-    .all()
+    .prepare('SELECT id, title FROM boards WHERE user_id = ? ORDER BY starred DESC, updated_at DESC')
+    .all(userId)
     .find((candidate) => slugify(candidate.title) === target);
-  return row ? getBoardById(row.id) : null;
+  return row ? getBoardById(publicBoardId(row.id), userId) : null;
 }
 
 /**
@@ -276,16 +336,24 @@ function parseStateJson(raw) {
   }
 }
 
-export function upsertBoard({ id, userId = null, title, category, starred, state }) {
+/**
+ * Create or update a board the caller owns. `userId` is mandatory and always
+ * comes from the authenticated session, never from request input. Touching a
+ * board that belongs to someone else is a 403, not a silent overwrite.
+ */
+export function upsertBoard({ id, userId, title, category, starred, state }) {
+  if (userId == null) throw forbidden();
   const now = Date.now();
-  const existing = db.prepare('SELECT * FROM boards WHERE id = ?').get(id);
+  const internalId = scopeBoardId(id, userId);
+  const existing = db.prepare('SELECT * FROM boards WHERE id = ?').get(internalId);
+  if (existing && !ownsRow(existing, userId)) throw forbidden();
   if (!existing) {
-    const stateStr = stateJsonFor(id, state);
+    const stateStr = stateJsonFor(internalId, state);
     db.prepare(`
       INSERT INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      id,
+      internalId,
       userId,
       title || 'Untitled Board',
       category || 'Strategy & Planning',
@@ -299,29 +367,30 @@ export function upsertBoard({ id, userId = null, title, category, starred, state
     const nextCategory = category !== undefined ? category : existing.category;
     const nextStarred = starred !== undefined ? (starred ? 1 : 0) : existing.starred;
     const nextStateStr = state !== undefined
-      ? stateJsonFor(id, state)
-      : stateJsonFor(id, parseStateJson(existing.state_json));
+      ? stateJsonFor(internalId, state)
+      : stateJsonFor(internalId, parseStateJson(existing.state_json));
     db.prepare(`
       UPDATE boards
       SET title = ?, category = ?, starred = ?, state_json = ?, updated_at = ?
-      WHERE id = ?
-    `).run(nextTitle, nextCategory, nextStarred, nextStateStr, now, id);
+      WHERE id = ? AND user_id = ?
+    `).run(nextTitle, nextCategory, nextStarred, nextStateStr, now, internalId, userId);
   }
-  const saved = getBoardById(id);
-  syncBoardToConvex(saved);
+  const saved = getBoardById(id, userId);
+  syncBoardToConvex(saved, userId, internalId);
   return saved;
 }
 
-export async function removeBoard(id) {
-  const boardId = String(id || '');
-  const removed = db.prepare('DELETE FROM boards WHERE id = ?').run(boardId).changes > 0;
+export async function removeBoard(id, userId) {
+  if (userId == null) throw forbidden();
+  const internalId = scopeBoardId(id, userId);
+  const removed = db.prepare('DELETE FROM boards WHERE id = ? AND user_id = ?').run(internalId, userId).changes > 0;
   if (!removed) return { removed: false, convex: false };
 
-  db.prepare('DELETE FROM project_plans WHERE board_id = ?').run(boardId);
+  db.prepare('DELETE FROM project_plans WHERE board_id = ? AND user_id = ?').run(internalId, userId);
   // Await the mirror so the caller can report, rather than a delete that looks
   // complete while Convex still holds the rows.
-  const boardGone = await deleteBoardFromConvex(boardId);
-  const planGone = await deleteProjectPlanFromConvex(boardId);
+  const boardGone = await deleteBoardFromConvex(internalId, userId);
+  const planGone = await deleteProjectPlanFromConvex(internalId, userId);
   return { removed: true, convex: Boolean(boardGone && planGone) };
 }
 
@@ -330,8 +399,11 @@ export async function removeBoard(id) {
 /** Sanity ceiling so a runaway client cannot fill the disk / hit Convex limits. */
 const PLAN_MAX_BYTES = 4 * 1024 * 1024;
 
-export function getProjectPlan(boardId) {
-  const row = db.prepare('SELECT plan_json FROM project_plans WHERE board_id = ?').get(String(boardId || ''));
+export function getProjectPlan(boardId, userId) {
+  if (userId == null) return null;
+  const row = db
+    .prepare('SELECT plan_json FROM project_plans WHERE board_id = ? AND user_id = ?')
+    .get(scopeBoardId(boardId, userId), userId);
   if (!row || !row.plan_json) return null;
   try {
     const plan = JSON.parse(row.plan_json);
@@ -341,24 +413,34 @@ export function getProjectPlan(boardId) {
   }
 }
 
+/** Takes the stored (internal) board id, as used by stateJsonFor. */
 export function hasProjectPlan(boardId) {
   return db.prepare('SELECT 1 AS ok FROM project_plans WHERE board_id = ?').get(String(boardId || ''))?.ok === 1;
 }
 
 /**
- * Persist a Project Planning plan.
+ * Persist a Project Planning plan owned by `userId`.
  *
  * SQLite is the source of truth for local reads; Convex is mirrored right away
  * (awaited so a schema/function mismatch surfaces in the request log instead of
  * disappearing). A Convex hiccup never blocks the save: the local write already
  * happened and the next save retries.
  */
-export async function saveProjectPlan(boardId, plan) {
+export async function saveProjectPlan(boardId, plan, userId) {
+  if (userId == null) throw forbidden();
   if (!boardId || !plan || typeof plan !== 'object') {
     const err = new Error('A plan object is required.');
     err.status = 400;
     throw err;
   }
+
+  const internalId = scopeBoardId(boardId, userId);
+
+  // Never write over a plan or board that belongs to someone else.
+  const existingPlan = db.prepare('SELECT user_id FROM project_plans WHERE board_id = ?').get(internalId);
+  if (existingPlan && !ownsRow(existingPlan, userId)) throw forbidden();
+  const existingBoard = db.prepare('SELECT user_id FROM boards WHERE id = ?').get(internalId);
+  if (existingBoard && !ownsRow(existingBoard, userId)) throw forbidden();
 
   // The canonical blank workspace must stay blank: an older client (or a tab
   // opened before the demo purge) can replay a sample snapshot here, which then
@@ -378,35 +460,38 @@ export async function saveProjectPlan(boardId, plan) {
 
   const now = Date.now();
   db.prepare(`
-    INSERT INTO project_plans (board_id, plan_json, created_at, updated_at)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO project_plans (board_id, user_id, plan_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(board_id) DO UPDATE SET plan_json = excluded.plan_json, updated_at = excluded.updated_at
-  `).run(String(boardId), planJson, now, now);
+  `).run(internalId, userId, planJson, now, now);
 
   // Saving a plan is activity on the board: keep it at the top of the dashboard.
-  db.prepare('UPDATE boards SET updated_at = ? WHERE id = ?').run(now, String(boardId));
+  db.prepare('UPDATE boards SET updated_at = ? WHERE id = ? AND user_id = ?').run(now, internalId, userId);
   // A board that owns a plan must reopen in the planning suite. Merge the marker
   // into whatever the board already holds instead of only touching `{}` rows, so
   // a canvas autosave can no longer strand a saved plan behind a blank canvas.
-  const boardRow = db.prepare('SELECT state_json FROM boards WHERE id = ?').get(String(boardId));
+  const boardRow = db.prepare('SELECT state_json FROM boards WHERE id = ? AND user_id = ?').get(internalId, userId);
   if (boardRow) {
     const boardState = parseStateJson(boardRow.state_json);
     if (boardState.workspaceMode !== 'project-planning') {
       boardState.workspaceMode = 'project-planning';
-      db.prepare('UPDATE boards SET state_json = ? WHERE id = ?')
-        .run(JSON.stringify(boardState), String(boardId));
+      db.prepare('UPDATE boards SET state_json = ? WHERE id = ? AND user_id = ?')
+        .run(JSON.stringify(boardState), internalId, userId);
     }
   }
 
-  const convex = await syncProjectPlanToConvex(String(boardId), plan);
+  const convex = await syncProjectPlanToConvex(internalId, plan, userId);
   return { savedAt: now, bytes: planJson.length, convex };
 }
 
-export async function removeProjectPlan(boardId) {
-  const id = String(boardId || '');
-  const removed = db.prepare('DELETE FROM project_plans WHERE board_id = ?').run(id).changes > 0;
+export async function removeProjectPlan(boardId, userId) {
+  if (userId == null) throw forbidden();
+  const id = scopeBoardId(boardId, userId);
+  const existing = db.prepare('SELECT user_id FROM project_plans WHERE board_id = ?').get(id);
+  if (existing && !ownsRow(existing, userId)) throw forbidden();
+  const removed = db.prepare('DELETE FROM project_plans WHERE board_id = ? AND user_id = ?').run(id, userId).changes > 0;
   if (!removed) return { removed: false, convex: false };
-  const convex = await deleteProjectPlanFromConvex(id);
+  const convex = await deleteProjectPlanFromConvex(id, userId);
   return { removed: true, convex: Boolean(convex) };
 }
 

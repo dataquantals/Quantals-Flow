@@ -1,20 +1,29 @@
 /* Backfill the Convex mirror from SQLite (the source of truth).
 
    Safe to re-run: boards/plans/users are upserts, and section rows are pruned
-   per board. Nothing is deleted from Convex except section rows that no longer
-   exist in the SQLite plan.
+   per board. Every board and plan is pushed under its owner's user id, so the
+   mirror keeps the same row-level isolation as the app. Rows with no owner are
+   skipped (they are invisible by design until claimed).
 
-   Usage: node scripts/convex-backfill.mjs [--prune-boards]
-   --prune-boards also removes Convex boards that no longer exist in SQLite. */
-import { DatabaseSync } from 'node:sqlite';
+   Requires SYNC_SECRET (same value set on the Convex deployment).
+
+   Usage: node scripts/convex-backfill.mjs */
+import { db } from '../server/db.js';
 import { convexQuery, convexMutation, buildProjectPlanPayload } from '../server/convex.js';
+import { config } from '../server/config.js';
 
-const pruneBoards = process.argv.includes('--prune-boards');
-const db = new DatabaseSync('data/app.db', { readOnly: true });
+if (!config.convex.syncSecret) {
+  console.error('SYNC_SECRET is not set. Add it to .env.local and `npx convex env set SYNC_SECRET <value>`.');
+  process.exit(1);
+}
 
-const boards = db.prepare('SELECT id, title, category, starred, state_json FROM boards').all();
-const plans = db.prepare('SELECT board_id, plan_json FROM project_plans').all();
-const users = db.prepare('SELECT id, email, name, role FROM users').all();
+const boards = db
+  .prepare('SELECT id, user_id, title, category, starred, state_json FROM boards WHERE user_id IS NOT NULL')
+  .all();
+const plans = db
+  .prepare('SELECT board_id, user_id, plan_json FROM project_plans WHERE user_id IS NOT NULL')
+  .all();
+const users = db.prepare('SELECT id, email, name, role, password_hash FROM users').all();
 
 const parse = (raw) => {
   try {
@@ -29,7 +38,8 @@ let failures = 0;
 const step = async (label, fn) => {
   try {
     const value = await fn();
-    console.log('  ok   ' + label + (value ? ' -> ' + JSON.stringify(value).slice(0, 120) : ''));
+    if (value === null || value === undefined) throw new Error('no result (rejected or unreachable)');
+    console.log('  ok   ' + label);
   } catch (err) {
     failures += 1;
     console.log('  FAIL ' + label + ' -> ' + err.message);
@@ -38,21 +48,22 @@ const step = async (label, fn) => {
 
 console.log('users');
 for (const u of users) {
-  // Deliberately no passwordHash: hashes never leave SQLite.
   await step(u.email, () =>
     convexMutation('users:upsertUser', {
       email: u.email,
       name: u.name,
       role: u.role || 'member',
-      externalId: String(u.id)
+      externalId: String(u.id),
+      passwordHash: u.password_hash || undefined
     })
   );
 }
 
 console.log('boards');
 for (const b of boards) {
-  await step(b.id, () =>
+  await step(`${b.id} (user ${b.user_id})`, () =>
     convexMutation('boards:upsert', {
+      userId: String(b.user_id),
       boardId: String(b.id),
       title: b.title || 'New Collaborative Board',
       category: b.category || 'Strategy & Planning',
@@ -65,42 +76,28 @@ for (const b of boards) {
 console.log('project plans');
 for (const p of plans) {
   const plan = parse(p.plan_json);
-  await step(p.board_id + ' (' + (plan.tasks || []).length + ' tasks)', async () => {
-    const res = await convexMutation('projectPlanning:save', buildProjectPlanPayload(p.board_id, plan));
-    return res && res.counts;
-  });
+  await step(`${p.board_id} (user ${p.user_id}, ${(plan.tasks || []).length} tasks)`, () =>
+    convexMutation(
+      'projectPlanning:save',
+      buildProjectPlanPayload(p.board_id, plan, String(p.user_id))
+    )
+  );
 }
 
-const remote = await convexQuery('boards:list', {}).catch(() => null);
-const remoteIds = new Set((remote || []).map((b) => String(b.id ?? b.boardId)));
-const localIds = new Set(boards.map((b) => String(b.id)));
-
-const sqliteOnly = [...localIds].filter((id) => !remoteIds.has(id));
-const convexOnly = [...remoteIds].filter((id) => !localIds.has(id));
-console.log('sqlite boards not in convex: ' + (sqliteOnly.length ? sqliteOnly.join(', ') : 'none'));
-console.log('convex boards not in sqlite: ' + (convexOnly.length ? convexOnly.join(', ') : 'none'));
-
-if (pruneBoards && convexOnly.length) {
-  console.log('pruning convex-only boards');
-  for (const id of convexOnly) {
-    await step(id, () => convexMutation('boards:remove', { boardId: id }));
-  }
+// Per-user reconciliation: what each user has locally vs in Convex.
+console.log('reconciliation');
+for (const u of users) {
+  const localIds = new Set(boards.filter((b) => b.user_id === u.id).map((b) => String(b.id)));
+  const remote = (await convexQuery('boards:list', { userId: String(u.id) })) || [];
+  const remoteIds = new Set(remote.map((b) => String(b.id)));
+  const missing = [...localIds].filter((id) => !remoteIds.has(id));
+  const extra = [...remoteIds].filter((id) => !localIds.has(id));
+  console.log(
+    `  ${u.email}: local=${localIds.size} convex=${remoteIds.size}` +
+      (missing.length ? ` missing=[${missing.join(', ')}]` : '') +
+      (extra.length ? ` convex-only=[${extra.join(', ')}]` : '')
+  );
 }
 
-const planList = await convexQuery('projectPlanning:list', {}).catch(() => []);
-console.log('convex projectPlans: ' + (planList || []).length);
-for (const p of planList || []) {
-  console.log('  - ' + p.boardId + ' | ' + p.projectName + ' | tasks=' + p.taskCount + ' milestones=' + p.milestoneCount + ' resources=' + p.resourceCount);
-}
-
-const one = (planList || [])[0];
-if (one) {
-  const detail = await convexQuery('projectPlanning:get', { boardId: one.boardId }).catch(() => null);
-  if (detail && detail.sections) {
-    console.log('section rows for ' + one.boardId + ':');
-    for (const [name, rows] of Object.entries(detail.sections)) console.log('  ' + name + ': ' + rows.length);
-  }
-}
-
-console.log(failures ? 'done with ' + failures + ' failure(s)' : 'done, no failures');
-process.exitCode = failures ? 1 : 0;
+console.log(failures ? `done, ${failures} failure(s)` : 'done, no failures');
+process.exit(failures ? 1 : 0);

@@ -12,6 +12,9 @@ import { v } from 'convex/values';
  */
 const planningEntity = {
   boardId: v.string(),
+  // Owner (session user id). Optional only so pre-isolation rows still validate;
+  // convex/migrations.js:claimLegacy backfills them and every function filters on it.
+  userId: v.optional(v.string()),
   entityId: v.string(),
   position: v.number(),
   title: v.optional(v.string()),
@@ -23,7 +26,10 @@ const planningEntity = {
 };
 
 const planningIndexes = (table) =>
-  table.index('by_board', ['boardId']).index('by_board_entity', ['boardId', 'entityId']);
+  table
+    .index('by_board', ['boardId'])
+    .index('by_board_entity', ['boardId', 'entityId'])
+    .index('by_user', ['userId']);
 
 export default defineSchema({
   users: defineTable({
@@ -50,6 +56,7 @@ export default defineSchema({
     expiresAt: v.number()
   })
     .index('by_token', ['token'])
+    .index('by_user', ['userId'])
     .index('by_expires', ['expiresAt']),
 
   boards: defineTable({
@@ -63,6 +70,7 @@ export default defineSchema({
     updatedAt: v.number()
   })
     .index('by_board_id', ['boardId'])
+    .index('by_user', ['userId'])
     .index('by_updated_at', ['updatedAt']),
 
   /* ------------------------------------------------------------------ *
@@ -73,6 +81,7 @@ export default defineSchema({
    * ------------------------------------------------------------------ */
   projectPlans: defineTable({
     boardId: v.string(),
+    userId: v.optional(v.string()),
     projectName: v.string(),
     projectCode: v.optional(v.string()),
     activeSprint: v.optional(v.string()),
@@ -92,6 +101,7 @@ export default defineSchema({
     updatedAt: v.number()
   })
     .index('by_board_id', ['boardId'])
+    .index('by_user', ['userId'])
     .index('by_updated_at', ['updatedAt']),
 
   projectPhases: planningIndexes(defineTable(planningEntity)),

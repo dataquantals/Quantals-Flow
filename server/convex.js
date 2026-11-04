@@ -19,7 +19,7 @@ import { config } from './config.js';
  * dashboard.
  */
 
-const TIMEOUT_MS = 10000;
+const TIMEOUT_MS = 20000;
 
 function authHeaders() {
   const key = config.convex.deployKey;
@@ -29,11 +29,18 @@ function authHeaders() {
 
 async function postConvex(kind, path, args = {}) {
   if (!config.convex.cloudUrl || config.isTest) return null;
+  // Every Convex function rejects calls without the shared secret. If it is
+  // missing, fail closed here instead of sending a request that cannot succeed.
+  const secret = config.convex.syncSecret;
+  if (!secret) {
+    console.warn(`[convex] SYNC_SECRET is not set; skipping ${path} (Convex functions are locked).`);
+    return null;
+  }
   try {
     const res = await fetch(`${config.convex.cloudUrl}/api/${kind}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ path, args, format: 'json' }),
+      body: JSON.stringify({ path, args: { ...args, secret }, format: 'json' }),
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
     const text = await res.text();
@@ -70,8 +77,8 @@ export async function convexMutation(path, args = {}) {
   return postConvex('mutation', path, args);
 }
 
-export async function generateConvexUploadUrl() {
-  return await convexMutation('files:generateUploadUrl', {});
+export async function generateConvexUploadUrl(userId) {
+  return await convexMutation('files:generateUploadUrl', { userId: String(userId) });
 }
 
 export async function getConvexFileUrl(storageId) {
@@ -79,13 +86,13 @@ export async function getConvexFileUrl(storageId) {
   return await convexQuery('files:getFileUrl', { storageId });
 }
 
-export async function saveConvexAvatar(email, storageId) {
+export async function saveConvexAvatar(email, storageId, userId) {
   if (!email || !storageId) return null;
-  return await convexMutation('files:saveAvatar', { email, storageId });
+  return await convexMutation('files:saveAvatar', { email, storageId, userId: String(userId) });
 }
 
-export async function uploadBufferToConvex(buffer, contentType = 'image/png') {
-  const uploadUrl = await generateConvexUploadUrl();
+export async function uploadBufferToConvex(buffer, contentType = 'image/png', userId) {
+  const uploadUrl = await generateConvexUploadUrl(userId);
   if (!uploadUrl) throw new Error('Failed to generate Convex upload URL.');
   const res = await fetch(uploadUrl, {
     method: 'POST',
@@ -106,10 +113,11 @@ export async function uploadBufferToConvex(buffer, contentType = 'image/png') {
  * Boards
  * ------------------------------------------------------------------ */
 
-export function syncBoardToConvex(board) {
-  if (!board || config.isTest) return;
+export function syncBoardToConvex(board, userId, convexBoardId) {
+  if (!board || !userId || config.isTest) return;
   convexMutation('boards:upsert', {
-    boardId: String(board.id),
+    userId: String(userId),
+    boardId: String(convexBoardId || board.id),
     title: board.title || 'New Collaborative Board',
     category: board.category || 'Strategy & Planning',
     starred: Boolean(board.starred),
@@ -117,9 +125,10 @@ export function syncBoardToConvex(board) {
   }).catch((err) => console.warn('[convex] board sync failed:', err.message));
 }
 
-export function deleteBoardFromConvex(boardId) {
-  if (!boardId || config.isTest) return Promise.resolve(false);
+export function deleteBoardFromConvex(boardId, userId) {
+  if (!boardId || !userId || config.isTest) return Promise.resolve(false);
   return convexMutation('boards:remove', {
+    userId: String(userId),
     boardId: String(boardId)
   })
     .then(() => true)
@@ -129,18 +138,66 @@ export function deleteBoardFromConvex(boardId) {
     });
 }
 
-/* Public profile fields only. The preview deployment answers unauthenticated
-   queries, so a password hash (or a session token) must never be mirrored:
-   SQLite stays the only place credentials live. The `passwordHash` argument is
-   kept so existing call sites stay valid, but it is deliberately not sent. */
+/* ------------------------------------------------------------------ *
+ * Convex Auth & User Mirroring
+ * ------------------------------------------------------------------ */
+
 export function syncUserToConvex(user, passwordHash) {
-  if (!user || config.isTest) return;
-  convexMutation('users:upsertUser', {
+  if (!user || config.isTest) return Promise.resolve(null);
+  const payload = {
     email: user.email,
     name: user.name,
     role: user.role || 'member',
     externalId: String(user.id)
-  }).catch((err) => console.warn('[convex] user sync failed:', err.message));
+  };
+  if (passwordHash) payload.passwordHash = passwordHash;
+  if (user.avatar_url) payload.avatarUrl = user.avatar_url;
+  if (user.avatar_storage_id) payload.avatarStorageId = user.avatar_storage_id;
+
+  return convexMutation('users:upsertUser', payload).catch((err) => {
+    console.warn('[convex] user sync failed:', err.message);
+    return null;
+  });
+}
+
+export async function getConvexUserByEmail(email) {
+  if (!email || config.isTest) return null;
+  return await convexQuery('users:findByEmail', { email: String(email).trim().toLowerCase() });
+}
+
+export async function updateConvexUserPassword(email, passwordHash) {
+  if (!email || !passwordHash || config.isTest) return null;
+  return await convexMutation('users:updatePassword', {
+    email: String(email).trim().toLowerCase(),
+    passwordHash
+  });
+}
+
+export async function createConvexSession({ token, userId, email, name, role, expiresAt }) {
+  if (!token || config.isTest) return null;
+  return await convexMutation('sessions:create', {
+    token,
+    userId: String(userId),
+    email: email || '',
+    name: name || '',
+    role: role || 'member',
+    expiresAt
+  });
+}
+
+export async function getConvexSession(token) {
+  if (!token || config.isTest) return null;
+  return await convexQuery('sessions:getByToken', { token });
+}
+
+export async function removeConvexSession(token) {
+  if (!token || config.isTest) return false;
+  return await convexMutation('sessions:removeByToken', { token });
+}
+
+export async function removeConvexSessionsByUserId(userId) {
+  if (!userId || config.isTest) return false;
+  return await convexMutation('sessions:removeByUserId', { userId: String(userId) });
 }
 
 /* ------------------------------------------------------------------ *
@@ -194,8 +251,9 @@ function toEntity(item, index, prefix) {
 }
 
 /** Build the Convex `projectPlanning:save` payload from a plan state object. */
-export function buildProjectPlanPayload(boardId, plan) {
+export function buildProjectPlanPayload(boardId, plan, userId) {
   const payload = {
+    userId: String(userId),
     boardId: String(boardId),
     projectName: text(plan.projectName, 200) || 'Untitled Project',
     projectCode: text(plan.projectCode, 60),
@@ -218,15 +276,15 @@ export function buildProjectPlanPayload(boardId, plan) {
 }
 
 /** Push a plan to Convex. Resolves to the sync result, or null when it failed. */
-export async function syncProjectPlanToConvex(boardId, plan) {
-  if (!boardId || !plan || config.isTest) return null;
-  return await convexMutation('projectPlanning:save', buildProjectPlanPayload(boardId, plan));
+export async function syncProjectPlanToConvex(boardId, plan, userId) {
+  if (!boardId || !plan || !userId || config.isTest) return null;
+  return await convexMutation('projectPlanning:save', buildProjectPlanPayload(boardId, plan, userId));
 }
 
 /** Read a plan back from Convex (used when a browser has no local copy). */
-export async function fetchProjectPlanFromConvex(boardId) {
-  if (!boardId || config.isTest) return null;
-  const result = await convexQuery('projectPlanning:get', { boardId: String(boardId) });
+export async function fetchProjectPlanFromConvex(boardId, userId) {
+  if (!boardId || !userId || config.isTest) return null;
+  const result = await convexQuery('projectPlanning:get', { userId: String(userId), boardId: String(boardId) });
   if (!result || !result.plan) return null;
   if (result.plan.snapshot && typeof result.plan.snapshot === 'object') return result.plan.snapshot;
 
@@ -240,9 +298,9 @@ export async function fetchProjectPlanFromConvex(boardId) {
   return rebuilt;
 }
 
-export function deleteProjectPlanFromConvex(boardId) {
-  if (!boardId || config.isTest) return Promise.resolve(false);
-  return convexMutation('projectPlanning:remove', { boardId: String(boardId) })
+export function deleteProjectPlanFromConvex(boardId, userId) {
+  if (!boardId || !userId || config.isTest) return Promise.resolve(false);
+  return convexMutation('projectPlanning:remove', { userId: String(userId), boardId: String(boardId) })
     .then(() => true)
     .catch((err) => {
       console.warn('[convex] plan delete failed:', err.message);

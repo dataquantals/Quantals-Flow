@@ -1,9 +1,14 @@
 import { query, mutation } from './_generated/server.js';
 import { v } from 'convex/values';
+import { assertServer } from './authHelpers';
+
+// A session token is a bearer credential, so every function here is gated by the
+// server-only secret. Without it a caller could read or forge sessions.
 
 export const getByToken = query({
-  args: { token: v.string() },
+  args: { secret: v.string(), token: v.string() },
   handler: async (ctx, args) => {
+    assertServer(args.secret);
     const session = await ctx.db
       .query('sessions')
       .withIndex('by_token', (q) => q.eq('token', args.token))
@@ -16,6 +21,7 @@ export const getByToken = query({
 
 export const create = mutation({
   args: {
+    secret: v.string(),
     token: v.string(),
     userId: v.string(),
     email: v.string(),
@@ -24,6 +30,7 @@ export const create = mutation({
     expiresAt: v.number()
   },
   handler: async (ctx, args) => {
+    assertServer(args.secret);
     const existing = await ctx.db
       .query('sessions')
       .withIndex('by_token', (q) => q.eq('token', args.token))
@@ -45,8 +52,9 @@ export const create = mutation({
 });
 
 export const removeByToken = mutation({
-  args: { token: v.string() },
+  args: { secret: v.string(), token: v.string() },
   handler: async (ctx, args) => {
+    assertServer(args.secret);
     const existing = await ctx.db
       .query('sessions')
       .withIndex('by_token', (q) => q.eq('token', args.token))
@@ -54,5 +62,20 @@ export const removeByToken = mutation({
     if (!existing) return false;
     await ctx.db.delete(existing._id);
     return true;
+  }
+});
+
+export const removeByUserId = mutation({
+  args: { secret: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    assertServer(args.secret);
+    const sessions = await ctx.db
+      .query('sessions')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect();
+    for (const s of sessions) {
+      await ctx.db.delete(s._id);
+    }
+    return sessions.length;
   }
 });

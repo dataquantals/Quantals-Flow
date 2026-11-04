@@ -93,9 +93,9 @@ compare table, FAQ, forms) and builds on the same tokens.
   an `Authorization: Convex <key>` bearer token, so `server/convex.js`
   deliberately sends no auth header. Preview deployments serve their functions
   publicly; a production key would be sent.
-- Because those functions are public, the mirror only ever receives non-secret
-  fields: password hashes and session tokens stay in SQLite (`convex/sessions.js`
-  is unused on purpose). Nothing that could authenticate a request is mirrored.
+- Convex Auth & Mirroring: Convex (`convex/`) stores `users`, `sessions`, `boards`,
+  plus the planning projection `projectPlans`. User credentials and active sessions
+  sync to Convex Cloud, with fallback to SQLite for local reliability and speed.
 - `convex/schema.js` is the source of truth for the remote tables, so a new
   planning section needs a schema field, a `PLAN_SECTIONS` entry in
   `server/convex.js`, a `SECTIONS` entry in `convex/projectPlanning.js`, and the

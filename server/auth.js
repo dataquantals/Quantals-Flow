@@ -2,7 +2,14 @@ import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { db } from './db.js';
 import { config } from './config.js';
-import { syncUserToConvex } from './convex.js';
+import {
+  syncUserToConvex,
+  createConvexSession,
+  getConvexSession,
+  removeConvexSession,
+  removeConvexSessionsByUserId,
+  getConvexUserByEmail
+} from './convex.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -101,14 +108,29 @@ export function findOrCreateClerkUser({ email, name }) {
 /**
  * Create a session and return its opaque token. The token is a 256-bit
  * random value; only the token is stored in the client cookie.
+ * Mirrors session to Convex Auth collection when configured.
  */
-export function createSession(userId) {
+export function createSession(userId, userDetails = null) {
   const token = crypto.randomBytes(32).toString('base64url');
   const now = Date.now();
+  const expiresAt = now + config.session.ttlMs;
   db.prepare(
     `INSERT INTO sessions (id, user_id, created_at, expires_at)
      VALUES (?, ?, ?, ?)`
-  ).run(token, userId, now, now + config.session.ttlMs);
+  ).run(token, userId, now, expiresAt);
+
+  const u = userDetails || findUserById(userId);
+  if (u) {
+    createConvexSession({
+      token,
+      userId: String(userId),
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      expiresAt
+    }).catch(() => {});
+  }
+
   return token;
 }
 
@@ -145,12 +167,57 @@ export function getSessionUser(token) {
   };
 }
 
+/**
+ * Async session lookup that checks SQLite then falls back to Convex.
+ */
+export async function getSessionUserWithConvexFallback(token) {
+  const user = getSessionUser(token);
+  if (user) return user;
+  if (!token || config.isTest) return null;
+
+  try {
+    const convexSession = await getConvexSession(token);
+    if (!convexSession || convexSession.expiresAt <= Date.now()) return null;
+
+    let localUser = findUserByEmail(convexSession.email);
+    if (!localUser) {
+      const remoteUser = await getConvexUserByEmail(convexSession.email);
+      const info = db.prepare(
+        `INSERT INTO users (email, name, role, password_hash, created_at)
+         VALUES (?, ?, ?, ?, ?)`
+      ).run(
+        convexSession.email,
+        convexSession.name || 'QuantalFlow User',
+        convexSession.role || 'member',
+        remoteUser?.passwordHash || 'scrypt$16384$8$1$AAAA$AAAA',
+        Date.now()
+      );
+      localUser = findUserById(Number(info.lastInsertRowid));
+    }
+
+    if (localUser) {
+      db.prepare(
+        `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
+         VALUES (?, ?, ?, ?)`
+      ).run(token, localUser.id, convexSession.createdAt || Date.now(), convexSession.expiresAt);
+
+      return publicUser(localUser);
+    }
+  } catch (err) {
+    console.warn('[auth] convex session lookup failed:', err.message);
+  }
+  return null;
+}
+
 export function deleteSession(token) {
   if (!token) return 0;
+  removeConvexSession(token).catch(() => {});
   return db.prepare('DELETE FROM sessions WHERE id = ?').run(token).changes;
 }
 
 export function deleteUserSessions(userId) {
+  if (!userId) return 0;
+  removeConvexSessionsByUserId(userId).catch(() => {});
   return db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId).changes;
 }
 

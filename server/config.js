@@ -39,7 +39,11 @@ export const config = {
     siteUrl: process.env.CONVEX_SITE_URL || 'https://agreeable-starfish-202.convex.site',
     // Never default this. A deploy key is a write credential; keep it in
     // .env.local (local) or the host's environment (production).
-    deployKey: process.env.CONVEX_DEPLOY_KEY || ''
+    deployKey: process.env.CONVEX_DEPLOY_KEY || '',
+    // Shared secret proving a caller is this server. The same value must be set on
+    // the Convex deployment (`npx convex env set SYNC_SECRET <value>`); every Convex
+    // function rejects calls that do not present it.
+    syncSecret: process.env.SYNC_SECRET || ''
   },
 
   clerk: {

@@ -1,5 +1,6 @@
 import { query, mutation } from './_generated/server.js';
-import { v } from 'convex/values';
+import { v, ConvexError } from 'convex/values';
+import { requireUser, owns } from './authHelpers';
 
 /**
  * Project Planning sync.
@@ -41,9 +42,10 @@ export const SECTIONS = {
 const cleanup = (value) =>
   value === undefined || value === null ? undefined : String(value).slice(0, 500);
 
-function rowFrom(entity, boardId, position, now) {
+function rowFrom(entity, boardId, userId, position, now) {
   return {
     boardId,
+    userId,
     entityId: String(entity.entityId),
     position,
     title: cleanup(entity.title),
@@ -56,7 +58,7 @@ function rowFrom(entity, boardId, position, now) {
 }
 
 /** Upsert + prune one section. Returns how many rows were written/removed. */
-async function syncSection(ctx, tableName, boardId, entities, now) {
+async function syncSection(ctx, tableName, boardId, userId, entities, now) {
   const existing = await ctx.db
     .query(tableName)
     .withIndex('by_board', (q) => q.eq('boardId', boardId))
@@ -68,7 +70,7 @@ async function syncSection(ctx, tableName, boardId, entities, now) {
   let removed = 0;
 
   for (let i = 0; i < entities.length; i++) {
-    const doc = rowFrom(entities[i], boardId, i, now);
+    const doc = rowFrom(entities[i], boardId, userId, i, now);
     const previous = stale.get(doc.entityId);
     if (!previous) {
       await ctx.db.insert(tableName, doc);
@@ -82,7 +84,8 @@ async function syncSection(ctx, tableName, boardId, entities, now) {
       previous.title !== doc.title ||
       previous.status !== doc.status ||
       previous.owner !== doc.owner ||
-      previous.date !== doc.date;
+      previous.date !== doc.date ||
+      previous.userId !== doc.userId;
     if (changed) {
       await ctx.db.patch(previous._id, doc);
       patched++;
@@ -99,13 +102,15 @@ async function syncSection(ctx, tableName, boardId, entities, now) {
 
 /** GET-style query: the plan snapshot for a board. */
 export const get = query({
-  args: { boardId: v.string() },
+  args: { secret: v.string(), userId: v.string(), boardId: v.string() },
   handler: async (ctx, args) => {
+    const userId = requireUser(args);
     const plan = await ctx.db
       .query('projectPlans')
       .withIndex('by_board_id', (q) => q.eq('boardId', args.boardId))
       .first();
-    if (!plan) return null;
+    // Someone else's plan is indistinguishable from a missing one.
+    if (!plan || !owns(plan, userId)) return null;
 
     const sections = {};
     for (const [key, table] of Object.entries(SECTIONS)) {
@@ -137,13 +142,14 @@ export const get = query({
 
 /** Dashboard-friendly summary of every stored plan. */
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { secret: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    const userId = requireUser(args);
     const rows = await ctx.db
       .query('projectPlans')
-      .withIndex('by_updated_at')
-      .order('desc')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
+    rows.sort((a, b) => b.updatedAt - a.updatedAt);
     return rows.map((row) => ({
       boardId: row.boardId,
       projectName: row.projectName,
@@ -162,6 +168,8 @@ export const list = query({
  */
 export const save = mutation({
   args: {
+    secret: v.string(),
+    userId: v.string(),
     boardId: v.string(),
     projectName: v.string(),
     projectCode: v.optional(v.string()),
@@ -185,6 +193,7 @@ export const save = mutation({
     changeRequests: v.optional(v.array(ENTITY_INPUT))
   },
   handler: async (ctx, args) => {
+    const userId = requireUser(args);
     const now = Date.now();
     const sections = {};
     for (const key of Object.keys(SECTIONS)) sections[key] = args[key] || [];
@@ -200,8 +209,12 @@ export const save = mutation({
       .withIndex('by_board_id', (q) => q.eq('boardId', args.boardId))
       .first();
 
+    // A plan that already belongs to someone else can never be overwritten.
+    if (existing && !owns(existing, userId)) throw new ConvexError('Forbidden');
+
     const planFields = {
       boardId: args.boardId,
+      userId,
       projectName: args.projectName,
       projectCode: cleanup(args.projectCode),
       activeSprint: cleanup(args.activeSprint),
@@ -222,7 +235,7 @@ export const save = mutation({
 
     const stats = {};
     for (const [key, table] of Object.entries(SECTIONS)) {
-      stats[key] = await syncSection(ctx, table, args.boardId, sections[key], now);
+      stats[key] = await syncSection(ctx, table, args.boardId, userId, sections[key], now);
     }
 
     return {
@@ -236,8 +249,16 @@ export const save = mutation({
 
 /** Delete a plan and every entity row that belongs to it. */
 export const remove = mutation({
-  args: { boardId: v.string() },
+  args: { secret: v.string(), userId: v.string(), boardId: v.string() },
   handler: async (ctx, args) => {
+    const userId = requireUser(args);
+    const plan = await ctx.db
+      .query('projectPlans')
+      .withIndex('by_board_id', (q) => q.eq('boardId', args.boardId))
+      .first();
+    if (!plan) return true;
+    if (!owns(plan, userId)) throw new ConvexError('Forbidden');
+
     for (const table of Object.values(SECTIONS)) {
       const rows = await ctx.db
         .query(table)
@@ -245,11 +266,7 @@ export const remove = mutation({
         .collect();
       for (const row of rows) await ctx.db.delete(row._id);
     }
-    const plan = await ctx.db
-      .query('projectPlans')
-      .withIndex('by_board_id', (q) => q.eq('boardId', args.boardId))
-      .first();
-    if (plan) await ctx.db.delete(plan._id);
+    await ctx.db.delete(plan._id);
     return true;
   }
 });

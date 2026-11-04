@@ -6,6 +6,7 @@ import {
   createUser,
   createSession,
   getSessionUser,
+  getSessionUserWithConvexFallback,
   deleteSession,
   publicUser,
   findOrCreateClerkUser
@@ -27,6 +28,7 @@ import {
 import {
   checkConvexConnection,
   syncUserToConvex,
+  getConvexUserByEmail,
   generateConvexUploadUrl,
   getConvexFileUrl,
   saveConvexAvatar,
@@ -43,6 +45,7 @@ import {
   getClientIp
 } from './http.js';
 import { config } from './config.js';
+import { verifyClerkSessionToken, fetchClerkIdentity } from './clerk.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MIN_PASSWORD = 6;
@@ -154,12 +157,46 @@ export function createApi(limiter) {
         return sendJson(res, 400, { error: 'Email and password are required.' });
       }
 
-      const user = findUserByEmail(email);
+      let user = findUserByEmail(email);
+
+      // Convex Auth fallback / lookup if user does not exist locally yet
+      if (!user) {
+        try {
+          const remote = await getConvexUserByEmail(email);
+          if (remote && remote.passwordHash) {
+            db.prepare(
+              `INSERT OR REPLACE INTO users (email, name, role, password_hash, created_at)
+               VALUES (?, ?, ?, ?, ?)`
+            ).run(
+              remote.email,
+              remote.name || remote.email.split('@')[0],
+              remote.role || 'member',
+              remote.passwordHash,
+              remote.createdAt || Date.now()
+            );
+            user = findUserByEmail(email);
+          }
+        } catch {}
+      }
 
       // Always run a hash comparison so a missing account and a wrong password
       // take a similar amount of time (avoids user enumeration by timing).
-      const stored = user ? user.password_hash : 'scrypt$16384$8$1$AAAA$AAAA';
-      const ok = await verifyPassword(password, stored);
+      let stored = user ? user.password_hash : 'scrypt$16384$8$1$AAAA$AAAA';
+      let ok = await verifyPassword(password, stored);
+
+      if (user && !ok) {
+        try {
+          const remote = await getConvexUserByEmail(email);
+          if (remote && remote.passwordHash && remote.passwordHash !== user.password_hash) {
+            const remoteOk = await verifyPassword(password, remote.passwordHash);
+            if (remoteOk) {
+              updateUserPassword(user.id, remote.passwordHash);
+              user.password_hash = remote.passwordHash;
+              ok = true;
+            }
+          }
+        } catch {}
+      }
 
       if (!user || !ok) {
         return sendJson(res, 401, { error: 'Incorrect email or password.' });
@@ -237,7 +274,7 @@ export function createApi(limiter) {
       const user = auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
-        const uploadUrl = await generateConvexUploadUrl();
+        const uploadUrl = await generateConvexUploadUrl(user.id);
         if (!uploadUrl) return sendJson(res, 502, { error: 'Failed to generate Convex upload URL.' });
         return sendJson(res, 200, { ok: true, uploadUrl });
       } catch (err) {
@@ -266,7 +303,7 @@ export function createApi(limiter) {
         let avatarUrl = '';
         try {
           avatarUrl = await getConvexFileUrl(storageId);
-          await saveConvexAvatar(user.email, storageId);
+          await saveConvexAvatar(user.email, storageId, user.id);
         } catch {}
 
         const updated = updateUserAvatar(user.id, avatarUrl || '', storageId);
@@ -308,9 +345,9 @@ export function createApi(limiter) {
       }
 
       try {
-        const { storageId, url } = await uploadBufferToConvex(buffer, mimeType);
+        const { storageId, url } = await uploadBufferToConvex(buffer, mimeType, user.id);
         try {
-          await saveConvexAvatar(user.email, storageId);
+          await saveConvexAvatar(user.email, storageId, user.id);
         } catch {}
 
         const updated = updateUserAvatar(user.id, url || '', storageId);
@@ -419,8 +456,26 @@ export function createApi(limiter) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
 
-      const email = String(body.email || '').trim().toLowerCase();
-      const name = String(body.name || email.split('@')[0] || 'Clerk User').trim().slice(0, MAX_NAME);
+      // Identity comes from the verified token + Clerk's own records. Any email or
+      // name in the request body is ignored in production: trusting it let anyone sign in as anyone.
+      let identity;
+      if (config.isTest && !body.token && body.email) {
+        identity = { email: body.email, name: body.name || body.email.split('@')[0] };
+      } else {
+        const clerkToken = String(body.token || '').trim();
+        if (!clerkToken) {
+          return sendJson(res, 400, { error: 'A Clerk session token is required.' });
+        }
+        try {
+          const claims = await verifyClerkSessionToken(clerkToken);
+          identity = await fetchClerkIdentity(claims.sub);
+        } catch (err) {
+          return sendJson(res, 401, { error: 'Clerk session could not be verified.' });
+        }
+      }
+
+      const email = identity.email;
+      const name = (identity.name || email.split('@')[0] || 'Clerk User').trim().slice(0, MAX_NAME);
 
       if (!email || !EMAIL_RE.test(email)) {
         return sendJson(res, 400, { error: 'Valid email is required for Clerk session sync.' });
@@ -438,15 +493,18 @@ export function createApi(limiter) {
     /** GET /api/convex/status */
     async convexStatus(req, res) {
       const status = await checkConvexConnection();
-      const localBoards = listBoards();
+      const user = auth(req);
       return sendJson(res, 200, {
         ...status,
-        localBoardCount: localBoards.length
+        // Only ever the caller's own boards; anonymous callers get no count.
+        localBoardCount: user ? listBoards({ userId: user.id }).length : null
       });
     },
 
     /** GET /api/boards */
     listBoardsApi(req, res) {
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const query = (url.searchParams.get('q') || '').trim();
       const starredOnly = url.searchParams.get('starred') === '1';
@@ -454,24 +512,25 @@ export function createApi(limiter) {
 
       // Pretty URLs carry the board title, not its id: /app/data-quantals-plan
       if (slug) {
-        const board = findBoardBySlug(slug);
+        const board = findBoardBySlug(slug, user.id);
         if (!board) return sendJson(res, 404, { error: 'Board not found.' });
         return sendJson(res, 200, { board, boards: [board] });
       }
 
-      const boards = listBoards({ query, starredOnly });
+      const boards = listBoards({ query, starredOnly, userId: user.id });
       return sendJson(res, 200, { boards });
     },
 
     /** POST /api/boards */
     async createBoardApi(req, res) {
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
         body = await readJson(req, DOCUMENT_MAX_BYTES);
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
-      const user = auth(req);
       const rawTitle = String(body.title || 'Untitled Board').trim().slice(0, 120) || 'Untitled Board';
       const slug = rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'board';
       const id = String(body.id || `${slug}-${crypto.randomBytes(3).toString('hex')}`);
@@ -479,47 +538,60 @@ export function createApi(limiter) {
       const starred = Boolean(body.starred);
       const state = body.state && typeof body.state === 'object' ? body.state : {};
 
-      const board = upsertBoard({
-        id,
-        userId: user ? user.id : null,
-        title: rawTitle,
-        category,
-        starred,
-        state
-      });
-      return sendJson(res, 201, { board });
+      try {
+        const board = upsertBoard({
+          id,
+          userId: user.id,
+          title: rawTitle,
+          category,
+          starred,
+          state
+        });
+        return sendJson(res, 201, { board });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message });
+      }
     },
 
     /** GET /api/boards/:id */
     getBoardApi(req, res, boardId) {
-      const board = getBoardById(boardId);
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const board = getBoardById(boardId, user.id);
       if (!board) return sendJson(res, 404, { error: 'Board not found.' });
       return sendJson(res, 200, { board });
     },
 
     /** PUT /api/boards/:id */
     async updateBoardApi(req, res, boardId) {
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
         body = await readJson(req, DOCUMENT_MAX_BYTES);
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
-      const user = auth(req);
-      const board = upsertBoard({
-        id: boardId,
-        userId: user ? user.id : null,
-        title: body.title !== undefined ? String(body.title).trim().slice(0, 120) || 'Untitled Board' : undefined,
-        category: body.category !== undefined ? String(body.category).trim().slice(0, 60) : undefined,
-        starred: body.starred !== undefined ? Boolean(body.starred) : undefined,
-        state: body.state !== undefined && typeof body.state === 'object' ? body.state : undefined
-      });
-      return sendJson(res, 200, { board });
+      try {
+        const board = upsertBoard({
+          id: boardId,
+          userId: user.id,
+          title: body.title !== undefined ? String(body.title).trim().slice(0, 120) || 'Untitled Board' : undefined,
+          category: body.category !== undefined ? String(body.category).trim().slice(0, 60) : undefined,
+          starred: body.starred !== undefined ? Boolean(body.starred) : undefined,
+          state: body.state !== undefined && typeof body.state === 'object' ? body.state : undefined
+        });
+        return sendJson(res, 200, { board });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message });
+      }
     },
 
     /** DELETE /api/boards/:id */
     async deleteBoardApi(req, res, boardId) {
-      const result = await removeBoard(boardId);
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const result = await removeBoard(boardId, user.id);
       if (!result.removed) return sendJson(res, 404, { error: 'Board not found.' });
       return sendJson(res, 200, { ok: true, convexSynced: result.convex });
     },
@@ -534,15 +606,17 @@ export function createApi(limiter) {
 
     /** GET /api/projects/:boardId - plan for a board (SQLite, then Convex). */
     async getProjectPlanApi(req, res, boardId) {
-      let plan = getProjectPlan(boardId);
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let plan = getProjectPlan(boardId, user.id);
       let source = plan ? 'sqlite' : null;
       if (!plan) {
-        plan = await fetchProjectPlanFromConvex(boardId);
+        plan = await fetchProjectPlanFromConvex(boardId, user.id);
         if (plan) {
           source = 'convex';
           // Backfill the local store so the next read is instant.
           try {
-            await saveProjectPlan(boardId, plan);
+            await saveProjectPlan(boardId, plan, user.id);
           } catch (err) {
             console.warn('[projects] backfill failed:', err.message);
           }
@@ -558,6 +632,8 @@ export function createApi(limiter) {
 
     /** PUT /api/projects/:boardId - replace the plan and mirror it to Convex. */
     async saveProjectPlanApi(req, res, boardId) {
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
         body = await readJson(req, DOCUMENT_MAX_BYTES);
@@ -569,7 +645,7 @@ export function createApi(limiter) {
         return sendJson(res, 400, { error: 'A plan object is required.' });
       }
       try {
-        const result = await saveProjectPlan(boardId, plan);
+        const result = await saveProjectPlan(boardId, plan, user.id);
         return sendJson(res, 200, {
           ok: true,
           boardId,
@@ -584,8 +660,14 @@ export function createApi(limiter) {
 
     /** DELETE /api/projects/:boardId - drop a plan from SQLite and Convex. */
     async deleteProjectPlanApi(req, res, boardId) {
-      const result = await removeProjectPlan(boardId);
-      return sendJson(res, 200, { ok: true, convexSynced: result.convex });
+      const user = auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const result = await removeProjectPlan(boardId, user.id);
+        return sendJson(res, 200, { ok: true, convexSynced: result.convex });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message });
+      }
     },
 
     /** POST /api/ai/generate - powered by DeepSeek AI */

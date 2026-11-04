@@ -643,20 +643,19 @@
 
   function syncClerkUserToServer(clerkUser) {
     if (!clerkUser) return Promise.resolve(null);
-    var email = '';
-    if (clerkUser.primaryEmailAddress && clerkUser.primaryEmailAddress.emailAddress) {
-      email = clerkUser.primaryEmailAddress.emailAddress;
-    } else if (clerkUser.emailAddresses && clerkUser.emailAddresses[0]) {
-      email = clerkUser.emailAddresses[0].emailAddress;
-    }
-    if (!email) return Promise.resolve(null);
-    var name = clerkUser.fullName || clerkUser.firstName || email.split('@')[0];
-    return fetch('/api/auth/clerk-sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ email: email, name: name, clerkId: clerkUser.id })
-    }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    // The server no longer trusts an email from the browser. It needs Clerk's
+    // signed session token, which it verifies before creating a session.
+    var clerk = window.Clerk;
+    if (!clerk || !clerk.session || typeof clerk.session.getToken !== 'function') return Promise.resolve(null);
+    return clerk.session.getToken().then(function (token) {
+      if (!token) return null;
+      return fetch('/api/auth/clerk-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ token: token })
+      }).then(function (r) { return r.ok ? r.json() : null; });
+    }).catch(function () { return null; });
   }
 
   // Check current session & Clerk config

@@ -10,10 +10,11 @@ process.env.DB_FILE = path.join(tmpDir, 'test.db');
 
 process.env.PORT = '0'; // ephemeral port so tests never collide with a dev server
 const { server } = await import('../index.js');
-const { createUser, hashPassword, findUserByEmail } = await import('../auth.js');
+const { createUser, hashPassword, findUserByEmail, createSession } = await import('../auth.js');
 
 let base;
 let owner;
+const ownerCookie = () => `quantalflow_sid=${createSession(owner.id)}`;
 
 before(async () => {
   await new Promise((resolve) => {
@@ -340,11 +341,13 @@ test('hierarchical nested routes under /app and /dashboard resolve and guard pro
 });
 
 test('new collaborative board starts empty; templates live in the template library', async () => {
+  const sid = ownerCookie();
+
   const created = await post('/api/boards', {
     title: 'New Collaborative Board',
     category: 'AI & Product Strategy',
     state: {}
-  });
+  }, { cookie: sid });
   assert.equal(created.status, 201);
   const { board } = await created.json();
   assert.equal(board.title, 'New Collaborative Board');
@@ -365,8 +368,6 @@ test('new collaborative board starts empty; templates live in the template libra
   assert.ok(!html.includes('data-id="frame-1"'), 'canvas should not come preloaded with demo frames');
 
   // The dashboard keeps only board naming; templates and agile workspaces live in the library.
-  const login = await post('/api/auth/login', { email: owner.email, password: '123456' });
-  const sid = sidFrom(login);
   const dashRes = await fetch(base + '/dashboard/', { headers: { cookie: sid } });
   assert.equal(dashRes.status, 200);
   const dashHtml = await dashRes.text();
@@ -586,10 +587,12 @@ test('project plans persist to SQLite and Convex; the blank workspace refuses de
     changeRequests: []
   };
 
+  const sid = ownerCookie();
+
   const putPlan = (id, body) =>
     fetch(`${base}/api/projects/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', cookie: sid },
       body: JSON.stringify({ plan: body, stateVersion: 2 })
     });
 
@@ -600,7 +603,7 @@ test('project plans persist to SQLite and Convex; the blank workspace refuses de
   assert.equal(savedBody.ok, true);
   assert.equal(typeof savedBody.convexSynced, 'boolean');
 
-  const read = await fetch(`${base}/api/projects/${boardId}`);
+  const read = await fetch(`${base}/api/projects/${boardId}`, { headers: { cookie: sid } });
   const readBody = await read.json();
   assert.equal(readBody.plan.projectCode, plan.projectCode);
   assert.equal(readBody.plan.tasks.length, 1);
@@ -627,13 +630,136 @@ test('project plans persist to SQLite and Convex; the blank workspace refuses de
     tasks: [{ id: 'task-1', title: 'Demo task' }]
   });
   assert.equal(demo.status, 409, 'demo template must be rejected for the blank workspace');
-  const blank = await fetch(`${base}/api/projects/project-planning-workspace`);
+  const blank = await fetch(`${base}/api/projects/project-planning-workspace`, { headers: { cookie: sid } });
   const blankBody = await blank.json();
   assert.equal(blankBody.plan, null, 'blank workspace must stay empty');
 
   // 3. Deleting the plan clears the local store.
-  const removed = await fetch(`${base}/api/projects/${boardId}`, { method: 'DELETE' });
+  const removed = await fetch(`${base}/api/projects/${boardId}`, { method: 'DELETE', headers: { cookie: sid } });
   assert.equal(removed.status, 200);
-  const afterDelete = await fetch(`${base}/api/projects/${boardId}`);
+  const afterDelete = await fetch(`${base}/api/projects/${boardId}`, { headers: { cookie: sid } });
   assert.equal((await afterDelete.json()).plan, null);
+});
+
+test('Row-Level Security (RLS): anonymous requests are blocked and users cannot access or modify each other data', async () => {
+  // 1. Unauthenticated requests to protected endpoints return 401
+  const unauthListBoards = await fetch(`${base}/api/boards`);
+  assert.equal(unauthListBoards.status, 401);
+
+  const unauthCreateBoard = await post('/api/boards', { title: 'Hacker Board' });
+  assert.equal(unauthCreateBoard.status, 401);
+
+  const unauthGetPlan = await fetch(`${base}/api/projects/some-board`);
+  assert.equal(unauthGetPlan.status, 401);
+
+  const unauthPutPlan = await fetch(`${base}/api/projects/some-board`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan: { projectName: 'Hacked' } })
+  });
+  assert.equal(unauthPutPlan.status, 401);
+
+  // 2. Set up two separate users
+  const userAEmail = `user-a-${Date.now()}@example.com`;
+  const userBEmail = `user-b-${Date.now()}@example.com`;
+
+  const regA = await post('/api/auth/register', {
+    email: userAEmail,
+    password: 'password123',
+    name: 'Alice Agent'
+  });
+  assert.equal(regA.status, 201);
+  const sidA = sidFrom(regA);
+
+  const regB = await post('/api/auth/register', {
+    email: userBEmail,
+    password: 'password123',
+    name: 'Bob Builder'
+  });
+  assert.equal(regB.status, 201);
+  const sidB = sidFrom(regB);
+
+  // 3. User A creates a board
+  const boardAId = `alice-board-${Date.now()}`;
+  const createA = await post('/api/boards', {
+    id: boardAId,
+    title: 'Alice Secret Project',
+    category: 'Strategy & Planning'
+  }, { cookie: sidA });
+  assert.equal(createA.status, 201);
+
+  // 4. User B cannot see User A's board in their board list
+  const listB = await fetch(`${base}/api/boards`, { headers: { cookie: sidB } });
+  assert.equal(listB.status, 200);
+  const { boards: bBoards } = await listB.json();
+  assert.ok(!bBoards.some((b) => b.id === boardAId), 'User B must not see User A board in list');
+
+  // 5. User B cannot update User A's board
+  const updateByB = await fetch(`${base}/api/boards/${boardAId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie: sidB },
+    body: JSON.stringify({ title: 'Bob Attempted Hijack' })
+  });
+  assert.ok(updateByB.status === 403 || updateByB.status === 404, 'User B must not modify User A board');
+
+  // 6. User B cannot delete User A's board
+  const deleteByB = await fetch(`${base}/api/boards/${boardAId}`, {
+    method: 'DELETE',
+    headers: { cookie: sidB }
+  });
+  assert.ok(deleteByB.status === 403 || deleteByB.status === 404, 'User B must not delete User A board');
+
+  // 7. User A saves a project plan for their board
+  const planPayload = {
+    projectName: 'Alice Confidential Plan',
+    projectCode: 'SEC-001',
+    tasks: [{ id: 'task-sec-1', title: 'Top Secret Research' }]
+  };
+  const savePlanA = await fetch(`${base}/api/projects/${boardAId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie: sidA },
+    body: JSON.stringify({ plan: planPayload, stateVersion: 2 })
+  });
+  assert.equal(savePlanA.status, 200);
+
+  // 8. User B cannot read User A's project plan
+  const readPlanB = await fetch(`${base}/api/projects/${boardAId}`, {
+    headers: { cookie: sidB }
+  });
+  const planDataB = await readPlanB.json();
+  assert.equal(planDataB.plan, null, 'User B reading User A plan must receive null');
+
+  // 9. User B cannot overwrite User A's project plan
+  const overwritePlanB = await fetch(`${base}/api/projects/${boardAId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie: sidB },
+    body: JSON.stringify({ plan: { projectName: 'Bob Hijacked Plan' }, stateVersion: 2 })
+  });
+  assert.equal(overwritePlanB.status, 403, 'User B attempting to overwrite User A plan must return 403');
+
+  // 10. User B cannot delete User A's project plan
+  const deletePlanB = await fetch(`${base}/api/projects/${boardAId}`, {
+    method: 'DELETE',
+    headers: { cookie: sidB }
+  });
+  assert.equal(deletePlanB.status, 403, 'User B attempting to delete User A plan must return 403');
+
+  // 11. User A can still read and delete their own plan and board
+  const readPlanA = await fetch(`${base}/api/projects/${boardAId}`, {
+    headers: { cookie: sidA }
+  });
+  const planDataA = await readPlanA.json();
+  assert.equal(planDataA.plan.projectName, 'Alice Confidential Plan');
+
+  const deletePlanA = await fetch(`${base}/api/projects/${boardAId}`, {
+    method: 'DELETE',
+    headers: { cookie: sidA }
+  });
+  assert.equal(deletePlanA.status, 200);
+
+  const deleteBoardA = await fetch(`${base}/api/boards/${boardAId}`, {
+    method: 'DELETE',
+    headers: { cookie: sidA }
+  });
+  assert.equal(deleteBoardA.status, 200);
 });
