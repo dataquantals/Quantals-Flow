@@ -9,7 +9,7 @@
     { "source": "/dashboard/(.*)", "destination": "/dashboard/index.html" }
   ],
   "functions": {
-    "api/index.js": {
+    "api/*.js": {
       "maxDuration": 60
     }
   },
