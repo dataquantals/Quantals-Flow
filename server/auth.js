@@ -77,16 +77,23 @@ export function findUserById(id) {
 }
 
 export function createUser({ email, name, passwordHash, role = 'member' }) {
-  const info = db
-    .prepare(
-      `INSERT INTO users (email, name, role, password_hash, created_at)
-       VALUES (?, ?, ?, ?, ?)`
-    )
-    .run(normalizeEmail(email), name, role, passwordHash, Date.now());
+  const normalizedEmail = normalizeEmail(email);
+  try {
+    const info = db
+      .prepare(
+        `INSERT OR REPLACE INTO users (email, name, role, password_hash, created_at)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(normalizedEmail, name, role, passwordHash, Date.now());
 
-  const user = findUserById(Number(info.lastInsertRowid));
-  syncUserToConvex(user, passwordHash);
-  return user;
+    const user = findUserById(Number(info.lastInsertRowid) || db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail).id);
+    syncUserToConvex(user, passwordHash);
+    return user;
+  } catch (err) {
+    const existing = findUserByEmail(normalizedEmail);
+    if (existing) return existing;
+    throw err;
+  }
 }
 
 export function findOrCreateClerkUser({ email, name }) {
@@ -137,6 +144,7 @@ export function createSession(userId, userDetails = null) {
 export function getSessionUser(token) {
   if (!token) return null;
 
+  // Try local first
   const row = db
     .prepare(
       `SELECT s.expires_at, u.id, u.email, u.name, u.role, u.title, u.company, u.bio, u.avatar_url, u.avatar_storage_id, u.created_at
@@ -146,34 +154,35 @@ export function getSessionUser(token) {
     )
     .get(token);
 
-  if (!row) return null;
-
-  if (row.expires_at <= Date.now()) {
-    deleteSession(token);
-    return null;
+  if (row) {
+    if (row.expires_at <= Date.now()) {
+      deleteSession(token);
+      return null;
+    }
+    return {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role,
+      title: row.title || '',
+      company: row.company || '',
+      bio: row.bio || '',
+      avatar_url: row.avatar_url || '',
+      avatar_storage_id: row.avatar_storage_id || '',
+      created_at: row.created_at
+    };
   }
 
-  return {
-    id: row.id,
-    email: row.email,
-    name: row.name,
-    role: row.role,
-    title: row.title || '',
-    company: row.company || '',
-    bio: row.bio || '',
-    avatar_url: row.avatar_url || '',
-    avatar_storage_id: row.avatar_storage_id || '',
-    created_at: row.created_at
-  };
+  return null;
 }
 
 /**
- * Async session lookup that checks SQLite then falls back to Convex.
+ * Async session lookup that checks SQLite then falls back to Convex (or authenticates directly via Convex).
  */
 export async function getSessionUserWithConvexFallback(token) {
   const user = getSessionUser(token);
   if (user) return user;
-  if (!token || config.isTest) return null;
+  if (!token) return null;
 
   try {
     const convexSession = await getConvexSession(token);
