@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.js';
 import { purgeExpiredSessions } from './db.js';
-import { getSessionUser } from './auth.js';
+import { getSessionUser, getSessionUserWithConvexFallback, extractSessionToken } from './auth.js';
 import { createApi } from './routes.js';
 import {
   sendJson,
@@ -41,12 +41,19 @@ function originAllowed(req) {
   const origin = req.headers.origin;
   if (!origin) return true; // same-origin form posts and curl send no Origin
 
-  if (config.origin) return origin === config.origin;
-
   try {
     const url = new URL(origin);
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    return url.host === host;
+    const forwardedHost = String(req.headers['x-forwarded-host'] || '')
+      .split(',')[0]
+      .trim();
+    const directHost = String(req.headers.host || '').trim();
+    if ((forwardedHost && url.host === forwardedHost) || (directHost && url.host === directHost)) {
+      return true;
+    }
+    if (config.origin) {
+      return origin.replace(/\/+$/, '') === String(config.origin).replace(/\/+$/, '');
+    }
+    return false;
   } catch {
     return false;
   }
@@ -60,15 +67,47 @@ function securityHeaders() {
   };
 }
 
-export async function handleApi(req, res) {
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
-  let rawPathname = req.url;
+/** Vercel rewrite target: `/api/:path*` -> `/api/router/:path*` (see vercel.json). */
+const API_ROUTER_PREFIX = '/api/router';
+
+/** Path captured by a query-based rewrite (`/api/(.*)` -> `/api?__api_path=$1`). */
+function rewrittenApiPath(req, urlObj) {
+  let raw = req.query && req.query.__api_path;
+  if ((raw === undefined || raw === null) && urlObj) {
+    raw = urlObj.searchParams.get('__api_path');
+  }
+  if (raw === undefined || raw === null) return null;
+  const value = Array.isArray(raw) ? raw.join('/') : String(raw);
+  let decoded = value;
   try {
-    const urlObj = new URL(req.url, `http://${host}`);
+    decoded = decodeURIComponent(value);
+  } catch {
+    /* keep the raw value when it is not valid percent-encoding */
+  }
+  return decoded.replace(/^\/+/, '');
+}
+
+export async function handleApi(req, res) {
+  const host =
+    String(req.headers['x-forwarded-host'] || '').split(',')[0].trim() ||
+    req.headers.host ||
+    'localhost';
+  let rawPathname = req.url;
+  let urlObj = null;
+  try {
+    urlObj = new URL(req.url, `http://${host}`);
     rawPathname = urlObj.pathname;
   } catch {}
 
-  if (!rawPathname.startsWith('/api/')) {
+  // A rewrite onto a single function hides the real sub-path. Vercel routes
+  // /api/boards to /api/router/boards, so drop the router prefix first.
+  const forwarded = rewrittenApiPath(req, urlObj);
+  if (forwarded !== null) {
+    rawPathname = forwarded ? `/api/${forwarded}` : '/api';
+  } else if (rawPathname === API_ROUTER_PREFIX || rawPathname.startsWith(`${API_ROUTER_PREFIX}/`)) {
+    const tail = rawPathname.slice(API_ROUTER_PREFIX.length).replace(/^\/+/, '');
+    rawPathname = tail ? `/api/${tail}` : '/api';
+  } else if (!rawPathname.startsWith('/api/')) {
     if (req.query && req.query.path) {
       const parts = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
       rawPathname = '/api/' + parts.join('/');
@@ -133,13 +172,13 @@ const server = http.createServer(async (req, res) => {
   // Pages normalise to a trailing slash (/pricing/), but the API router matches
   // exact paths. Vercel's trailingSlash setting and hand-typed URLs both deliver
   // /api/auth/me/ — strip it so that becomes a 401/200 instead of a 404.
-  const pathname = rawPathname.startsWith('/api/') ? rawPathname.replace(/\/+$/, '') : rawPathname;
+  const pathname = (rawPathname === '/api' || rawPathname.startsWith('/api/')) ? rawPathname.replace(/\/+$/, '') : rawPathname;
 
   for (const [key, value] of Object.entries(securityHeaders())) res.setHeader(key, value);
 
   try {
     // ---------- API ----------
-    if (pathname.startsWith('/api/')) {
+    if (pathname === '/api' || pathname.startsWith('/api/')) {
       return handleApi(req, res);
     }
 
@@ -151,7 +190,7 @@ const server = http.createServer(async (req, res) => {
     // A 302 keeps the URL honest (deep link survives the round trip via
     // ?next=) and spares unauthenticated visitors the shell-then-bounce flash.
     if (isProtected(pathname)) {
-      const user = getSessionUser(parseCookies(req)[config.session.cookie]);
+      const user = await getSessionUserWithConvexFallback(extractSessionToken(req));
       if (!user) {
         const next = pathname.endsWith('/') ? pathname : pathname + '/';
         res.writeHead(302, {

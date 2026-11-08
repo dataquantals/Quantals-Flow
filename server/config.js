@@ -31,7 +31,14 @@ export const config = {
 
   session: {
     cookie: 'quantalflow_sid',
-    ttlMs: 1000 * 60 * 60 * 24 * 7 // 7 days
+    ttlMs: 1000 * 60 * 60 * 24 * 7, // 7 days
+    // Key for the HMAC that signs the session cookie. A signed cookie keeps a
+    // session valid across serverless instances (each one gets its own /tmp
+    // SQLite file), so this must be the same value on every instance.
+    secret:
+      process.env.SESSION_SECRET ||
+      process.env.SYNC_SECRET ||
+      'quantalflow-dev-session-secret-change-me'
   },
 
   convex: {

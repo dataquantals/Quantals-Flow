@@ -763,3 +763,40 @@ test('Row-Level Security (RLS): anonymous requests are blocked and users cannot 
   });
   assert.equal(deleteBoardA.status, 200);
 });
+
+test('Vercel __api_path rewrite, Convex Bearer token auth, and new-project-planning-workspace resolution work end-to-end', async () => {
+  // 1. Login via Vercel rewrite query (?__api_path=auth/login) returns token + user
+  const loginRes = await fetch(`${base}/api?__api_path=auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: owner.email, password: '123456' })
+  });
+  assert.equal(loginRes.status, 200);
+  const loginBody = await loginRes.json();
+  assert.equal(loginBody.user.email, owner.email);
+  assert.ok(loginBody.token, 'expected a signed Convex session token');
+  assert.equal(loginBody.authProvider, 'convex');
+
+  // 2. Authenticate /api?__api_path=auth/me using Authorization: Bearer <token> without cookies
+  const meRes = await fetch(`${base}/api?__api_path=auth/me`, {
+    headers: { Authorization: `Bearer ${loginBody.token}` }
+  });
+  assert.equal(meRes.status, 200);
+  const meBody = await meRes.json();
+  assert.equal(meBody.user.email, owner.email);
+
+  // 3. Resolve /api/boards/new-project-planning-workspace using Bearer token
+  const boardRes = await fetch(`${base}/api/boards/new-project-planning-workspace`, {
+    headers: { Authorization: `Bearer ${loginBody.token}` }
+  });
+  assert.equal(boardRes.status, 200);
+  const boardBody = await boardRes.json();
+  assert.equal(boardBody.board.id, 'project-planning-workspace');
+  assert.equal(boardBody.board.state.workspaceMode, 'project-planning');
+
+  // 4. HTML route /app/new-project-planning-workspace serves the SPA shell
+  const appPage = await fetch(`${base}/app/new-project-planning-workspace`);
+  assert.equal(appPage.status, 200);
+  const appHtml = await appPage.text();
+  assert.ok(appHtml.includes('id="quantalflow-viewport"'));
+});

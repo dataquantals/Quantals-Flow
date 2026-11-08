@@ -453,10 +453,10 @@
     if (rest[0] === 'board' && rest.length >= 2) return rest[1];
     if (rest.length >= 3) return rest[0] + '-' + rest[1];
     if (rest.length === 2) {
-      if (KNOWN_TEMPLATES.indexOf(rest[1].toLowerCase()) !== -1) return rest[0];
+      if (KNOWN_TEMPLATES.indexOf(rest[1].toLowerCase()) !== -1) return rest[0] === 'new-project-planning-workspace' ? BLANK_WORKSPACE_ID : rest[0];
       return rest[0] + '-' + rest[1];
     }
-    return rest[0];
+    return rest[0] === 'new-project-planning-workspace' ? BLANK_WORKSPACE_ID : rest[0];
   }
 
   /* ---------- Durable plan sync (SQLite + Convex) ----------
@@ -3234,7 +3234,7 @@
     var isQuantalsRoute = path.indexOf('/data-quantals-plan') !== -1;
     var wantsSuite =
       params.get('template') === 'project-planning' ||
-      path.indexOf('/project-planning') !== -1 ||
+      path.indexOf('project-planning') !== -1 ||
       isQuantalsRoute ||
       hash === '#project-planning' ||
       hash === '#wbs';

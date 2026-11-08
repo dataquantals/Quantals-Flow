@@ -1286,6 +1286,10 @@
         }
         syncUrlToTitle(board.title);
         if (starBtn) starBtn.classList.toggle('is-starred', Boolean(board.starred));
+        if (board.state && board.state.workspaceMode === 'project-planning' && window.ProjectPlanningSuite) {
+          window.ProjectPlanningSuite.open(board.id || boardId, board.title || 'Project Planning Workspace');
+          return;
+        }
         if (
           board.state &&
           board.state.version === 2 &&

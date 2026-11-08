@@ -5,9 +5,13 @@ import {
   findUserByEmail,
   createUser,
   createSession,
+  createSessionAsync,
   getSessionUser,
   getSessionUserWithConvexFallback,
+  extractSessionToken,
+  upsertLocalUserFromConvex,
   deleteSession,
+  deleteSessionAsync,
   publicUser,
   findOrCreateClerkUser
 } from './auth.js';
@@ -17,6 +21,8 @@ import {
   findBoardBySlug,
   upsertBoard,
   removeBoard,
+  hydrateUserBoardsFromConvex,
+  hydrateBoardFromConvex,
   updateUser,
   updateUserAvatar,
   updateUserPassword,
@@ -84,7 +90,7 @@ function validateRegistration(body) {
 export function createApi(limiter) {
   const loginLimiter = limiter;
 
-  const auth = (req) => getSessionUser(parseCookies(req)[config.session.cookie]);
+  const auth = (req) => getSessionUserWithConvexFallback(extractSessionToken(req));
 
   const guard = (res, limiterKey) => {
     const result = loginLimiter.check(limiterKey);
@@ -117,11 +123,21 @@ export function createApi(limiter) {
       if (findUserByEmail(email)) {
         return sendJson(res, 409, { error: 'An account with that email already exists.' });
       }
+      if (!config.isTest) {
+        try {
+          const remoteExisting = await getConvexUserByEmail(email);
+          if (remoteExisting) {
+            upsertLocalUserFromConvex(remoteExisting);
+            return sendJson(res, 409, { error: 'An account with that email already exists.' });
+          }
+        } catch {}
+      }
 
       const passwordHash = await hashPassword(password);
       let user;
       try {
         user = createUser({ email, name, passwordHash });
+        if (user?._convexSyncPromise) await user._convexSyncPromise;
       } catch (err) {
         // Unique index is the real guard against a race between check and insert.
         if (String(err.message).includes('UNIQUE')) {
@@ -130,10 +146,10 @@ export function createApi(limiter) {
         throw err;
       }
 
-      const token = createSession(user.id);
+      const token = await createSessionAsync(user.id, user);
       loginLimiter.reset(`login:${ip}`);
 
-      return sendJson(res, 201, { user: publicUser(user) }, {
+      return sendJson(res, 201, { user: publicUser(user), token, authProvider: 'convex' }, {
         'Set-Cookie': buildSessionCookie(token)
       });
     },
@@ -159,21 +175,12 @@ export function createApi(limiter) {
 
       let user = findUserByEmail(email);
 
-      // Convex Auth fallback / lookup if user does not exist locally yet
-      if (!user) {
+      // Convex Auth lookup if user does not exist locally yet
+      if (!user && !config.isTest) {
         try {
           const remote = await getConvexUserByEmail(email);
           if (remote && remote.passwordHash) {
-            db.prepare(
-              `INSERT OR REPLACE INTO users (email, name, role, password_hash, created_at)
-               VALUES (?, ?, ?, ?, ?)`
-            ).run(
-              remote.email,
-              remote.name || remote.email.split('@')[0],
-              remote.role || 'member',
-              remote.passwordHash,
-              remote.createdAt || Date.now()
-            );
+            upsertLocalUserFromConvex(remote);
             user = findUserByEmail(email);
           }
         } catch {}
@@ -184,7 +191,7 @@ export function createApi(limiter) {
       let stored = user ? user.password_hash : 'scrypt$16384$8$1$AAAA$AAAA';
       let ok = await verifyPassword(password, stored);
 
-      if (user && !ok) {
+      if (user && !ok && !config.isTest) {
         try {
           const remote = await getConvexUserByEmail(email);
           if (remote && remote.passwordHash && remote.passwordHash !== user.password_hash) {
@@ -202,31 +209,35 @@ export function createApi(limiter) {
         return sendJson(res, 401, { error: 'Incorrect email or password.' });
       }
 
-      const token = createSession(user.id);
+      if (!config.isTest) {
+        await syncUserToConvex(user, user.password_hash);
+      }
+
+      const token = await createSessionAsync(user.id, user);
       loginLimiter.reset(`login:${ip}`);
 
-      return sendJson(res, 200, { user: publicUser(user) }, {
+      return sendJson(res, 200, { user: publicUser(user), token, authProvider: 'convex' }, {
         'Set-Cookie': buildSessionCookie(token)
       });
     },
 
     /** POST /api/auth/logout */
-    logout(req, res) {
-      const token = parseCookies(req)[config.session.cookie];
-      deleteSession(token);
+    async logout(req, res) {
+      const token = extractSessionToken(req);
+      await deleteSessionAsync(token);
       return sendJson(res, 200, { ok: true }, { 'Set-Cookie': buildClearCookie() });
     },
 
     /** GET /api/auth/me */
-    me(req, res) {
-      const user = auth(req);
+    async me(req, res) {
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
-      return sendJson(res, 200, { user: publicUser(user) });
+      return sendJson(res, 200, { user: publicUser(user), authProvider: 'convex' });
     },
 
     /** PATCH /api/auth/me - Update profile fields (name, title/jobTitle, company, bio) */
     async updateMe(req, res) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       let body;
@@ -259,7 +270,7 @@ export function createApi(limiter) {
       if (!updated) return sendJson(res, 404, { error: 'User not found.' });
 
       try {
-        syncUserToConvex(updated);
+        await syncUserToConvex(updated);
       } catch {}
 
       return sendJson(res, 200, {
@@ -271,7 +282,7 @@ export function createApi(limiter) {
 
     /** POST /api/profile/avatar-upload-url - Generate direct Convex storage upload URL */
     async avatarUploadUrl(req, res) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const uploadUrl = await generateConvexUploadUrl(user.id);
@@ -284,7 +295,7 @@ export function createApi(limiter) {
 
     /** POST /api/profile/avatar - Upload profile image to Convex storage (<= 5MB) */
     async uploadAvatar(req, res) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const rawContentType = (req.headers['content-type'] || '').toLowerCase();
@@ -367,12 +378,12 @@ export function createApi(limiter) {
 
     /** DELETE /api/profile/avatar - Remove profile photo */
     async removeAvatar(req, res) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const updated = updateUserAvatar(user.id, '', '');
       try {
-        syncUserToConvex(updated);
+        await syncUserToConvex(updated);
       } catch {}
 
       return sendJson(res, 200, {
@@ -384,7 +395,7 @@ export function createApi(limiter) {
 
     /** POST /api/auth/change-password */
     async changePassword(req, res) {
-      const sessionUser = auth(req);
+      const sessionUser = await auth(req);
       if (!sessionUser) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const ip = getClientIp(req);
@@ -425,7 +436,7 @@ export function createApi(limiter) {
       updateUserPassword(user.id, newHash);
 
       try {
-        syncUserToConvex(user, newHash);
+        await syncUserToConvex(user, newHash);
       } catch {}
 
       return sendJson(res, 200, {
@@ -437,6 +448,7 @@ export function createApi(limiter) {
     /** GET /api/auth/config */
     authConfig(req, res) {
       return sendJson(res, 200, {
+        authProvider: 'convex',
         clerkAppId: config.clerk.appId,
         clerkPublishableKey: config.clerk.publishableKey || null,
         convexCloudUrl: config.convex.cloudUrl,
@@ -481,11 +493,11 @@ export function createApi(limiter) {
         return sendJson(res, 400, { error: 'Valid email is required for Clerk session sync.' });
       }
 
-      const user = findOrCreateClerkUser({ email, name });
-      const token = createSession(user.id);
+      const user = await findOrCreateClerkUser({ email, name });
+      const token = await createSessionAsync(user.id, user);
       loginLimiter.reset(`login:${ip}`);
 
-      return sendJson(res, 200, { user: publicUser(user), provider: 'clerk' }, {
+      return sendJson(res, 200, { user: publicUser(user), token, provider: 'clerk', authProvider: 'convex' }, {
         'Set-Cookie': buildSessionCookie(token)
       });
     },
@@ -493,18 +505,20 @@ export function createApi(limiter) {
     /** GET /api/convex/status */
     async convexStatus(req, res) {
       const status = await checkConvexConnection();
-      const user = auth(req);
+      const user = await auth(req);
       return sendJson(res, 200, {
         ...status,
+        authProvider: 'convex',
         // Only ever the caller's own boards; anonymous callers get no count.
         localBoardCount: user ? listBoards({ userId: user.id }).length : null
       });
     },
 
     /** GET /api/boards */
-    listBoardsApi(req, res) {
-      const user = auth(req);
+    async listBoardsApi(req, res) {
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      await hydrateUserBoardsFromConvex(user.id);
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const query = (url.searchParams.get('q') || '').trim();
       const starredOnly = url.searchParams.get('starred') === '1';
@@ -523,7 +537,7 @@ export function createApi(limiter) {
 
     /** POST /api/boards */
     async createBoardApi(req, res) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
@@ -547,6 +561,7 @@ export function createApi(limiter) {
           starred,
           state
         });
+        if (board?._convexSyncPromise) await board._convexSyncPromise;
         return sendJson(res, 201, { board });
       } catch (err) {
         return sendJson(res, err.status || 500, { error: err.message });
@@ -554,17 +569,20 @@ export function createApi(limiter) {
     },
 
     /** GET /api/boards/:id */
-    getBoardApi(req, res, boardId) {
-      const user = auth(req);
+    async getBoardApi(req, res, boardId) {
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
-      const board = getBoardById(boardId, user.id);
+      let board = getBoardById(boardId, user.id);
+      if (!board) {
+        board = await hydrateBoardFromConvex(boardId, user.id);
+      }
       if (!board) return sendJson(res, 404, { error: 'Board not found.' });
       return sendJson(res, 200, { board });
     },
 
     /** PUT /api/boards/:id */
     async updateBoardApi(req, res, boardId) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
@@ -581,6 +599,7 @@ export function createApi(limiter) {
           starred: body.starred !== undefined ? Boolean(body.starred) : undefined,
           state: body.state !== undefined && typeof body.state === 'object' ? body.state : undefined
         });
+        if (board?._convexSyncPromise) await board._convexSyncPromise;
         return sendJson(res, 200, { board });
       } catch (err) {
         return sendJson(res, err.status || 500, { error: err.message });
@@ -589,7 +608,7 @@ export function createApi(limiter) {
 
     /** DELETE /api/boards/:id */
     async deleteBoardApi(req, res, boardId) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const result = await removeBoard(boardId, user.id);
       if (!result.removed) return sendJson(res, 404, { error: 'Board not found.' });
@@ -606,7 +625,7 @@ export function createApi(limiter) {
 
     /** GET /api/projects/:boardId - plan for a board (SQLite, then Convex). */
     async getProjectPlanApi(req, res, boardId) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let plan = getProjectPlan(boardId, user.id);
       let source = plan ? 'sqlite' : null;
@@ -632,7 +651,7 @@ export function createApi(limiter) {
 
     /** PUT /api/projects/:boardId - replace the plan and mirror it to Convex. */
     async saveProjectPlanApi(req, res, boardId) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
@@ -660,7 +679,7 @@ export function createApi(limiter) {
 
     /** DELETE /api/projects/:boardId - drop a plan from SQLite and Convex. */
     async deleteProjectPlanApi(req, res, boardId) {
-      const user = auth(req);
+      const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const result = await removeProjectPlan(boardId, user.id);

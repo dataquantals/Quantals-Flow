@@ -74,11 +74,16 @@ for (const file of sources) {
     checked += 1;
 
     const where = `${path.basename(file)} -> ${href}`;
-    if (!routes.has(route)) {
+    const resolvedRoute = routes.has(route)
+      ? route
+      : route.startsWith('/app/') && routes.has('/app/')
+        ? '/app/'
+        : null;
+    if (!resolvedRoute) {
       problems.push(`missing route: ${where}`);
       continue;
     }
-    if (fragment && !ids.get(route).has(fragment)) {
+    if (fragment && !ids.get(resolvedRoute).has(fragment)) {
       problems.push(`missing anchor: ${where}`);
     }
   }

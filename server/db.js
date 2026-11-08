@@ -3,18 +3,29 @@ import { DatabaseSync } from 'node:sqlite';
 import { config } from './config.js';
 import {
   syncBoardToConvex,
+  fetchBoardsFromConvex,
+  fetchBoardFromConvex,
   deleteBoardFromConvex,
   syncProjectPlanToConvex,
   deleteProjectPlanFromConvex
 } from './convex.js';
 
-fs.mkdirSync(config.dataDir, { recursive: true });
+try {
+  fs.mkdirSync(config.dataDir, { recursive: true });
+} catch {}
 
-export const db = new DatabaseSync(config.dbFile);
+let dbInstance;
+try {
+  dbInstance = new DatabaseSync(config.dbFile);
+  try { dbInstance.exec('PRAGMA journal_mode = WAL'); } catch {}
+} catch {
+  dbInstance = new DatabaseSync(':memory:');
+}
 
-db.exec('PRAGMA journal_mode = WAL');
-db.exec('PRAGMA foreign_keys = ON');
-db.exec('PRAGMA busy_timeout = 5000');
+export const db = dbInstance;
+
+try { db.exec('PRAGMA foreign_keys = ON'); } catch {}
+try { db.exec('PRAGMA busy_timeout = 5000'); } catch {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -44,11 +55,10 @@ try { db.exec("ALTER TABLE users ADD COLUMN avatar_storage_id TEXT DEFAULT ''");
       INSERT INTO users (id, email, name, role, password_hash, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    // Pre-hashed scrypt for '12345678'
-    insert.run(1, 'dataquantals@gmail.com', 'Owner', 'owner', 'scrypt$16384$8$1$NujqRqV_zxFYA5bauv-PDA$1ualgwkok_ahLJTRHBBhI_5n1wAzRf8DO-km9FznwKzYJo9Y3G3Xn7yOKeGEtNCmIzPV3AfXDgqG_AM_hzHc8g', now);
-    insert.run(2, 'mumbarich3@gmail.com', 'Mumbarich 3', 'member', 'scrypt$16384$8$1$HKtejCl2A8vXaVDN2iLkwg$8Fez7w2QoIzqRmo_uPY5cRQFVyv1VJ5d_GRwdx92iaQkvOT75ijl5kIHJoXa2EdhIJeBX2PP7wwVSK7VSS3a1Q', now);
-    insert.run(3, 'dataqauntals@gmail.com', 'Data Quantals', 'owner', 'scrypt$16384$8$1$KJgh0gFIFgF13tHM8Ea1Ew$I7nL6EomEhhe95KDlgGi5k0hh94p3zBwATOzeAP32aBg3MNye-lc2bpGTUo8eRyHv3tf0II3T1nYNme4tEVVDA', now);
-    insert.run(4, 'mumbarich@gmail.com', 'Mumbarich', 'member', 'scrypt$16384$8$1$fdy1aMbaJRQUIaiQKsGbVQ$gNH2KK5yA4MPxklBGoOjpqrdzun-rO3sSqN3yaaQZHEUlZxRAwZNCRNu_aNUaXw-5QMunyGUtFMpe8oYzLbhDw', now);
+    insert.run(1, 'dataquantals@gmail.com', 'Owner', 'owner', 'scrypt$16384$8$1$CO5QdVMR0vj5W9msSvj3pw$AhT51UQkmP3kKuGqIwg6RyStyurtk4LGqxR645rNwPgT-nGvrcRSQQvFmnvgVXwdaFNjZHq2rpO8bJ8g-TETug', now);
+    insert.run(2, 'mumbarich3@gmail.com', 'Richard Mumba', 'member', 'scrypt$16384$8$1$HKtejCl2A8vXaVDN2iLkwg$8Fez7w2QoIzqRmo_uPY5cRQFVyv1VJ5d_GRwdx92iaQkvOT75ijl5kIHJoXa2EdhIJeBX2PP7wwVSK7VSS3a1Q', now);
+    insert.run(3, 'dataqauntals@gmail.com', 'Data Quantals', 'owner', 'scrypt$16384$8$1$r6ZatIMO-nuOLLgzLl6oDw$uHU31ILaz9yP2u7lrflRuO426JW4nNmmU1P82o3O0l_ROXxgPAsbqbmZRMnpnETgURRHrI-Ay_JEv5VTm7g3yg', now);
+    insert.run(4, 'mumbarich@gmail.com', 'Mumbarich', 'member', 'scrypt$16384$8$1$RgQEHgwWCTRGk9vMm2QcUw$lKP2MojGNgkfmwppHI7KYmkSBbvQP9p_SJFXR2ENIkOp-uT2FwSWG6utqRcHejzED-KHPF5ka8lbwjxSomQNfw', now);
   } catch {}
 })();
 
@@ -63,6 +73,16 @@ db.exec(`
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)');
+
+// Signed session cookies cannot be "deleted" server-side, so a logout records
+// the token hash here. Rows expire with the session itself.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS revoked_sessions (
+    token_hash TEXT    PRIMARY KEY,
+    expires_at INTEGER NOT NULL
+  );
+`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_revoked_expires ON revoked_sessions(expires_at)');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS boards (
@@ -177,11 +197,14 @@ export function isDemoPlanFingerprint(plan) {
  * private per user the stored row id is namespaced as `<id>~<userId>`. Callers
  * and the browser only ever see the public id.
  */
-const USER_SCOPED_BOARD_IDS = new Set([BLANK_PROJECT_PLANNING_BOARD_ID]);
+const USER_SCOPED_BOARD_IDS = new Set([
+  BLANK_PROJECT_PLANNING_BOARD_ID,
+  'new-project-planning-workspace'
+]);
 
 export function scopeBoardId(id, userId) {
   const raw = String(id || '');
-  return USER_SCOPED_BOARD_IDS.has(raw) ? `${raw}~${userId}` : raw;
+  return USER_SCOPED_BOARD_IDS.has(raw) ? `${BLANK_PROJECT_PLANNING_BOARD_ID}~${userId}` : raw;
 }
 
 export function publicBoardId(id) {
@@ -202,7 +225,7 @@ function ownsRow(row, userId) {
 function ensureUserBlankBoard(userId) {
   const internalId = scopeBoardId(BLANK_PROJECT_PLANNING_BOARD_ID, userId);
   const now = Date.now();
-  db.prepare(`
+  const inserted = db.prepare(`
     INSERT OR IGNORE INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
     VALUES (?, ?, ?, ?, 0, '{}', ?, ?)
   `).run(internalId, userId, 'New Project Planning Workspace', 'AI & Product Strategy', now, now);
@@ -211,15 +234,90 @@ function ensureUserBlankBoard(userId) {
   // `workspaceMode` marker. It is merged in, never replaced, so a canvas save
   // (which writes `{version, items, paths}` and knows nothing about the marker)
   // can no longer strip it and drop the user on an empty canvas.
-  const row = db.prepare('SELECT state_json FROM boards WHERE id = ? AND user_id = ?').get(internalId, userId);
+  const row = db.prepare('SELECT * FROM boards WHERE id = ? AND user_id = ?').get(internalId, userId);
   const state = parseStateJson(row && row.state_json);
   if (row && state.workspaceMode !== 'project-planning') {
     state.workspaceMode = 'project-planning';
     db.prepare('UPDATE boards SET state_json = ? WHERE id = ? AND user_id = ?')
       .run(JSON.stringify(state), internalId, userId);
   }
-  const board = getBoardById(BLANK_PROJECT_PLANNING_BOARD_ID, userId);
-  if (board) syncBoardToConvex(board, userId, internalId);
+  if (inserted.changes > 0 && row) {
+    syncBoardToConvex(
+      {
+        id: BLANK_PROJECT_PLANNING_BOARD_ID,
+        title: row.title,
+        category: row.category,
+        starred: Boolean(row.starred),
+        state
+      },
+      userId,
+      internalId
+    );
+  }
+}
+
+/**
+ * Hydrate a user's boards from Convex into local SQLite when running on a
+ * cold serverless instance.
+ */
+export async function hydrateUserBoardsFromConvex(userId) {
+  if (userId == null || config.isTest) return;
+  try {
+    const remoteBoards = await fetchBoardsFromConvex(userId);
+    if (!Array.isArray(remoteBoards)) return;
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const rb of remoteBoards) {
+      if (!rb || !rb.id) continue;
+      const internalId = rb.id.includes('~') ? rb.id : scopeBoardId(rb.id, userId);
+      stmt.run(
+        internalId,
+        userId,
+        rb.title || 'Untitled Board',
+        rb.category || 'Strategy & Planning',
+        rb.starred ? 1 : 0,
+        rb.state ? JSON.stringify(rb.state) : '{}',
+        rb.createdAt || Date.now(),
+        rb.updatedAt || Date.now()
+      );
+    }
+  } catch (err) {
+    console.warn('[db] convex board list hydration failed:', err.message);
+  }
+}
+
+export async function hydrateBoardFromConvex(id, userId) {
+  if (!id || userId == null || config.isTest) return null;
+  try {
+    const internalId = scopeBoardId(id, userId);
+    const rb = await fetchBoardFromConvex(internalId, userId);
+    if (!rb) return null;
+    db.prepare(`
+      INSERT INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        title = excluded.title,
+        category = excluded.category,
+        starred = excluded.starred,
+        state_json = CASE WHEN excluded.state_json != '{}' THEN excluded.state_json ELSE boards.state_json END,
+        updated_at = MAX(boards.updated_at, excluded.updated_at)
+      WHERE boards.user_id = excluded.user_id
+    `).run(
+      internalId,
+      userId,
+      rb.title || 'Untitled Board',
+      rb.category || 'Strategy & Planning',
+      rb.starred ? 1 : 0,
+      rb.state ? JSON.stringify(rb.state) : '{}',
+      rb.createdAt || Date.now(),
+      rb.updatedAt || Date.now()
+    );
+    return getBoardById(id, userId);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -280,6 +378,9 @@ export function listBoards({ query = '', starredOnly = false, userId } = {}) {
 /** A board the caller owns, or null. Someone else's board looks like a missing one. */
 export function getBoardById(id, userId) {
   if (userId == null) return null;
+  if (USER_SCOPED_BOARD_IDS.has(String(id || ''))) {
+    ensureUserBlankBoard(userId);
+  }
   const row = db.prepare('SELECT * FROM boards WHERE id = ?').get(scopeBoardId(id, userId));
   if (!ownsRow(row, userId)) return null;
   let state = null;
@@ -394,7 +495,13 @@ export function upsertBoard({ id, userId, title, category, starred, state }) {
     `).run(nextTitle, nextCategory, nextStarred, nextStateStr, now, internalId, userId);
   }
   const saved = getBoardById(id, userId);
-  syncBoardToConvex(saved, userId, internalId);
+  const syncPromise = syncBoardToConvex(saved, userId, internalId);
+  if (saved && syncPromise) {
+    Object.defineProperty(saved, '_convexSyncPromise', {
+      value: syncPromise,
+      enumerable: false
+    });
+  }
   return saved;
 }
 
@@ -463,7 +570,7 @@ export async function saveProjectPlan(boardId, plan, userId) {
   // The canonical blank workspace must stay blank: an older client (or a tab
   // opened before the demo purge) can replay a sample snapshot here, which then
   // gets hydrated back into every new visit. Reject it at the door.
-  if (String(boardId) === BLANK_PROJECT_PLANNING_BOARD_ID && isDemoPlanFingerprint(plan)) {
+  if (USER_SCOPED_BOARD_IDS.has(String(boardId)) && isDemoPlanFingerprint(plan)) {
     const err = new Error('Refusing to store a demo plan in the blank workspace.');
     err.status = 409;
     throw err;
@@ -541,5 +648,11 @@ export function updateUserPassword(id, passwordHash) {
 }
 
 export function purgeExpiredSessions(now = Date.now()) {
-  return db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now).changes;
+  let changes = db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now).changes;
+  try {
+    changes += db.prepare('DELETE FROM revoked_sessions WHERE expires_at <= ?').run(now).changes;
+  } catch {
+    /* table not created yet on an older database */
+  }
+  return changes;
 }

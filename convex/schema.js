@@ -36,6 +36,9 @@ export default defineSchema({
     email: v.string(),
     name: v.string(),
     role: v.string(),
+    title: v.optional(v.string()),
+    company: v.optional(v.string()),
+    bio: v.optional(v.string()),
     passwordHash: v.optional(v.string()),
     clerkId: v.optional(v.string()),
     externalId: v.optional(v.string()),
@@ -52,6 +55,11 @@ export default defineSchema({
     email: v.string(),
     name: v.string(),
     role: v.string(),
+    title: v.optional(v.string()),
+    company: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    avatarStorageId: v.optional(v.string()),
     createdAt: v.number(),
     expiresAt: v.number()
   })

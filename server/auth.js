@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { db } from './db.js';
 import { config } from './config.js';
+import { parseCookies } from './http.js';
 import {
   syncUserToConvex,
   createConvexSession,
@@ -12,10 +13,58 @@ import {
 } from './convex.js';
 
 const scrypt = promisify(crypto.scrypt);
+const revokedTokens = new Set();
 
 // scrypt parameters. N=16384 keeps a single hash around ~50ms on this machine,
 // which is slow enough to make offline guessing expensive without hurting UX.
 const SCRYPT = { N: 16384, r: 8, p: 1, keylen: 64, maxmem: 96 * 1024 * 1024 };
+
+function signingSecret() {
+  return config.convex.syncSecret || 'quantalflow-default-hmac-secret';
+}
+
+function signTokenPayload(sid, payload) {
+  const payloadB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const data = `${sid}.${payloadB64}`;
+  const sig = crypto.createHmac('sha256', signingSecret()).update(data).digest('base64url');
+  return `${data}.${sig}`;
+}
+
+export function verifySignedSessionToken(token) {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length !== 3) return null;
+    const [sid, payloadB64, sigB64] = parts;
+    if (!sid || !payloadB64 || !sigB64) return null;
+    const data = `${sid}.${payloadB64}`;
+    const expectedSig = crypto.createHmac('sha256', signingSecret()).update(data).digest();
+    const actualSig = Buffer.from(sigB64, 'base64url');
+    if (expectedSig.length !== actualSig.length || !crypto.timingSafeEqual(expectedSig, actualSig)) {
+      return null;
+    }
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+    if (!payload || typeof payload !== 'object') return null;
+    if (!payload.exp || payload.exp <= Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+export function extractSessionToken(req) {
+  const cookieToken = parseCookies(req)[config.session.cookie];
+  if (cookieToken) return cookieToken;
+  const authHeader = req.headers?.authorization || req.headers?.Authorization;
+  if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+    const bearer = authHeader.slice(7).trim();
+    if (bearer) return bearer;
+  }
+  const headerToken = req.headers?.['x-session-token'];
+  if (typeof headerToken === 'string' && headerToken.trim()) {
+    return headerToken.trim();
+  }
+  return null;
+}
 
 /**
  * Hash a password with a random per-user salt.
@@ -76,6 +125,84 @@ export function findUserById(id) {
     .get(id);
 }
 
+/**
+ * Ensure a user from Convex is present in local SQLite with their canonical ID.
+ */
+export function upsertLocalUserFromConvex(remoteUser, fallbackPasswordHash) {
+  if (!remoteUser || !remoteUser.email) return null;
+  const normalizedEmail = normalizeEmail(remoteUser.email);
+  const existingByEmail = findUserByEmail(normalizedEmail);
+  const preferredId = Number(remoteUser.externalId || remoteUser.userId);
+  const passwordHash =
+    remoteUser.passwordHash ||
+    existingByEmail?.password_hash ||
+    fallbackPasswordHash ||
+    'scrypt$16384$8$1$AAAA$AAAA';
+
+  if (existingByEmail) {
+    db.prepare(`
+      UPDATE users
+      SET name = ?, role = ?, title = ?, company = ?, bio = ?, avatar_url = ?, avatar_storage_id = ?, password_hash = ?
+      WHERE id = ?
+    `).run(
+      remoteUser.name || existingByEmail.name || normalizedEmail.split('@')[0],
+      remoteUser.role || existingByEmail.role || 'member',
+      remoteUser.title ?? existingByEmail.title ?? '',
+      remoteUser.company ?? existingByEmail.company ?? '',
+      remoteUser.bio ?? existingByEmail.bio ?? '',
+      remoteUser.avatarUrl ?? remoteUser.avatar_url ?? existingByEmail.avatar_url ?? '',
+      remoteUser.avatarStorageId ?? remoteUser.avatar_storage_id ?? existingByEmail.avatar_storage_id ?? '',
+      passwordHash,
+      existingByEmail.id
+    );
+    return findUserById(existingByEmail.id);
+  }
+
+  try {
+    if (Number.isFinite(preferredId) && preferredId > 0) {
+      const idTaken = findUserById(preferredId);
+      if (!idTaken) {
+        db.prepare(`
+          INSERT INTO users (id, email, name, role, title, company, bio, avatar_url, avatar_storage_id, password_hash, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          preferredId,
+          normalizedEmail,
+          remoteUser.name || normalizedEmail.split('@')[0] || 'QuantalFlow User',
+          remoteUser.role || 'member',
+          remoteUser.title || '',
+          remoteUser.company || '',
+          remoteUser.bio || '',
+          remoteUser.avatarUrl || remoteUser.avatar_url || '',
+          remoteUser.avatarStorageId || remoteUser.avatar_storage_id || '',
+          passwordHash,
+          remoteUser.createdAt || Date.now()
+        );
+        return findUserById(preferredId);
+      }
+    }
+
+    const info = db.prepare(`
+      INSERT INTO users (email, name, role, title, company, bio, avatar_url, avatar_storage_id, password_hash, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      normalizedEmail,
+      remoteUser.name || normalizedEmail.split('@')[0] || 'QuantalFlow User',
+      remoteUser.role || 'member',
+      remoteUser.title || '',
+      remoteUser.company || '',
+      remoteUser.bio || '',
+      remoteUser.avatarUrl || remoteUser.avatar_url || '',
+      remoteUser.avatarStorageId || remoteUser.avatar_storage_id || '',
+      passwordHash,
+      remoteUser.createdAt || Date.now()
+    );
+    return findUserById(Number(info.lastInsertRowid));
+  } catch {
+    return findUserByEmail(normalizedEmail);
+  }
+}
+
 export function createUser({ email, name, passwordHash, role = 'member' }) {
   const normalizedEmail = normalizeEmail(email);
   try {
@@ -87,7 +214,13 @@ export function createUser({ email, name, passwordHash, role = 'member' }) {
       .run(normalizedEmail, name, role, passwordHash, Date.now());
 
     const user = findUserById(Number(info.lastInsertRowid) || db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail).id);
-    syncUserToConvex(user, passwordHash);
+    const syncPromise = syncUserToConvex(user, passwordHash);
+    if (user && syncPromise) {
+      Object.defineProperty(user, '_convexSyncPromise', {
+        value: syncPromise,
+        enumerable: false
+      });
+    }
     return user;
   } catch (err) {
     const existing = findUserByEmail(normalizedEmail);
@@ -96,44 +229,106 @@ export function createUser({ email, name, passwordHash, role = 'member' }) {
   }
 }
 
-export function findOrCreateClerkUser({ email, name }) {
+export async function findOrCreateClerkUser({ email, name }) {
   const normalized = normalizeEmail(email);
-  const existing = findUserByEmail(normalized);
+  let existing = findUserByEmail(normalized);
+  if (!existing && !config.isTest) {
+    try {
+      const remote = await getConvexUserByEmail(normalized);
+      if (remote) existing = upsertLocalUserFromConvex(remote);
+    } catch {}
+  }
   if (existing) {
-    syncUserToConvex(existing);
+    await syncUserToConvex(existing);
     return findUserById(existing.id);
   }
   const placeholderHash = 'scrypt$16384$8$1$' + crypto.randomBytes(16).toString('base64url') + '$' + crypto.randomBytes(64).toString('base64url');
-  return createUser({
+  const created = createUser({
     email: normalized,
     name: name || normalized.split('@')[0] || 'QuantalFlow User',
     passwordHash: placeholderHash,
     role: 'member'
   });
+  if (created?._convexSyncPromise) await created._convexSyncPromise;
+  return created;
 }
 
 /**
- * Create a session and return its opaque token. The token is a 256-bit
- * random value; only the token is stored in the client cookie.
- * Mirrors session to Convex Auth collection when configured.
+ * Create a session and return its token synchronously (for test helpers),
+ * while also exposing `createSessionAsync` to await Convex session persistence
+ * in serverless functions before the HTTP response is sent.
  */
 export function createSession(userId, userDetails = null) {
-  const token = crypto.randomBytes(32).toString('base64url');
+  const sid = crypto.randomBytes(24).toString('base64url');
   const now = Date.now();
   const expiresAt = now + config.session.ttlMs;
-  db.prepare(
-    `INSERT INTO sessions (id, user_id, created_at, expires_at)
-     VALUES (?, ?, ?, ?)`
-  ).run(token, userId, now, expiresAt);
+  const u = userDetails || findUserById(userId) || { id: userId, email: '', name: '', role: 'member' };
 
-  const u = userDetails || findUserById(userId);
-  if (u) {
+  const token = signTokenPayload(sid, {
+    uid: Number(u.id || userId),
+    email: u.email || '',
+    name: u.name || '',
+    role: u.role || 'member',
+    exp: expiresAt
+  });
+
+  revokedTokens.delete(token);
+  db.prepare(
+    `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
+     VALUES (?, ?, ?, ?)`
+  ).run(token, u.id || userId, now, expiresAt);
+
+  if (u && u.email) {
     createConvexSession({
       token,
-      userId: String(userId),
+      userId: String(u.id || userId),
       email: u.email,
       name: u.name,
-      role: u.role,
+      role: u.role || 'member',
+      title: u.title || '',
+      company: u.company || '',
+      bio: u.bio || '',
+      avatarUrl: u.avatar_url || '',
+      avatarStorageId: u.avatar_storage_id || '',
+      expiresAt
+    }).catch(() => {});
+  }
+
+  return token;
+}
+
+export async function createSessionAsync(userId, userDetails = null) {
+  const sid = crypto.randomBytes(24).toString('base64url');
+  const now = Date.now();
+  const expiresAt = now + config.session.ttlMs;
+  const u = userDetails || findUserById(userId) || { id: userId, email: '', name: '', role: 'member' };
+
+  const token = signTokenPayload(sid, {
+    uid: Number(u.id || userId),
+    email: u.email || '',
+    name: u.name || '',
+    role: u.role || 'member',
+    exp: expiresAt
+  });
+
+  revokedTokens.delete(token);
+  db.prepare(
+    `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
+     VALUES (?, ?, ?, ?)`
+  ).run(token, u.id || userId, now, expiresAt);
+
+  if (u && u.email) {
+    await createConvexSession({
+      token,
+      userId: String(u.id || userId),
+      email: u.email,
+      name: u.name,
+      role: u.role || 'member',
+      title: u.title || '',
+      company: u.company || '',
+      bio: u.bio || '',
+      avatarUrl: u.avatar_url || '',
+      avatarStorageId: u.avatar_storage_id || '',
       expiresAt
     }).catch(() => {});
   }
@@ -142,9 +337,8 @@ export function createSession(userId, userDetails = null) {
 }
 
 export function getSessionUser(token) {
-  if (!token) return null;
+  if (!token || revokedTokens.has(token)) return null;
 
-  // Try local first
   const row = db
     .prepare(
       `SELECT s.expires_at, u.id, u.email, u.name, u.role, u.title, u.company, u.bio, u.avatar_url, u.avatar_storage_id, u.created_at
@@ -177,51 +371,79 @@ export function getSessionUser(token) {
 }
 
 /**
- * Async session lookup that checks SQLite then falls back to Convex (or authenticates directly via Convex).
+ * Async session lookup that checks local SQLite, then Convex Auth (`sessions` + `users`),
+ * and finally verifies HMAC-signed stateless session payloads on cold serverless starts.
  */
 export async function getSessionUserWithConvexFallback(token) {
-  const user = getSessionUser(token);
-  if (user) return user;
-  if (!token) return null;
+  if (!token || revokedTokens.has(token)) return null;
 
+  const local = getSessionUser(token);
+  if (local) return local;
+
+  if (config.isTest) return null;
+
+  // 1. Check Convex Auth sessions table
   try {
     const convexSession = await getConvexSession(token);
-    if (!convexSession || convexSession.expiresAt <= Date.now()) return null;
+    if (convexSession && convexSession.expiresAt > Date.now()) {
+      let localUser = upsertLocalUserFromConvex({
+        email: convexSession.email,
+        name: convexSession.name,
+        role: convexSession.role,
+        externalId: convexSession.userId,
+        title: convexSession.title,
+        company: convexSession.company,
+        bio: convexSession.bio,
+        avatarUrl: convexSession.avatarUrl,
+        avatarStorageId: convexSession.avatarStorageId
+      });
 
-    let localUser = findUserByEmail(convexSession.email);
-    if (!localUser) {
-      const remoteUser = await getConvexUserByEmail(convexSession.email);
-      const info = db.prepare(
-        `INSERT INTO users (email, name, role, password_hash, created_at)
-         VALUES (?, ?, ?, ?, ?)`
-      ).run(
-        convexSession.email,
-        convexSession.name || 'QuantalFlow User',
-        convexSession.role || 'member',
-        remoteUser?.passwordHash || 'scrypt$16384$8$1$AAAA$AAAA',
-        Date.now()
-      );
-      localUser = findUserById(Number(info.lastInsertRowid));
-    }
-
-    if (localUser) {
-      db.prepare(
-        `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
-         VALUES (?, ?, ?, ?)`
-      ).run(token, localUser.id, convexSession.createdAt || Date.now(), convexSession.expiresAt);
-
-      return publicUser(localUser);
+      if (localUser) {
+        db.prepare(
+          `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
+           VALUES (?, ?, ?, ?)`
+        ).run(token, localUser.id, convexSession.createdAt || Date.now(), convexSession.expiresAt);
+        return publicUser(localUser);
+      }
     }
   } catch (err) {
     console.warn('[auth] convex session lookup failed:', err.message);
   }
+
+  // 2. Fallback to HMAC-signed token verification if serverless instance cold-started
+  const signedPayload = verifySignedSessionToken(token);
+  if (signedPayload && signedPayload.email) {
+    let localUser = upsertLocalUserFromConvex({
+      email: signedPayload.email,
+      name: signedPayload.name,
+      role: signedPayload.role,
+      externalId: String(signedPayload.uid || '')
+    });
+    if (localUser) {
+      db.prepare(
+        `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
+         VALUES (?, ?, ?, ?)`
+      ).run(token, localUser.id, Date.now(), signedPayload.exp);
+      return publicUser(localUser);
+    }
+  }
+
   return null;
 }
 
 export function deleteSession(token) {
   if (!token) return 0;
+  revokedTokens.add(token);
   removeConvexSession(token).catch(() => {});
   return db.prepare('DELETE FROM sessions WHERE id = ?').run(token).changes;
+}
+
+export async function deleteSessionAsync(token) {
+  if (!token) return 0;
+  revokedTokens.add(token);
+  const changes = db.prepare('DELETE FROM sessions WHERE id = ?').run(token).changes;
+  await removeConvexSession(token).catch(() => {});
+  return changes;
 }
 
 export function deleteUserSessions(userId) {

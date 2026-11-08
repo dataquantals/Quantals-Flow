@@ -15,7 +15,23 @@ export const getByToken = query({
       .first();
     if (!session) return null;
     if (session.expiresAt <= Date.now()) return null;
-    return session;
+    const user = session.email
+      ? await ctx.db
+          .query('users')
+          .withIndex('by_email', (q) => q.eq('email', session.email.trim().toLowerCase()))
+          .first()
+      : null;
+    return {
+      ...session,
+      userId: user?.externalId || session.userId,
+      name: user?.name || session.name,
+      role: user?.role || session.role,
+      title: user?.title ?? session.title ?? '',
+      company: user?.company ?? session.company ?? '',
+      bio: user?.bio ?? session.bio ?? '',
+      avatarUrl: user?.avatarUrl ?? session.avatarUrl ?? '',
+      avatarStorageId: user?.avatarStorageId ?? session.avatarStorageId ?? ''
+    };
   }
 });
 
@@ -27,6 +43,11 @@ export const create = mutation({
     email: v.string(),
     name: v.string(),
     role: v.string(),
+    title: v.optional(v.string()),
+    company: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    avatarUrl: v.optional(v.string()),
+    avatarStorageId: v.optional(v.string()),
     expiresAt: v.number()
   },
   handler: async (ctx, args) => {
@@ -44,6 +65,11 @@ export const create = mutation({
       email: args.email,
       name: args.name,
       role: args.role,
+      title: args.title,
+      company: args.company,
+      bio: args.bio,
+      avatarUrl: args.avatarUrl,
+      avatarStorageId: args.avatarStorageId,
       createdAt: Date.now(),
       expiresAt: args.expiresAt
     });

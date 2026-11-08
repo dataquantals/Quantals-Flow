@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as boards from "../boards.js";
 import type * as files from "../files.js";
@@ -23,6 +24,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   authHelpers: typeof authHelpers;
   boards: typeof boards;
   files: typeof files;

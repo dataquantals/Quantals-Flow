@@ -114,15 +114,35 @@ export async function uploadBufferToConvex(buffer, contentType = 'image/png', us
  * ------------------------------------------------------------------ */
 
 export function syncBoardToConvex(board, userId, convexBoardId) {
-  if (!board || !userId || config.isTest) return;
-  convexMutation('boards:upsert', {
+  if (!board || !userId || config.isTest) return Promise.resolve(null);
+  return convexMutation('boards:upsert', {
     userId: String(userId),
     boardId: String(convexBoardId || board.id),
     title: board.title || 'New Collaborative Board',
     category: board.category || 'Strategy & Planning',
     starred: Boolean(board.starred),
     stateJson: board.state ? JSON.stringify(board.state) : '{}'
-  }).catch((err) => console.warn('[convex] board sync failed:', err.message));
+  }).catch((err) => {
+    console.warn('[convex] board sync failed:', err.message);
+    return null;
+  });
+}
+
+export async function fetchBoardsFromConvex(userId, { query = '', starredOnly = false } = {}) {
+  if (!userId || config.isTest) return null;
+  return await convexQuery('boards:list', {
+    userId: String(userId),
+    query: query || undefined,
+    starredOnly: Boolean(starredOnly)
+  });
+}
+
+export async function fetchBoardFromConvex(boardId, userId) {
+  if (!boardId || !userId || config.isTest) return null;
+  return await convexQuery('boards:getByBoardId', {
+    userId: String(userId),
+    boardId: String(boardId)
+  });
 }
 
 export function deleteBoardFromConvex(boardId, userId) {
@@ -150,9 +170,12 @@ export function syncUserToConvex(user, passwordHash) {
     role: user.role || 'member',
     externalId: String(user.id)
   };
+  if (user.title !== undefined) payload.title = String(user.title || '');
+  if (user.company !== undefined) payload.company = String(user.company || '');
+  if (user.bio !== undefined) payload.bio = String(user.bio || '');
   if (passwordHash) payload.passwordHash = passwordHash;
-  if (user.avatar_url) payload.avatarUrl = user.avatar_url;
-  if (user.avatar_storage_id) payload.avatarStorageId = user.avatar_storage_id;
+  if (user.avatar_url !== undefined) payload.avatarUrl = String(user.avatar_url || '');
+  if (user.avatar_storage_id !== undefined) payload.avatarStorageId = String(user.avatar_storage_id || '');
 
   return convexMutation('users:upsertUser', payload).catch((err) => {
     console.warn('[convex] user sync failed:', err.message);
@@ -173,7 +196,19 @@ export async function updateConvexUserPassword(email, passwordHash) {
   });
 }
 
-export async function createConvexSession({ token, userId, email, name, role, expiresAt }) {
+export async function createConvexSession({
+  token,
+  userId,
+  email,
+  name,
+  role,
+  title,
+  company,
+  bio,
+  avatarUrl,
+  avatarStorageId,
+  expiresAt
+}) {
   if (!token || config.isTest) return null;
   return await convexMutation('sessions:create', {
     token,
@@ -181,6 +216,11 @@ export async function createConvexSession({ token, userId, email, name, role, ex
     email: email || '',
     name: name || '',
     role: role || 'member',
+    title: title || undefined,
+    company: company || undefined,
+    bio: bio || undefined,
+    avatarUrl: avatarUrl || undefined,
+    avatarStorageId: avatarStorageId || undefined,
     expiresAt
   });
 }
