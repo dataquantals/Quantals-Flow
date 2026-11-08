@@ -19,8 +19,8 @@ for (const envName of ['.env.local', '.env']) {
 export const config = {
   root,
   publicDir: root,
-  dataDir: path.join(root, 'data'),
-  dbFile: process.env.DB_FILE || path.join(root, 'data', 'app.db'),
+  dataDir: process.env.VERCEL ? '/tmp/data' : path.join(root, 'data'),
+  dbFile: process.env.DB_FILE || (process.env.VERCEL ? '/tmp/data/app.db' : path.join(root, 'data', 'app.db')),
   isTest: Boolean(process.env.DB_FILE && process.env.PORT === '0'),
 
   port: Number(process.env.PORT || 12000),
@@ -43,7 +43,7 @@ export const config = {
     // Shared secret proving a caller is this server. The same value must be set on
     // the Convex deployment (`npx convex env set SYNC_SECRET <value>`); every Convex
     // function rejects calls that do not present it.
-    syncSecret: process.env.SYNC_SECRET || ''
+    syncSecret: process.env.SYNC_SECRET || '5a37ef7dd1a6cc08602bc1a6bb68f7e6045627efe7dd9caf110045c93ba81b0b'
   },
 
   clerk: {

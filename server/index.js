@@ -29,10 +29,12 @@ const APP_NESTED_ROUTE_RE = /^\/app\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+){0,2}\/?$
 const DASHBOARD_NESTED_ROUTE_RE = /^\/dashboard\/(?:starred|recent|space\/[a-zA-Z0-9_-]+)\/?$/;
 
 // Sweep expired sessions hourly so the table does not grow without bound.
-setInterval(() => {
-  purgeExpiredSessions();
-  limiter.prune();
-}, 1000 * 60 * 60).unref();
+if (!process.env.VERCEL) {
+  setInterval(() => {
+    purgeExpiredSessions();
+    limiter.prune();
+  }, 1000 * 60 * 60).unref();
+}
 
 /** Reject cross-site state-changing requests. */
 function originAllowed(req) {
@@ -43,7 +45,7 @@ function originAllowed(req) {
 
   try {
     const url = new URL(origin);
-    const host = req.headers.host;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
     return url.host === host;
   } catch {
     return false;
@@ -56,6 +58,66 @@ function securityHeaders() {
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin'
   };
+}
+
+export async function handleApi(req, res) {
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
+  let rawPathname = req.url;
+  try {
+    const urlObj = new URL(req.url, `http://${host}`);
+    rawPathname = urlObj.pathname;
+  } catch {}
+
+  if (!rawPathname.startsWith('/api/')) {
+    if (req.query && req.query.path) {
+      const parts = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
+      rawPathname = '/api/' + parts.join('/');
+    } else {
+      rawPathname = '/api' + (rawPathname.startsWith('/') ? rawPathname : '/' + rawPathname);
+    }
+  }
+  const pathname = rawPathname.replace(/\/+$/, '');
+
+  for (const [key, value] of Object.entries(securityHeaders())) res.setHeader(key, value);
+
+  if ((req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') && !originAllowed(req)) {
+    return sendJson(res, 403, { error: 'Cross-origin request blocked.' });
+  }
+
+  if (pathname === '/api/auth/register' && req.method === 'POST') return api.register(req, res);
+  if (pathname === '/api/auth/login' && req.method === 'POST') return api.login(req, res);
+  if (pathname === '/api/auth/logout' && req.method === 'POST') return api.logout(req, res);
+  if (pathname === '/api/auth/me' && req.method === 'GET') return api.me(req, res);
+  if (pathname === '/api/auth/me' && req.method === 'PATCH') return api.updateMe(req, res);
+  if (pathname === '/api/profile/avatar' && req.method === 'POST') return api.uploadAvatar(req, res);
+  if (pathname === '/api/profile/avatar' && req.method === 'DELETE') return api.removeAvatar(req, res);
+  if (pathname === '/api/profile/avatar-upload-url' && req.method === 'POST') return api.avatarUploadUrl(req, res);
+  if (pathname === '/api/auth/change-password' && req.method === 'POST') return api.changePassword(req, res);
+  if (pathname === '/api/auth/config' && req.method === 'GET') return api.authConfig(req, res);
+  if (pathname === '/api/auth/clerk-sync' && req.method === 'POST') return api.clerkSync(req, res);
+  if (pathname === '/api/convex/status' && req.method === 'GET') return api.convexStatus(req, res);
+  if (pathname === '/api/ai/generate' && req.method === 'POST') return api.generateAi(req, res);
+
+  if (pathname === '/api/boards' && req.method === 'GET') return api.listBoardsApi(req, res);
+  if (pathname === '/api/boards' && req.method === 'POST') return api.createBoardApi(req, res);
+
+  const boardMatch = pathname.match(/^\/api\/boards\/([^/]+)$/);
+  if (boardMatch) {
+    const boardId = decodeURIComponent(boardMatch[1]);
+    if (req.method === 'GET') return api.getBoardApi(req, res, boardId);
+    if (req.method === 'PUT') return api.updateBoardApi(req, res, boardId);
+    if (req.method === 'DELETE') return api.deleteBoardApi(req, res, boardId);
+  }
+
+  const projectMatch = pathname.match(/^\/api\/projects\/([^/]+)$/);
+  if (projectMatch) {
+    const boardId = decodeURIComponent(projectMatch[1]);
+    if (req.method === 'GET') return api.getProjectPlanApi(req, res, boardId);
+    if (req.method === 'PUT') return api.saveProjectPlanApi(req, res, boardId);
+    if (req.method === 'DELETE') return api.deleteProjectPlanApi(req, res, boardId);
+  }
+
+  return sendJson(res, 404, { error: 'Not found.' });
 }
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
@@ -78,44 +140,7 @@ const server = http.createServer(async (req, res) => {
   try {
     // ---------- API ----------
     if (pathname.startsWith('/api/')) {
-      if ((req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') && !originAllowed(req)) {
-        return sendJson(res, 403, { error: 'Cross-origin request blocked.' });
-      }
-
-      if (pathname === '/api/auth/register' && req.method === 'POST') return api.register(req, res);
-      if (pathname === '/api/auth/login' && req.method === 'POST') return api.login(req, res);
-      if (pathname === '/api/auth/logout' && req.method === 'POST') return api.logout(req, res);
-      if (pathname === '/api/auth/me' && req.method === 'GET') return api.me(req, res);
-      if (pathname === '/api/auth/me' && req.method === 'PATCH') return api.updateMe(req, res);
-      if (pathname === '/api/profile/avatar' && req.method === 'POST') return api.uploadAvatar(req, res);
-      if (pathname === '/api/profile/avatar' && req.method === 'DELETE') return api.removeAvatar(req, res);
-      if (pathname === '/api/profile/avatar-upload-url' && req.method === 'POST') return api.avatarUploadUrl(req, res);
-      if (pathname === '/api/auth/change-password' && req.method === 'POST') return api.changePassword(req, res);
-      if (pathname === '/api/auth/config' && req.method === 'GET') return api.authConfig(req, res);
-      if (pathname === '/api/auth/clerk-sync' && req.method === 'POST') return api.clerkSync(req, res);
-      if (pathname === '/api/convex/status' && req.method === 'GET') return api.convexStatus(req, res);
-      if (pathname === '/api/ai/generate' && req.method === 'POST') return api.generateAi(req, res);
-
-      if (pathname === '/api/boards' && req.method === 'GET') return api.listBoardsApi(req, res);
-      if (pathname === '/api/boards' && req.method === 'POST') return api.createBoardApi(req, res);
-
-      const boardMatch = pathname.match(/^\/api\/boards\/([^/]+)$/);
-      if (boardMatch) {
-        const boardId = decodeURIComponent(boardMatch[1]);
-        if (req.method === 'GET') return api.getBoardApi(req, res, boardId);
-        if (req.method === 'PUT') return api.updateBoardApi(req, res, boardId);
-        if (req.method === 'DELETE') return api.deleteBoardApi(req, res, boardId);
-      }
-
-      const projectMatch = pathname.match(/^\/api\/projects\/([^/]+)$/);
-      if (projectMatch) {
-        const boardId = decodeURIComponent(projectMatch[1]);
-        if (req.method === 'GET') return api.getProjectPlanApi(req, res, boardId);
-        if (req.method === 'PUT') return api.saveProjectPlanApi(req, res, boardId);
-        if (req.method === 'DELETE') return api.deleteProjectPlanApi(req, res, boardId);
-      }
-
-      return sendJson(res, 404, { error: 'Not found.' });
+      return handleApi(req, res);
     }
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -204,11 +229,13 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(config.port, config.host, () => {
-  const { port } = server.address();
-  console.log(`QuantalFlow clone running at http://localhost:${port}`);
-  console.log(`  database: ${config.dbFile}`);
-  console.log(`  convex:   ${config.convex.cloudUrl}`);
-});
+if (!process.env.VERCEL) {
+  server.listen(config.port, config.host, () => {
+    const { port } = server.address();
+    console.log(`QuantalFlow clone running at http://localhost:${port}`);
+    console.log(`  database: ${config.dbFile}`);
+    console.log(`  convex:   ${config.convex.cloudUrl}`);
+  });
+}
 
 export { server };

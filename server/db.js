@@ -34,6 +34,24 @@ try { db.exec("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT ''"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN avatar_storage_id TEXT DEFAULT ''"); } catch {}
 
+// Seed default users if table is empty (e.g. serverless cold start)
+(function seedDefaultUsers() {
+  try {
+    const count = db.prepare('SELECT COUNT(*) AS cnt FROM users').get().cnt;
+    if (count > 0) return;
+    const now = Date.now();
+    const insert = db.prepare(`
+      INSERT INTO users (id, email, name, role, password_hash, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    // Pre-hashed scrypt for '12345678'
+    insert.run(1, 'dataquantals@gmail.com', 'Owner', 'owner', 'scrypt$16384$8$1$NujqRqV_zxFYA5bauv-PDA$1ualgwkok_ahLJTRHBBhI_5n1wAzRf8DO-km9FznwKzYJo9Y3G3Xn7yOKeGEtNCmIzPV3AfXDgqG_AM_hzHc8g', now);
+    insert.run(2, 'mumbarich3@gmail.com', 'Mumbarich 3', 'member', 'scrypt$16384$8$1$HKtejCl2A8vXaVDN2iLkwg$8Fez7w2QoIzqRmo_uPY5cRQFVyv1VJ5d_GRwdx92iaQkvOT75ijl5kIHJoXa2EdhIJeBX2PP7wwVSK7VSS3a1Q', now);
+    insert.run(3, 'dataqauntals@gmail.com', 'Data Quantals', 'owner', 'scrypt$16384$8$1$KJgh0gFIFgF13tHM8Ea1Ew$I7nL6EomEhhe95KDlgGi5k0hh94p3zBwATOzeAP32aBg3MNye-lc2bpGTUo8eRyHv3tf0II3T1nYNme4tEVVDA', now);
+    insert.run(4, 'mumbarich@gmail.com', 'Mumbarich', 'member', 'scrypt$16384$8$1$fdy1aMbaJRQUIaiQKsGbVQ$gNH2KK5yA4MPxklBGoOjpqrdzun-rO3sSqN3yaaQZHEUlZxRAwZNCRNu_aNUaXw-5QMunyGUtFMpe8oYzLbhDw', now);
+  } catch {}
+})();
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id         TEXT    PRIMARY KEY,

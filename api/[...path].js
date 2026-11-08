@@ -15,6 +15,8 @@
  * Body parsing is disabled so canvas/plan documents and avatar uploads stream
  * through byte-for-byte.
  */
+import { handleApi } from '../server/index.js';
+
 export const config = {
   api: { bodyParser: false }
 };
