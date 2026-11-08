@@ -12,6 +12,17 @@
 (function () {
   'use strict';
 
+  /* One friendly line for every AI/provider failure (must match
+     AI_UNAVAILABLE_MESSAGE in server/routes.js and assets/js/app.js). */
+  var AI_UNAVAILABLE_MESSAGE =
+    'Unable to use ai at this time, try later. If the persist, contact the support team';
+
+  function aiUnavailableError() {
+    var err = new Error(AI_UNAVAILABLE_MESSAGE);
+    err.aiUnavailable = true;
+    return err;
+  }
+
   var STORAGE_PREFIX = 'quantalflow_pp_state_v2_';
   var STATE_VERSION = 2;
   var KNOWN_TEMPLATES = ['project-planning', 'mindmap', 'flow', 'kanban', 'retro', 'brainstorm', 'swot', 'journey', 'blank'];
@@ -1496,13 +1507,17 @@
         credentials: 'same-origin',
         body: JSON.stringify({ mode: 'plan-edit', prompt: prompt, plan: buildPlanSnapshot() })
       })
+        .catch(function () {
+          // Offline, DNS failure, CORS, aborted request.
+          throw aiUnavailableError();
+        })
         .then(function (res) {
           return res.json().catch(function () { return {}; }).then(function (data) {
             return { ok: res.ok, data: data };
           });
         })
         .then(function (result) {
-          if (!result.ok) throw new Error((result.data && result.data.error) || 'The copilot could not be reached.');
+          if (!result.ok) throw aiUnavailableError();
 
           var structured = result.data && result.data.structured;
           var operations = structured && Array.isArray(structured.operations) ? structured.operations : [];
@@ -1524,6 +1539,10 @@
           input.value = '';
         })
         .catch(function (err) {
+          if (err && err.aiUnavailable) {
+            setStatus(AI_UNAVAILABLE_MESSAGE, 'error');
+            return;
+          }
           setStatus(err && err.message ? err.message : 'Could not reach the copilot.', 'error');
         })
         .then(function () { setBusy(false); });

@@ -12,6 +12,17 @@
 (function () {
   'use strict';
 
+  /* One friendly line for every AI/provider failure. Raw upstream text can name
+     the provider or leak deployment configuration, so it never reaches the UI. */
+  var AI_UNAVAILABLE_MESSAGE =
+    'Unable to use ai at this time, try later. If the persist, contact the support team';
+
+  function aiUnavailableError() {
+    var err = new Error(AI_UNAVAILABLE_MESSAGE);
+    err.aiUnavailable = true;
+    return err;
+  }
+
   var viewport = document.getElementById('quantalflow-viewport');
   var world = document.getElementById('quantalflow-world');
   var connectorsGroup = document.getElementById('quantalflow-connectors-group');
@@ -999,7 +1010,7 @@
         scheduleSave();
         showToast('Expanded into ' + ideas.length + ' connected sticky notes!');
       } catch (err) {
-        showToast('AI Expand error: ' + err.message);
+        showToast(err && err.aiUnavailable ? AI_UNAVAILABLE_MESSAGE : 'AI Expand error: ' + err.message);
       } finally {
         ctxAiExpandBtn.disabled = false;
         ctxAiExpandBtn.innerHTML = origLabel;
@@ -1705,22 +1716,22 @@
   });
 
   async function requestDeepSeek(prompt, mode) {
-    var res = await fetch('/api/ai/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: prompt, mode: mode })
-    });
+    var res;
+    try {
+      res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt, mode: mode })
+      });
+    } catch (e) {
+      // Offline, DNS failure, CORS, aborted request.
+      throw aiUnavailableError();
+    }
     if (res.ok) return await res.json();
 
-    // The DeepSeek key stays on the server — never call the API from the browser.
-    var detail = '';
-    try {
-      var errBody = await res.json();
-      if (errBody && errBody.error) detail = errBody.error;
-    } catch (e) {
-      /* non-JSON error body */
-    }
-    throw new Error(detail || 'AI request failed (' + res.status + ').');
+    // The DeepSeek key stays on the server — never call the API from the
+    // browser, and never surface the server/provider detail in the UI.
+    throw aiUnavailableError();
   }
 
   var aiGenerateBtn = document.getElementById('ai-generate-btn');
@@ -1812,7 +1823,8 @@
 
     } catch (err) {
       if (aiStatus) {
-        aiStatus.textContent = 'Error: ' + err.message;
+        aiStatus.textContent =
+          err && err.aiUnavailable ? AI_UNAVAILABLE_MESSAGE : 'Error: ' + err.message;
         aiStatus.className = 'ai-status-msg is-error';
       }
     } finally {

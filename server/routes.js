@@ -29,6 +29,8 @@ import {
   getProjectPlan,
   saveProjectPlan,
   removeProjectPlan,
+  listUsers,
+  getSystemStats,
   db
 } from './db.js';
 import {
@@ -57,6 +59,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MIN_PASSWORD = 6;
 const MAX_PASSWORD = 200;
 const MAX_NAME = 80;
+
+/**
+ * The only AI failure text a client ever sees. Provider names, upstream
+ * bodies and missing-config hints stay in the server log so a misconfigured
+ * deployment cannot leak internals into the canvas or the planning copilot.
+ */
+const AI_UNAVAILABLE_MESSAGE =
+  'Unable to use ai at this time, try later. If the persist, contact the support team';
 
 /**
  * Board canvases and project plans are documents, not form posts. The default
@@ -704,9 +714,8 @@ export function createApi(limiter) {
 
       const apiKey = config.deepseekApiKey;
       if (!apiKey) {
-        return sendJson(res, 503, {
-          error: 'AI is not configured on this deployment. Set DEEPSEEK_API_KEY on the API host.'
-        });
+        console.warn('[ai] DEEPSEEK_API_KEY is not set on this deployment; AI is unavailable.');
+        return sendJson(res, 503, { error: AI_UNAVAILABLE_MESSAGE });
       }
 
       let systemPrompt = 'You are an intelligent visual whiteboard assistant for QuantalFlow. The user will provide a brainstorming, planning, or architecture prompt. Return 4 to 6 concise, high-value actionable ideas or key pillars as a valid JSON array of strings: ["Idea 1", "Idea 2", "Idea 3", "Idea 4"]. Output ONLY a valid JSON array without any markdown formatting, backticks, or extra commentary.';
@@ -765,7 +774,8 @@ export function createApi(limiter) {
 
         if (!response.ok) {
           const errText = await response.text();
-          return sendJson(res, 502, { error: 'DeepSeek API error', details: errText });
+          console.warn('[ai] DeepSeek request failed', response.status, errText.slice(0, 500));
+          return sendJson(res, 502, { error: AI_UNAVAILABLE_MESSAGE });
         }
 
         const data = await response.json();
@@ -810,7 +820,8 @@ export function createApi(limiter) {
           structured
         });
       } catch (err) {
-        return sendJson(res, 500, { error: 'Failed to communicate with DeepSeek AI: ' + err.message });
+        console.warn('[ai] generate failed:', err && err.message);
+        return sendJson(res, 500, { error: AI_UNAVAILABLE_MESSAGE });
       }
     }
   };
