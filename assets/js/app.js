@@ -30,7 +30,11 @@
   if (!viewport || !world) return;
 
   /* ---------- Hierarchical Path Router (Parent: /app, Child: /:slug/:code/:template) ---------- */
-  var KNOWN_TEMPLATES = ['project-planning', 'mindmap', 'flow', 'kanban', 'retro', 'brainstorm', 'swot', 'journey', 'blank'];
+  var KNOWN_TEMPLATES = ['project-planning', 'mindmap', 'flow', 'kanban', 'perspective', 'retro', 'brainstorm', 'swot', 'journey', 'blank'];
+  var PROJECT_MODULES = ['project-planning', 'mindmap', 'kanban', 'perspective', 'brainstorm'];
+  var DEFAULT_WORKSPACE_MODULE = 'project-planning';
+  var currentActiveModule = DEFAULT_WORKSPACE_MODULE;
+  var boardModules = {};
 
   /** Human-readable URL slug for a board title: "Data Quantals Plan" -> "data-quantals-plan". */
   function slugify(text) {
@@ -45,7 +49,7 @@
 
   function buildBoardPath(id, template, title) {
     var cleanId = String(id || 'new-collaborative-board').trim();
-    var tpl = (template && KNOWN_TEMPLATES.indexOf(template) !== -1) ? '/' + template : '';
+    var tpl = (template && KNOWN_TEMPLATES.indexOf(template) !== -1 && template !== 'project-planning') ? '/' + template : '';
 
     // Prefer the readable title so the address bar reads /app/data-quantals-plan.
     var slug = slugify(title);
@@ -59,20 +63,25 @@
     return '/app/' + encodeURIComponent(cleanId) + tpl;
   }
 
-  /** Keep the address bar in sync with the board title without a reload. */
-  function syncUrlToTitle(title, template) {
+  /** Keep the address bar in sync with the board title and active workspace module without a reload. */
+  function syncUrlToTitle(title, modOverride) {
     if (!title) return;
-    var nextPath = buildBoardPath(boardId, template || initialTemplate, title);
-    var next = nextPath + window.location.search;
+    var activeMod = modOverride || currentActiveModule || DEFAULT_WORKSPACE_MODULE;
+    var nextPath = buildBoardPath(boardId, '', title);
+    var next = nextPath + '?module=' + encodeURIComponent(activeMod);
     if (next !== window.location.pathname + window.location.search) {
-      try { window.history.replaceState({ boardId: boardId, template: initialTemplate }, '', next); } catch (e) {}
+      try {
+        window.history.replaceState({ boardId: boardId, module: activeMod, template: activeMod }, '', next);
+      } catch (e) {}
     }
   }
 
   function parseAppRoute(pathname, search) {
     var params = new URLSearchParams(search || '');
     var qBoard = params.get('board');
-    var qTpl = params.get('template') || '';
+    var qMod = (params.get('module') || '').toLowerCase();
+    var qTpl = (params.get('template') || '').toLowerCase();
+    var explicitMod = (PROJECT_MODULES.indexOf(qMod) !== -1) ? qMod : ((PROJECT_MODULES.indexOf(qTpl) !== -1) ? qTpl : '');
 
     var segments = String(pathname || '/app/')
       .replace(/^\/+|\/+$/g, '')
@@ -87,45 +96,58 @@
     if (qBoard) {
       return {
         boardId: qBoard,
-        template: qTpl,
+        template: explicitMod || qTpl,
+        explicitModule: explicitMod,
         needsCanonicalReplace: true
       };
     }
 
     if (rest.length === 0) {
-      return { boardId: 'new-collaborative-board', template: '', needsCanonicalReplace: false };
+      return {
+        boardId: 'new-collaborative-board',
+        template: explicitMod || qTpl,
+        explicitModule: explicitMod,
+        needsCanonicalReplace: false
+      };
     }
 
     // e.g. /app/board/q4-intelligent-canvas/mindmap
     if (rest[0] === 'board' && rest.length >= 2) {
+      var segTpl = (rest[2] || '').toLowerCase();
       return {
         boardId: rest[1],
-        template: rest[2] || '',
+        template: explicitMod || segTpl,
+        explicitModule: explicitMod || (PROJECT_MODULES.indexOf(segTpl) !== -1 ? segTpl : ''),
         needsCanonicalReplace: false
       };
     }
 
     // e.g. /app/assap/002c5f/mindmap (3 segments after /app)
     if (rest.length >= 3) {
+      var seg3 = rest[2].toLowerCase();
       return {
         boardId: rest[0] + '-' + rest[1],
-        template: rest[2],
+        template: explicitMod || seg3,
+        explicitModule: explicitMod || (PROJECT_MODULES.indexOf(seg3) !== -1 ? seg3 : ''),
         needsCanonicalReplace: false
       };
     }
 
     // e.g. /app/assap/002c5f OR /app/q4-intelligent-canvas/mindmap (2 segments after /app)
     if (rest.length === 2) {
-      if (KNOWN_TEMPLATES.indexOf(rest[1].toLowerCase()) !== -1) {
+      var seg2 = rest[1].toLowerCase();
+      if (KNOWN_TEMPLATES.indexOf(seg2) !== -1) {
         return {
           boardId: rest[0],
-          template: rest[1].toLowerCase(),
+          template: explicitMod || seg2,
+          explicitModule: explicitMod || (PROJECT_MODULES.indexOf(seg2) !== -1 ? seg2 : ''),
           needsCanonicalReplace: false
         };
       }
       return {
         boardId: rest[0] + '-' + rest[1],
-        template: '',
+        template: explicitMod || '',
+        explicitModule: explicitMod,
         needsCanonicalReplace: false
       };
     }
@@ -133,7 +155,8 @@
     // e.g. /app/q4-intelligent-canvas (1 segment after /app)
     return {
       boardId: rest[0],
-      template: '',
+      template: explicitMod || '',
+      explicitModule: explicitMod,
       needsCanonicalReplace: false
     };
   }
@@ -141,20 +164,7 @@
   var initialRoute = parseAppRoute(window.location.pathname, window.location.search);
   var boardId = initialRoute.boardId;
   var initialTemplate = initialRoute.template;
-
-  // Automatically upgrade legacy query-string URLs (/app/?board=assap-002c5f&template=mindmap)
-  // to clean hierarchical paths (/app/assap/002c5f/mindmap) without reloading
-  if (initialTemplate === 'project-planning' || initialRoute.needsCanonicalReplace) {
-    if (window.history && window.history.replaceState) {
-      var targetTpl = (initialTemplate === 'project-planning') ? '' : initialTemplate;
-      var canonicalUrl = buildBoardPath(boardId, targetTpl);
-      var workspaceModule = new URLSearchParams(window.location.search || '').get('module');
-      if (workspaceModule && targetTpl) {
-        canonicalUrl += '?module=' + encodeURIComponent(workspaceModule);
-      }
-      window.history.replaceState({ boardId: boardId, template: targetTpl }, '', canonicalUrl);
-    }
-  }
+  currentActiveModule = initialRoute.explicitModule || DEFAULT_WORKSPACE_MODULE;
 
   /* ---------- Canvas State ---------- */
   var currentTool = 'select'; // select, hand, sticky, shape, connector, text, frame, pen, comment
@@ -1123,8 +1133,22 @@
       });
     }
 
+    var canvasSnapshot = {
+      version: 2,
+      items: items,
+      connectors: JSON.parse(JSON.stringify(connectors)),
+      paths: paths
+    };
+
+    if (currentActiveModule && currentActiveModule !== 'project-planning') {
+      boardModules[currentActiveModule] = canvasSnapshot;
+    }
+
     return {
       version: 2,
+      workspaceMode: currentActiveModule === 'project-planning' ? 'project-planning' : 'canvas',
+      activeModule: currentActiveModule || DEFAULT_WORKSPACE_MODULE,
+      modules: boardModules,
       items: items,
       connectors: JSON.parse(JSON.stringify(connectors)),
       paths: paths
@@ -1277,16 +1301,95 @@
     return null;
   }
 
+  function syncWorkspaceSwitcherUI(activeMod) {
+    var target = activeMod || currentActiveModule || DEFAULT_WORKSPACE_MODULE;
+    document.querySelectorAll('[data-ws-module]').forEach(function (btn) {
+      var isMatch = btn.dataset.wsModule === target;
+      btn.classList.toggle('is-active', isMatch);
+      btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+    });
+  }
+
+  function switchWorkspaceModule(targetMod, pushHistoryEntry) {
+    var normalized = String(targetMod || DEFAULT_WORKSPACE_MODULE).toLowerCase();
+    if (PROJECT_MODULES.indexOf(normalized) === -1) {
+      normalized = DEFAULT_WORKSPACE_MODULE;
+    }
+
+    // Save current canvas module items before switching away
+    if (currentActiveModule && currentActiveModule !== 'project-planning') {
+      boardModules[currentActiveModule] = {
+        version: 2,
+        items: serializeBoardState().items,
+        connectors: JSON.parse(JSON.stringify(connectors)),
+        paths: serializeBoardState().paths
+      };
+    }
+
+    currentActiveModule = normalized;
+    syncWorkspaceSwitcherUI(currentActiveModule);
+
+    var currentTitle = titleInput ? titleInput.value.trim() : 'Project Workspace';
+    var nextPath = buildBoardPath(boardId, '', currentTitle);
+    var nextUrl = nextPath + '?module=' + encodeURIComponent(currentActiveModule);
+    try {
+      if (pushHistoryEntry !== false && window.history && window.history.pushState) {
+        window.history.pushState({ boardId: boardId, module: currentActiveModule, template: currentActiveModule }, '', nextUrl);
+      } else if (window.history && window.history.replaceState) {
+        window.history.replaceState({ boardId: boardId, module: currentActiveModule, template: currentActiveModule }, '', nextUrl);
+      }
+    } catch (e) {}
+
+    if (currentActiveModule === 'project-planning') {
+      starterDismissedByUser = true;
+      syncEmptyBoardStarter();
+      if (window.ProjectPlanningSuite) {
+        window.ProjectPlanningSuite.open(boardId, currentTitle || 'Project Planning Workspace');
+      }
+    } else {
+      if (window.ProjectPlanningSuite) {
+        window.ProjectPlanningSuite.close();
+      }
+      clearCanvasElementsOnly();
+      var savedModState = boardModules[currentActiveModule];
+      if (
+        savedModState &&
+        Array.isArray(savedModState.items) &&
+        (savedModState.items.length > 0 || (Array.isArray(savedModState.paths) && savedModState.paths.length > 0))
+      ) {
+        restoreBoardState(savedModState);
+        starterDismissedByUser = true;
+        syncEmptyBoardStarter();
+      } else {
+        insertTemplateByType(currentActiveModule, 180, 110);
+      }
+    }
+
+    scheduleSave();
+  }
+
+  document.addEventListener('click', function (e) {
+    var wsBtn = e.target.closest('[data-ws-module]');
+    if (!wsBtn) return;
+    e.preventDefault();
+    var targetMod = wsBtn.dataset.wsModule;
+    if (targetMod) {
+      switchWorkspaceModule(targetMod, true);
+    }
+  });
+
   async function loadBoardFromServer() {
     clearCanvasElementsOnly();
     starterDismissedByUser = false;
+    boardModules = {};
 
     var shareInput = document.getElementById('share-link-input');
+    var routeNow = parseAppRoute(window.location.pathname, window.location.search);
+    var explicitMod = routeNow.explicitModule;
 
     try {
       var board = await fetchBoardByAnyId(boardId);
       if (board) {
-        // Adopt the canonical id, then show the readable title path in the URL.
         boardId = board.id || boardId;
         if (titleInput && board.title) {
           titleInput.value = board.title;
@@ -1295,12 +1398,45 @@
         if (shareInput) {
           shareInput.value = window.location.origin + buildBoardPath(boardId, '', board.title);
         }
-        syncUrlToTitle(board.title);
         if (starBtn) starBtn.classList.toggle('is-starred', Boolean(board.starred));
-        if (board.state && board.state.workspaceMode === 'project-planning' && window.ProjectPlanningSuite) {
-          window.ProjectPlanningSuite.open(board.id || boardId, board.title || 'Project Planning Workspace');
+
+        if (board.state && board.state.modules && typeof board.state.modules === 'object') {
+          boardModules = board.state.modules;
+        }
+
+        // Determine active module:
+        // 1. Explicit module in URL (?module=...) wins.
+        // 2. Otherwise default to 'project-planning' when opening a project!
+        var resolvedModule = explicitMod || DEFAULT_WORKSPACE_MODULE;
+        currentActiveModule = resolvedModule;
+        syncWorkspaceSwitcherUI(currentActiveModule);
+        syncUrlToTitle(board.title, currentActiveModule);
+
+        if (currentActiveModule === 'project-planning') {
+          starterDismissedByUser = true;
+          syncEmptyBoardStarter();
+          if (window.ProjectPlanningSuite) {
+            window.ProjectPlanningSuite.open(board.id || boardId, board.title || 'Project Planning Workspace');
+          }
           return;
         }
+
+        if (window.ProjectPlanningSuite) {
+          window.ProjectPlanningSuite.close();
+        }
+
+        var moduleSpecificState = boardModules[currentActiveModule];
+        if (
+          moduleSpecificState &&
+          Array.isArray(moduleSpecificState.items) &&
+          (moduleSpecificState.items.length > 0 || (Array.isArray(moduleSpecificState.paths) && moduleSpecificState.paths.length > 0))
+        ) {
+          restoreBoardState(moduleSpecificState);
+          starterDismissedByUser = true;
+          syncEmptyBoardStarter();
+          return;
+        }
+
         if (
           board.state &&
           board.state.version === 2 &&
@@ -1308,9 +1444,13 @@
           (board.state.items.length > 0 || (Array.isArray(board.state.paths) && board.state.paths.length > 0))
         ) {
           restoreBoardState(board.state);
+          starterDismissedByUser = true;
           syncEmptyBoardStarter();
           return;
         }
+
+        insertTemplateByType(currentActiveModule, 180, 110);
+        return;
       } else if (shareInput) {
         shareInput.value = window.location.origin + buildBoardPath(boardId, '');
       }
@@ -1325,53 +1465,62 @@
           titleInput.value = parsed.title;
           document.title = parsed.title + ' | QuantalFlow App';
         }
-        if (
-          parsed.state &&
-          parsed.state.version === 2 &&
-          Array.isArray(parsed.state.items) &&
-          (parsed.state.items.length > 0 || (Array.isArray(parsed.state.paths) && parsed.state.paths.length > 0))
-        ) {
-          restoreBoardState(parsed.state);
-          syncEmptyBoardStarter();
-          return;
+        if (parsed.state && parsed.state.modules && typeof parsed.state.modules === 'object') {
+          boardModules = parsed.state.modules;
         }
       }
     } catch (e) {}
 
-    // If URL asked for a starter template on a new/empty board, inject it automatically
-    if (initialTemplate) {
-      var tplToInsert = initialTemplate;
-      initialTemplate = '';
-      if (tplToInsert === 'blank') {
-        starterDismissedByUser = true;
-        syncEmptyBoardStarter();
-      } else {
-        insertTemplateByType(tplToInsert, 180, 110);
-      }
+    var fallbackMod = explicitMod || DEFAULT_WORKSPACE_MODULE;
+    currentActiveModule = fallbackMod;
+    syncWorkspaceSwitcherUI(currentActiveModule);
+
+    if (currentActiveModule === 'project-planning' && window.ProjectPlanningSuite) {
+      starterDismissedByUser = true;
+      syncEmptyBoardStarter();
+      window.ProjectPlanningSuite.open(boardId, (titleInput && titleInput.value) || 'Project Planning Workspace');
       return;
     }
 
-    // Otherwise keep the board empty and show the Empty Collaborative Board Starter options
-    syncEmptyBoardStarter();
+    if (window.ProjectPlanningSuite) {
+      window.ProjectPlanningSuite.close();
+    }
+    insertTemplateByType(currentActiveModule, 180, 110);
   }
 
   /* Client-Side SPA Navigation & Browser History Support (popstate) */
-  function navigateToBoardRoute(targetBoardId, targetTemplate, pushHistoryEntry) {
-    boardId = targetBoardId || 'new-collaborative-board';
-    initialTemplate = targetTemplate || '';
-    var nextUrl = buildBoardPath(boardId, initialTemplate);
+  function navigateToBoardRoute(targetBoardId, targetModule, pushHistoryEntry) {
+    var nextId = targetBoardId || 'new-collaborative-board';
+    var nextMod = (targetModule && PROJECT_MODULES.indexOf(targetModule) !== -1) ? targetModule : DEFAULT_WORKSPACE_MODULE;
+    var sameBoard = String(nextId) === String(boardId);
+    boardId = nextId;
+    initialTemplate = nextMod;
+
+    if (sameBoard) {
+      switchWorkspaceModule(nextMod, pushHistoryEntry);
+      return;
+    }
+
+    var nextUrl = buildBoardPath(boardId, '') + '?module=' + encodeURIComponent(nextMod);
     if (pushHistoryEntry !== false && window.history && window.history.pushState) {
-      window.history.pushState({ boardId: boardId, template: initialTemplate }, '', nextUrl);
+      window.history.pushState({ boardId: boardId, module: nextMod, template: nextMod }, '', nextUrl);
     }
     loadBoardFromServer();
   }
 
   window.addEventListener('popstate', function (e) {
-    var route = (e.state && e.state.boardId)
-      ? { boardId: e.state.boardId, template: e.state.template || '' }
-      : parseAppRoute(window.location.pathname, window.location.search);
-    navigateToBoardRoute(route.boardId, route.template, false);
+    var route = parseAppRoute(window.location.pathname, window.location.search);
+    var targetBoard = (e.state && e.state.boardId) ? e.state.boardId : route.boardId;
+    var targetMod = (e.state && (e.state.module || e.state.template)) || route.explicitModule || DEFAULT_WORKSPACE_MODULE;
+    navigateToBoardRoute(targetBoard, targetMod, false);
   });
+
+  window.QuantalFlowApp = {
+    getBoardId: function () { return boardId; },
+    getActiveModule: function () { return currentActiveModule; },
+    switchModule: function (mod, pushHistory) { switchWorkspaceModule(mod, pushHistory); },
+    loadBoard: function (id, mod) { navigateToBoardRoute(id, mod, true); }
+  };
 
   if (titleInput) {
     titleInput.addEventListener('input', scheduleSave);
@@ -1951,6 +2100,21 @@
       createSticky(sx + 530, sy + 20, 'Idea 3…', 'pink');
       createSticky(sx + 530, sy + 200, 'Idea 4…', 'violet');
       focusNode = topic;
+    } else if (type === 'perspective') {
+      // Perspective Matrix: Strategic Vision, Key Objectives, Critical Risks, High-level Roadmap
+      createFrame(sx - 40, sy - 40, 'Strategic Vision & Scope', 420, 240);
+      createFrame(sx + 410, sy - 40, 'Key Objectives & OKRs', 420, 240);
+      createFrame(sx - 40, sy + 230, 'Critical Risks & Mitigation', 420, 240);
+      createFrame(sx + 410, sy + 230, 'High-Level Roadmap & Milestones', 420, 240);
+      var p1 = createSticky(sx + 20, sy + 20, 'Core Vision & Purpose', 'blue');
+      createSticky(sx + 200, sy + 20, 'Target Outcomes', 'mint');
+      createSticky(sx + 470, sy + 20, 'Strategic Objective 1', 'yellow');
+      createSticky(sx + 650, sy + 20, 'Key Results (KRs)', 'violet');
+      createSticky(sx + 20, sy + 290, 'Dependencies & Blockers', 'orange');
+      createSticky(sx + 200, sy + 290, 'Mitigation Protocol', 'pink');
+      createSticky(sx + 470, sy + 290, 'Milestone M1: Architecture', 'blue');
+      createSticky(sx + 650, sy + 290, 'Milestone M2: Delivery', 'mint');
+      focusNode = p1;
     } else if (type === 'swot') {
       // SWOT Analysis: Clean 2x2 quadrants with empty starter sticky notes
       createFrame(sx - 40, sy - 40, 'Strengths', 380, 230);

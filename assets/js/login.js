@@ -102,6 +102,17 @@
 
       setMsg('Success — redirecting…', 'ok');
       submit.textContent = 'Redirecting…';
+      try {
+        var nextUserId = data && data.user && data.user.id ? String(data.user.id) : '';
+        var prevUserId = localStorage.getItem('quantalflow_current_user_id');
+        if (prevUserId && prevUserId !== nextUserId) {
+          Object.keys(localStorage).forEach(function (k) {
+            if (k.indexOf('quantalflow_') === 0) localStorage.removeItem(k);
+          });
+          sessionStorage.clear();
+        }
+        if (nextUserId) localStorage.setItem('quantalflow_current_user_id', nextUserId);
+      } catch (e) {}
       if (window.SaveState) window.SaveState.clear(form);
       window.location.assign(nextTarget);
     } catch (err) {

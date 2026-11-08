@@ -800,3 +800,136 @@ test('Vercel __api_path rewrite, Convex Bearer token auth, and new-project-plann
   const appHtml = await appPage.text();
   assert.ok(appHtml.includes('id="quantalflow-viewport"'));
 });
+
+test('AI generation endpoint requires authentication', async () => {
+  const unauthAi = await post('/api/ai/generate', { prompt: 'Test prompt', mode: 'stickies' });
+  assert.equal(unauthAi.status, 401);
+});
+
+test('Super Admin endpoints enforce role-based access control and prevent privilege escalation', async () => {
+  // 1. Unauthenticated access is blocked with 401
+  const unauthUsers = await fetch(`${base}/api/admin/users`);
+  assert.equal(unauthUsers.status, 401);
+
+  const unauthStats = await fetch(`${base}/api/admin/system-stats`);
+  assert.equal(unauthStats.status, 401);
+
+  // 2. Regular member user is blocked with 403 Forbidden
+  const memberReg = await post('/api/auth/register', {
+    name: 'Regular Member',
+    email: 'regular-member-rbac@example.com',
+    password: 'MemberPassword123!'
+  });
+  assert.equal(memberReg.status, 201);
+  const memberSid = sidFrom(memberReg);
+
+  const memberUsersRes = await fetch(`${base}/api/admin/users`, {
+    headers: { cookie: memberSid }
+  });
+  assert.equal(memberUsersRes.status, 403);
+
+  const memberStatsRes = await fetch(`${base}/api/admin/system-stats`, {
+    headers: { cookie: memberSid }
+  });
+  assert.equal(memberStatsRes.status, 403);
+
+  // 3. Owner / Super Admin user is permitted (200) and password hashes are never exposed
+  const ownerUsersRes = await fetch(`${base}/api/admin/users`, {
+    headers: { cookie: ownerCookie() }
+  });
+  assert.equal(ownerUsersRes.status, 200);
+  const { users } = await ownerUsersRes.json();
+  assert.ok(Array.isArray(users) && users.length >= 2);
+  for (const u of users) {
+    assert.ok(!('password_hash' in u), 'must never expose password_hash in admin user list');
+    assert.ok(!('passwordHash' in u), 'must never expose passwordHash in admin user list');
+  }
+
+  const ownerStatsRes = await fetch(`${base}/api/admin/system-stats`, {
+    headers: { cookie: ownerCookie() }
+  });
+  assert.equal(ownerStatsRes.status, 200);
+  const { stats } = await ownerStatsRes.json();
+  assert.ok(stats.userCount >= 2);
+});
+
+test('Workspace navigation retains project ID, defaults to project-planning, and isolates per-module state', async () => {
+  const cookie = ownerCookie();
+
+  // 1. Create a new project with default Project Planning workspace
+  const createRes = await fetch(`${base}/api/boards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({
+      title: 'Enterprise Architecture 2026',
+      category: 'Engineering & Delivery',
+      state: {
+        version: 2,
+        workspaceMode: 'project-planning',
+        activeModule: 'project-planning'
+      }
+    })
+  });
+  assert.equal(createRes.status, 201);
+  const { board: created } = await createRes.json();
+  const projectId = created.id;
+  assert.equal(created.state.workspaceMode, 'project-planning');
+  assert.equal(created.state.activeModule, 'project-planning');
+
+  // 2. Switch workspace to Mind Map, Kanban, Perspective, and Brainstorm while retaining project ID
+  const modulesData = {
+    mindmap: { version: 2, items: [{ id: 'mm-1', type: 'shape', text: 'Root Node', x: 100, y: 100 }] },
+    kanban: { version: 2, items: [{ id: 'kb-1', type: 'sticky', text: 'Sprint Task', x: 200, y: 150 }] },
+    perspective: { version: 2, items: [{ id: 'ps-1', type: 'frame', text: 'Strategic Vision', x: 50, y: 50 }] },
+    brainstorm: { version: 2, items: [{ id: 'bs-1', type: 'sticky', text: 'Growth Idea', x: 300, y: 200 }] }
+  };
+
+  const updateRes = await fetch(`${base}/api/boards/${projectId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({
+      title: 'Enterprise Architecture 2026',
+      state: {
+        version: 2,
+        workspaceMode: 'canvas',
+        activeModule: 'perspective',
+        modules: modulesData,
+        items: modulesData.perspective.items
+      }
+    })
+  });
+  assert.equal(updateRes.status, 200);
+  const { board: updated } = await updateRes.json();
+  assert.equal(updated.id, projectId, 'Project ID must remain invariant across module switches');
+  assert.equal(updated.state.activeModule, 'perspective');
+  assert.equal(updated.state.modules.mindmap.items[0].text, 'Root Node');
+  assert.equal(updated.state.modules.kanban.items[0].text, 'Sprint Task');
+  assert.equal(updated.state.modules.perspective.items[0].text, 'Strategic Vision');
+  assert.equal(updated.state.modules.brainstorm.items[0].text, 'Growth Idea');
+
+  // 3. Saving a Project Plan automatically ensures workspaceMode is preserved
+  const planSave = await fetch(`${base}/api/projects/${projectId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie },
+    body: JSON.stringify({
+      plan: {
+        projectName: 'Enterprise Architecture 2026',
+        phases: [{ id: 'ph-1', wbs: '1.0', name: 'Foundation' }],
+        tasks: [{ id: 'tsk-1', wbs: '1.1', title: 'Security Audit', status: 'done' }]
+      }
+    })
+  });
+  assert.equal(planSave.status, 200);
+
+  // 4. Reloading the board retains both the project plan and all module states
+  const reloadBoard = await fetch(`${base}/api/boards/${projectId}`, {
+    headers: { cookie }
+  });
+  assert.equal(reloadBoard.status, 200);
+  const { board: reloaded } = await reloadBoard.json();
+  assert.equal(reloaded.id, projectId);
+  assert.equal(reloaded.state.workspaceMode, 'project-planning');
+  assert.equal(reloaded.state.modules.mindmap.items[0].text, 'Root Node');
+  assert.equal(reloaded.state.modules.perspective.items[0].text, 'Strategic Vision');
+});
+

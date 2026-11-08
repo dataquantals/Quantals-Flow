@@ -959,6 +959,28 @@
           '<div class="pp-topbar__title-group">' +
             '<div class="pp-topbar__title" id="pp-header-title">Project Planning</div>' +
           '</div>' +
+          '<nav class="workspace-switcher" role="tablist" aria-label="Project Workspace Modules">' +
+            '<button class="ws-tab is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">' +
+              '<span class="ws-tab__icon">📊</span>' +
+              '<span class="ws-tab__label">Project Planning</span>' +
+            '</button>' +
+            '<button class="ws-tab" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">' +
+              '<span class="ws-tab__icon">🧠</span>' +
+              '<span class="ws-tab__label">Mind Map</span>' +
+            '</button>' +
+            '<button class="ws-tab" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">' +
+              '<span class="ws-tab__icon">📋</span>' +
+              '<span class="ws-tab__label">Kanban Board</span>' +
+            '</button>' +
+            '<button class="ws-tab" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">' +
+              '<span class="ws-tab__icon">👁️</span>' +
+              '<span class="ws-tab__label">Perspective</span>' +
+            '</button>' +
+            '<button class="ws-tab" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">' +
+              '<span class="ws-tab__icon">💡</span>' +
+              '<span class="ws-tab__label">Brainstorm</span>' +
+            '</button>' +
+          '</nav>' +
           '<div class="pp-topbar__actions">' +
             '<button class="pp-btn pp-btn--sm" id="pp-btn-export-report" type="button">Export Digest</button>' +
             '<button class="pp-btn pp-btn--sm pp-btn--primary" id="pp-btn-top-new-task" type="button">+ Add Deliverable</button>' +
@@ -3244,19 +3266,25 @@
 
     // Deep link into the suite: /app/project-planning-workspace (blank),
     // /app/<board>/project-planning, /app/<board>/<code>/project-planning, or
-    // /app/?board=<id>&template=project-planning. The sidebar shortcut uses the
-    // first form, so it always lands on a clean workspace.
+    // /app/?board=<id>&template=project-planning. By default, opening any project
+    // opens Project Planning unless a canvas module was explicitly selected.
     var path = window.location.pathname || '';
     var search = window.location.search || '';
     var hash = window.location.hash || '';
     var params = new URLSearchParams(search);
     var isQuantalsRoute = path.indexOf('/data-quantals-plan') !== -1;
+    var urlMod = (params.get('module') || params.get('template') || '').toLowerCase();
+    var canvasModules = ['mindmap', 'kanban', 'perspective', 'brainstorm', 'flow', 'retro', 'swot', 'journey', 'blank'];
     var wantsSuite =
-      params.get('template') === 'project-planning' ||
-      path.indexOf('project-planning') !== -1 ||
-      isQuantalsRoute ||
-      hash === '#project-planning' ||
-      hash === '#wbs';
+      canvasModules.indexOf(urlMod) === -1 && (
+        urlMod === 'project-planning' ||
+        urlMod === '' ||
+        MODULE_NAMES.indexOf(urlMod) !== -1 ||
+        path.indexOf('project-planning') !== -1 ||
+        isQuantalsRoute ||
+        hash === '#project-planning' ||
+        hash === '#wbs'
+      );
 
     if (wantsSuite) {
       var boardIdFromUrl = resolveBoardIdFromLocation();

@@ -136,6 +136,8 @@ export async function handleApi(req, res) {
   if (pathname === '/api/auth/clerk-sync' && req.method === 'POST') return api.clerkSync(req, res);
   if (pathname === '/api/convex/status' && req.method === 'GET') return api.convexStatus(req, res);
   if (pathname === '/api/ai/generate' && req.method === 'POST') return api.generateAi(req, res);
+  if (pathname === '/api/admin/users' && req.method === 'GET') return api.adminUsers(req, res);
+  if (pathname === '/api/admin/system-stats' && req.method === 'GET') return api.adminSystemStats(req, res);
 
   if (pathname === '/api/boards' && req.method === 'GET') return api.listBoardsApi(req, res);
   if (pathname === '/api/boards' && req.method === 'POST') return api.createBoardApi(req, res);

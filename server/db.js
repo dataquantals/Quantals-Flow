@@ -656,3 +656,26 @@ export function purgeExpiredSessions(now = Date.now()) {
   }
   return changes;
 }
+
+/** Admin-only user directory (omits password hashes). */
+export function listUsers() {
+  return db
+    .prepare('SELECT id, email, name, role, title, company, bio, avatar_url, avatar_storage_id, created_at FROM users ORDER BY id ASC')
+    .all();
+}
+
+/** Admin-only system telemetry. */
+export function getSystemStats() {
+  const userCount = db.prepare('SELECT COUNT(*) AS c FROM users').get()?.c || 0;
+  const boardCount = db.prepare('SELECT COUNT(*) AS c FROM boards').get()?.c || 0;
+  const planCount = db.prepare('SELECT COUNT(*) AS c FROM project_plans').get()?.c || 0;
+  const sessionCount = db.prepare('SELECT COUNT(*) AS c FROM sessions').get()?.c || 0;
+  return {
+    userCount,
+    boardCount,
+    planCount,
+    sessionCount,
+    timestamp: Date.now()
+  };
+}
+

@@ -699,8 +699,32 @@ export function createApi(limiter) {
       }
     },
 
+    /** GET /api/admin/users - Super Admin / Owner only */
+    async adminUsers(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      if (user.role !== 'owner' && user.role !== 'admin') {
+        return sendJson(res, 403, { error: 'Forbidden. Super Admin privileges required.' });
+      }
+      const users = listUsers().map(publicUser);
+      return sendJson(res, 200, { users });
+    },
+
+    /** GET /api/admin/system-stats - Super Admin / Owner only */
+    async adminSystemStats(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      if (user.role !== 'owner' && user.role !== 'admin') {
+        return sendJson(res, 403, { error: 'Forbidden. Super Admin privileges required.' });
+      }
+      return sendJson(res, 200, { stats: getSystemStats() });
+    },
+
     /** POST /api/ai/generate - powered by DeepSeek AI */
     async generateAi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+
       let body;
       try {
         body = await readJson(req);

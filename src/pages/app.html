@@ -28,6 +28,28 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
       </div>
 
       <div class="quantalflow-topbar__center">
+        <nav class="workspace-switcher" id="workspace-switcher" role="tablist" aria-label="Project Workspace Modules">
+          <button class="ws-tab is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">
+            <span class="ws-tab__icon">📊</span>
+            <span class="ws-tab__label">Project Planning</span>
+          </button>
+          <button class="ws-tab" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">
+            <span class="ws-tab__icon">🧠</span>
+            <span class="ws-tab__label">Mind Map</span>
+          </button>
+          <button class="ws-tab" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">
+            <span class="ws-tab__icon">📋</span>
+            <span class="ws-tab__label">Kanban Board</span>
+          </button>
+          <button class="ws-tab" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">
+            <span class="ws-tab__icon">👁️</span>
+            <span class="ws-tab__label">Perspective</span>
+          </button>
+          <button class="ws-tab" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">
+            <span class="ws-tab__icon">💡</span>
+            <span class="ws-tab__label">Brainstorm</span>
+          </button>
+        </nav>
         <button class="top-action-btn" id="btn-templates" type="button" title="Browse Templates">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
           <span>Templates</span>

@@ -47,17 +47,18 @@
 
   function buildBoardPath(id, template, title) {
     var cleanId = String(id || 'q4-intelligent-canvas').trim();
-    var tpl = template ? '/' + encodeURIComponent(template) : '';
+    var targetModule = template || 'project-planning';
+    var querySuffix = '?module=' + encodeURIComponent(targetModule);
 
     // Readable URLs win: /app/data-quantals-plan rather than /app/<slug>/<code>.
     var slug = slugify(title);
-    if (slug) return '/app/' + encodeURIComponent(slug) + tpl;
+    if (slug) return '/app/' + encodeURIComponent(slug) + querySuffix;
 
     var tokenMatch = cleanId.match(/^(.+)-([0-9a-f]{6})$/i);
     if (tokenMatch) {
-      return '/app/' + encodeURIComponent(tokenMatch[1]) + '/' + encodeURIComponent(tokenMatch[2]) + tpl;
+      return '/app/' + encodeURIComponent(tokenMatch[1]) + '/' + encodeURIComponent(tokenMatch[2]) + querySuffix;
     }
-    return '/app/' + encodeURIComponent(cleanId) + tpl;
+    return '/app/' + encodeURIComponent(cleanId) + querySuffix;
   }
 
   function goToLogin() {
@@ -302,16 +303,20 @@
         body: JSON.stringify({
           title: title,
           category: category || 'AI & Product Strategy',
-          state: {}
+          state: {
+            version: 2,
+            workspaceMode: 'project-planning',
+            activeModule: 'project-planning'
+          }
         })
       });
       if (res.ok) {
         var data = await res.json();
-        window.location.href = buildBoardPath(data.board.id, '', data.board.title);
+        window.location.href = buildBoardPath(data.board.id, 'project-planning', data.board.title);
         return;
       }
     } catch (e) {}
-    window.location.href = '/app/';
+    window.location.href = '/app/?module=project-planning';
   }
 
   document.getElementById('modal-create-close')?.addEventListener('click', closeCreateBoardModal);
@@ -407,6 +412,10 @@
         logout.disabled = true;
         logout.textContent = 'Logging out…';
         try {
+          Object.keys(localStorage).forEach(function (k) {
+            if (k.indexOf('quantalflow_') === 0) localStorage.removeItem(k);
+          });
+          sessionStorage.clear();
           if (window.Clerk && window.Clerk.signOut) {
             await window.Clerk.signOut();
           }

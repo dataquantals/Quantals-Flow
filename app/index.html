@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/assets/css/styles.css?v=420a9c93" />
-  <link rel="stylesheet" href="/assets/css/pages.css?v=263212e1" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=cfe4edf3" />
   <link rel="stylesheet" href="/assets/css/project-planning.css?v=d3b3fc76" />
   <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
   <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
@@ -42,6 +42,28 @@
       </div>
 
       <div class="quantalflow-topbar__center">
+        <nav class="workspace-switcher" id="workspace-switcher" role="tablist" aria-label="Project Workspace Modules">
+          <button class="ws-tab is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">
+            <span class="ws-tab__icon">📊</span>
+            <span class="ws-tab__label">Project Planning</span>
+          </button>
+          <button class="ws-tab" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">
+            <span class="ws-tab__icon">🧠</span>
+            <span class="ws-tab__label">Mind Map</span>
+          </button>
+          <button class="ws-tab" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">
+            <span class="ws-tab__icon">📋</span>
+            <span class="ws-tab__label">Kanban Board</span>
+          </button>
+          <button class="ws-tab" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">
+            <span class="ws-tab__icon">👁️</span>
+            <span class="ws-tab__label">Perspective</span>
+          </button>
+          <button class="ws-tab" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">
+            <span class="ws-tab__icon">💡</span>
+            <span class="ws-tab__label">Brainstorm</span>
+          </button>
+        </nav>
         <button class="top-action-btn" id="btn-templates" type="button" title="Browse Templates">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
           <span>Templates</span>
@@ -635,7 +657,7 @@
   </div>
 
 <script src="/assets/js/wbs-tree-diagram.js?v=0897d8af"></script>
-  <script src="/assets/js/app.js?v=ff20b647"></script>
-  <script src="/assets/js/project-planning.js?v=683d1d2f"></script>
+  <script src="/assets/js/app.js?v=d46b6cbb"></script>
+  <script src="/assets/js/project-planning.js?v=051606a6"></script>
 </body>
 </html>
