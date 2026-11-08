@@ -5,7 +5,7 @@
   "description": "QuantalFlow homepage clone with a real backend for authentication",
   "type": "module",
   "engines": {
-    "node": "24.x"
+    "node": ">=22.x"
   },
   "scripts": {
     "start": "node server/index.js",
