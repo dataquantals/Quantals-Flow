@@ -395,6 +395,7 @@ body.is-drawer-open { overflow: hidden; }
 .sticky--pink   { background: var(--pink); }
 .sticky--green  { background: var(--green); }
 .sticky.sm { position: static; max-width: none; font-size: 12px; }
+.sticky__icon { display: inline-block; vertical-align: -2px; margin-left: 1px; }
 
 .board .sticky--yellow { top: 12%; left: 8%; transform: rotate(-4deg); }
 .board .sticky--mint   { top: 58%; left: 6%; transform: rotate(3deg); }

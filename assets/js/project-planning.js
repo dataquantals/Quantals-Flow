@@ -717,12 +717,30 @@
   }
 
   /* ---------- Empty base-layout scaffolding ---------- */
+  /* Stroke icons match the toolbar/pp-nav set (Lucide geometry, currentColor). */
+  var EMPTY_ICON_SVG = {
+    plus:
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+    gantt:
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg>',
+    board:
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>',
+    users:
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    wiki:
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>',
+    report:
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+    risk:
+      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+  };
+
   function emptyStateHtml(opts) {
     var actions = (opts.actions || []).map(function (a) {
       return '<button class="pp-btn' + (a.variant === 'primary' ? ' pp-btn--primary' : '') + '" data-pp-empty-action="' + a.action + '" type="button">' + escapeHtml(a.label) + '</button>';
     }).join('');
     return '<div class="pp-empty-state">' +
-      '<div class="pp-empty-state__mark" aria-hidden="true">' + (opts.icon || '&#43;') + '</div>' +
+      '<div class="pp-empty-state__mark" aria-hidden="true">' + (opts.icon || EMPTY_ICON_SVG.plus) + '</div>' +
       '<h3>' + escapeHtml(opts.title) + '</h3>' +
       '<p>' + escapeHtml(opts.description) + '</p>' +
       (actions ? '<div class="pp-empty-state__actions">' + actions + '</div>' : '') +
@@ -961,23 +979,23 @@
           '</div>' +
           '<nav class="workspace-switcher" role="tablist" aria-label="Project Workspace Modules">' +
             '<button class="ws-tab is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">' +
-              '<span class="ws-tab__icon">📊</span>' +
+              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg></span>' +
               '<span class="ws-tab__label">Project Planning</span>' +
             '</button>' +
             '<button class="ws-tab" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">' +
-              '<span class="ws-tab__icon">🧠</span>' +
+              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></span>' +
               '<span class="ws-tab__label">Mind Map</span>' +
             '</button>' +
             '<button class="ws-tab" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">' +
-              '<span class="ws-tab__icon">📋</span>' +
+              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg></span>' +
               '<span class="ws-tab__label">Kanban Board</span>' +
             '</button>' +
             '<button class="ws-tab" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">' +
-              '<span class="ws-tab__icon">👁️</span>' +
+              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>' +
               '<span class="ws-tab__label">Perspective</span>' +
             '</button>' +
             '<button class="ws-tab" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">' +
-              '<span class="ws-tab__icon">💡</span>' +
+              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>' +
               '<span class="ws-tab__label">Brainstorm</span>' +
             '</button>' +
           '</nav>' +
@@ -1878,7 +1896,7 @@
 
     if (!state.tasks.length) {
       pane.innerHTML = sectionBarHtml + emptyStateHtml({
-        icon: '&#9776;',
+        icon: EMPTY_ICON_SVG.gantt,
         title: 'Your timeline starts empty',
         description: 'Add the first deliverable and the schedule, rollups and milestones build themselves around it.',
         actions: [
@@ -2135,7 +2153,7 @@
 
     if (!state.tasks.length && sub !== 'kanban') {
       bodyHtml = emptyStateHtml({
-        icon: '&#9634;',
+        icon: EMPTY_ICON_SVG.board,
         title: 'No deliverables yet',
         description: 'This board is brand new. Create your first deliverable and it appears here as a WBS item, a Kanban card and a timeline bar at once.',
         actions: [
@@ -2451,7 +2469,7 @@
 
     if (!state.resources.length && !state.timesheets.length) {
       pane.innerHTML = sectionBarHtml + emptyStateHtml({
-        icon: '&#9671;',
+        icon: EMPTY_ICON_SVG.users,
         title: 'No capacity data yet',
         description: 'Capacity and timesheets fill in once deliverables are assigned to people. Start with the plan, then bring the team in.',
         actions: [
@@ -2554,7 +2572,7 @@
 
     if (!activeWiki) {
       pane.innerHTML = sectionBarHtml + emptyStateHtml({
-        icon: '&#9993;',
+        icon: EMPTY_ICON_SVG.wiki,
         title: 'No wiki pages yet',
         description: 'Write the first page to capture the charter, specs or decisions. Pages are versioned and sit right next to the plan.',
         actions: [{ label: '+ Create wiki page', action: 'new-wiki', variant: 'primary' }]
@@ -2666,7 +2684,7 @@
 
     if (!state.tasks.length) {
       pane.innerHTML = sectionBarHtml + emptyStateHtml({
-        icon: '&#9650;',
+        icon: EMPTY_ICON_SVG.report,
         title: 'Nothing to report yet',
         description: 'The digest, velocity chart and health summary are generated from your deliverables, budget and logged time.',
         actions: [
@@ -2844,7 +2862,7 @@
 
     if (!state.raidItems.length && !state.changeRequests.length) {
       pane.innerHTML = sectionBarHtml + emptyStateHtml({
-        icon: '&#9888;',
+        icon: EMPTY_ICON_SVG.risk,
         title: 'No risks logged yet',
         description: 'Risks, assumptions, issues and dependencies stay empty until you log them. Score each one on probability and impact and it feeds straight into the health badge.',
         actions: [
@@ -3097,7 +3115,7 @@
       if (!wiki) {
         body.innerHTML =
           '<div class="pp-empty-state">' +
-            '<div class="pp-empty-state__mark" aria-hidden="true">&#9993;</div>' +
+            '<div class="pp-empty-state__mark" aria-hidden="true">' + EMPTY_ICON_SVG.wiki + '</div>' +
             '<h3>No wiki pages yet</h3>' +
             '<p>Deliverable specifications, decisions and meeting notes live in the wiki. Create the first page to start documenting.</p>' +
             '<div class="pp-empty-state__actions">' +

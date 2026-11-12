@@ -28,32 +28,6 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
       </div>
 
       <div class="quantalflow-topbar__center">
-        <nav class="workspace-switcher" id="workspace-switcher" role="tablist" aria-label="Project Workspace Modules">
-          <button class="ws-tab is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">
-            <span class="ws-tab__icon">📊</span>
-            <span class="ws-tab__label">Project Planning</span>
-          </button>
-          <button class="ws-tab" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">
-            <span class="ws-tab__icon">🧠</span>
-            <span class="ws-tab__label">Mind Map</span>
-          </button>
-          <button class="ws-tab" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">
-            <span class="ws-tab__icon">📋</span>
-            <span class="ws-tab__label">Kanban Board</span>
-          </button>
-          <button class="ws-tab" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">
-            <span class="ws-tab__icon">👁️</span>
-            <span class="ws-tab__label">Perspective</span>
-          </button>
-          <button class="ws-tab" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">
-            <span class="ws-tab__icon">💡</span>
-            <span class="ws-tab__label">Brainstorm</span>
-          </button>
-        </nav>
-        <button class="top-action-btn" id="btn-templates" type="button" title="Browse Templates">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
-          <span>Templates</span>
-        </button>
         <button class="top-action-btn top-action-btn--ai" id="btn-ai" type="button" title="Open QuantalFlow AI Studio (DeepSeek)">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
           <span>QuantalFlow AI</span>
@@ -88,6 +62,52 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
 
     <!-- Main Board Viewport -->
     <div class="quantalflow-viewport" id="quantalflow-viewport">
+      <!-- Workspace Side Navigation Bar -->
+      <aside class="quantalflow-sidenav" id="quantalflow-sidenav" aria-label="Workspaces &amp; Pages navigation">
+        <div class="sidenav-brand-header">
+          <span class="sidenav-brand-label">Workspaces</span>
+        </div>
+        <nav class="sidenav-nav">
+          <button class="sidenav-item is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">
+            <span class="sidenav-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg>
+            </span>
+            <span class="sidenav-item__text">Project Planning</span>
+          </button>
+          <button class="sidenav-item" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">
+            <span class="sidenav-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>
+            </span>
+            <span class="sidenav-item__text">Mind Map</span>
+          </button>
+          <button class="sidenav-item" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">
+            <span class="sidenav-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+            </span>
+            <span class="sidenav-item__text">Kanban Board</span>
+          </button>
+          <button class="sidenav-item" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">
+            <span class="sidenav-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </span>
+            <span class="sidenav-item__text">Perspective</span>
+          </button>
+          <button class="sidenav-item" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">
+            <span class="sidenav-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+            </span>
+            <span class="sidenav-item__text">Brainstorm</span>
+          </button>
+          <div class="sidenav-divider"></div>
+          <button class="sidenav-item" id="btn-templates" type="button" title="Browse Templates">
+            <span class="sidenav-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
+            </span>
+            <span class="sidenav-item__text">Templates</span>
+          </button>
+        </nav>
+      </aside>
+
       <!-- Floating Creation Toolbar (Left) -->
       <nav class="quantalflow-toolbar" aria-label="Canvas tools">
         <button class="tool-btn is-active" data-tool="select" type="button" title="Select (V)" aria-label="Select tool">
@@ -433,7 +453,8 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
               Skip &amp; use blank canvas
             </button>
             <button class="btn btn--blue" id="btn-starter-ai" type="button" style="padding:7px 16px; font-size:13px;">
-              &#10024; Generate with QuantalFlow AI
+              <svg class="btn__icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+              Generate with QuantalFlow AI
             </button>
           </div>
         </div>

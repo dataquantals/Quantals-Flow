@@ -442,6 +442,17 @@
   font-size: 13px;
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
+}
+.ws-tab__icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+.btn__icon {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
 }
 .ws-tab__label {
   display: inline-block;
@@ -476,10 +487,117 @@
 
 /* Floating Toolbar */
 .quantalflow-toolbar {
-  position: absolute; left: 16px; top: 72px; z-index: 90;
+  position: absolute; left: 14px; top: 275px; z-index: 90;
   display: flex; flex-direction: column; gap: 4px; background: #fff;
   border: 1px solid var(--line-soft); border-radius: 12px; padding: 6px;
   box-shadow: 0 4px 18px rgba(0,0,0,.08);
+}
+
+/* ==========================================================================
+   QuantalFlow App Side Navigation Bar
+   ========================================================================== */
+.quantalflow-sidenav {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 92;
+  background: #ffffff;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 172px;
+  transition: width 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.sidenav-brand-header {
+  padding: 4px 8px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sidenav-brand-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.sidenav-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sidenav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.sidenav-item:hover {
+  background: var(--bg-warm);
+  color: var(--ink);
+}
+.sidenav-item.is-active {
+  background: #eef2ff;
+  color: var(--blue);
+  font-weight: 600;
+}
+.sidenav-item__icon {
+  font-size: 15px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  flex-shrink: 0;
+}
+.sidenav-item__icon svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+.sidenav-item__text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidenav-divider {
+  height: 1px;
+  background: var(--line-soft);
+  margin: 4px 6px;
+}
+
+@media (max-width: 960px) {
+  .quantalflow-sidenav {
+    width: 48px;
+    padding: 6px 4px;
+  }
+  .sidenav-brand-header,
+  .sidenav-item__text {
+    display: none;
+  }
+  .sidenav-item {
+    justify-content: center;
+    padding: 8px 4px;
+  }
+  .quantalflow-toolbar {
+    top: 250px;
+  }
 }
 .tool-btn {
   width: 38px; height: 38px; display: grid; place-items: center;
@@ -851,7 +969,8 @@
 }
 .quantalflow-present__counter { font-weight: 600; font-size: 13px; padding: 0 6px; }
 body.is-presenting .quantalflow-topbar,
-body.is-presenting .quantalflow-toolbar { display: none; }
+body.is-presenting .quantalflow-toolbar,
+body.is-presenting .quantalflow-sidenav { display: none; }
 body.is-presenting .quantalflow-viewport { height: 100vh; }
 
 /* Minimap */
