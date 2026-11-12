@@ -14,19 +14,20 @@
   /* ---------- Sticky header shadow + measured chrome height ---------- */
   var header = document.getElementById('header');
   if (header) {
+    var headerInner = header.querySelector('.header__inner') || header;
     var onScroll = function () { header.classList.toggle('is-stuck', window.scrollY > 8); };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
 
     // The sticky subnav and every anchored scroll offset are derived from the
-    // real header height, so publish it as a custom property instead of
-    // hard-coding 76px in several places.
+    // real header chrome height (measuring headerInner so open mobile drawers
+    // cannot trigger an infinite layout thrashing / flicker feedback loop).
     var syncHeaderHeight = function () {
-      var h = Math.round(header.getBoundingClientRect().height);
+      var h = Math.round(headerInner.getBoundingClientRect().height);
       document.documentElement.style.setProperty('--header-h', h + 'px');
     };
     syncHeaderHeight();
-    if (window.ResizeObserver) new ResizeObserver(syncHeaderHeight).observe(header);
+    if (window.ResizeObserver) new ResizeObserver(syncHeaderHeight).observe(headerInner);
     window.addEventListener('resize', syncHeaderHeight);
   }
 

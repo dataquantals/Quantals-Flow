@@ -288,10 +288,19 @@ ul { padding: 0; list-style: none; }
    menu is taller than the space under the header. */
 body.is-drawer-open { overflow: hidden; }
 @media (max-width: 1080px) {
+  .drawer {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 199;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.10);
+  }
   .drawer.is-open {
-    max-height: calc(100vh - var(--header-h));
+    max-height: calc(100vh - var(--header-h, 72px));
     overflow-y: auto;
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
