@@ -4,7 +4,7 @@ description: Your QuantalFlow workspace hub. Create, search, and collaborate on 
 route: /dashboard/
 layout: standalone
 body_class: dash-body
-scripts: /assets/js/dashboard.js
+scripts: /assets/js/workspace-frameworks.js, /assets/js/dashboard.js
 ---
   <header class="dash-top">
     <a class="logo" href="/" aria-label="QuantalFlow home">
@@ -40,6 +40,44 @@ scripts: /assets/js/dashboard.js
           <span>All Boards</span>
         </button>
 
+        <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" id="nav-project-planning" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
+          <span>Project Planning</span>
+          <span class="dash-nav__badge" style="background:#ecfdf5; color:#059669;">WBS</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-mindmap" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
+          <span>Mind Map</span>
+          <span class="dash-nav__badge" style="background:#fef3c7; color:#d97706;">Ideas</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-kanban" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+          <span>Kanban Board</span>
+          <span class="dash-nav__badge" style="background:#eff6ff; color:#2563eb;">Agile</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-perspective" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Perspective</span>
+          <span class="dash-nav__badge" style="background:#faf5ff; color:#7c3aed;">Matrix</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-brainstorm" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
+          <span>Brainstorm</span>
+          <span class="dash-nav__badge" style="background:#fff7ed; color:#ea580c;">Canvas</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-templates" href="/resources/templates/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+          <span class="dash-nav__badge" style="background:#f1f5f9; color:#475569;">Library</span>
+        </a>
+
         <div class="dash-sidebar__section-label">Team Services</div>
 
         <button class="dash-nav__item" id="nav-service-ai" type="button">
@@ -47,12 +85,6 @@ scripts: /assets/js/dashboard.js
           <span>AI Ideation Studio</span>
           <span class="dash-nav__badge" style="background:#eef2ff; color:#4f46e5;">✦ AI</span>
         </button>
-
-        <a class="dash-nav__item" id="nav-project-planning" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
-          <span>Sprint Planning &amp; Delivery</span>
-          <span class="dash-nav__badge" style="background:#ecfdf5; color:#059669;">WBS</span>
-        </a>
 
         <button class="dash-nav__item" id="nav-service-workshop" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M10 2h4"/></svg>
@@ -65,13 +97,6 @@ scripts: /assets/js/dashboard.js
           <span>Cloud Asset Library</span>
           <span class="dash-nav__badge" style="background:#f1f5f9; color:#475569;">Vault</span>
         </button>
-
-        <div class="dash-sidebar__section-label">Library &amp; Account</div>
-
-        <a class="dash-nav__item" href="/resources/templates/" style="text-decoration:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-          <span>Templates</span>
-        </a>
 
 
         <div class="dash-sidebar__section-label">Account</div>
@@ -121,32 +146,26 @@ scripts: /assets/js/dashboard.js
     </main>
   </div>
 
-  <!-- New Collaborative Board Modal -->
+  <!-- Starter Frameworks & Templates Modal -->
   <div class="quantalflow-modal-backdrop" id="modal-create-board" hidden style="display: none;">
-    <div class="quantalflow-modal" style="max-width: 480px;">
+    <div class="quantalflow-modal" style="max-width: 720px;">
       <button class="quantalflow-modal__close" id="modal-create-close" type="button" aria-label="Close modal">&times;</button>
-      <h3>New Collaborative Board</h3>
-      <p>Name your board and pick the space it belongs to. It opens on an empty canvas.</p>
+      <h3>Starter Frameworks &amp; Templates</h3>
+      <p>Pick a workspace to start from. It opens with a clean structure you can build on.</p>
 
-      <div style="display:grid; grid-template-columns: 1fr; gap:14px; margin-bottom:24px;">
-        <div>
-          <label for="new-board-title" style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;">Board Name</label>
-          <input type="text" id="new-board-title" value="New Collaborative Board" placeholder="e.g. New Collaborative Board" style="width:100%; padding:10px 13px; border:1px solid var(--line); border-radius:8px; font-size:14px; outline:none;" />
-        </div>
-        <div>
-          <label for="new-board-space" style="display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;">Workspace Space</label>
-          <select id="new-board-space" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13.5px; background:#fff; outline:none;">
-            <option value="AI & Product Strategy">AI &amp; Product Strategy</option>
-            <option value="Engineering & Delivery">Engineering &amp; Delivery</option>
-            <option value="UX & Discovery">UX &amp; Discovery</option>
-            <option value="Strategy & Planning">Strategy &amp; Planning</option>
-          </select>
-        </div>
+      <div class="create-board-name">
+        <label for="new-board-title">Board name</label>
+        <input type="text" id="new-board-title" value="New Collaborative Board" placeholder="e.g. Q4 Product Launch" autocomplete="off" />
       </div>
 
-      <div style="display:flex; justify-content:flex-end; gap:10px;">
-        <button class="btn btn--ghost" id="modal-create-cancel" type="button">Cancel</button>
-        <button class="btn btn--blue" id="modal-create-submit" type="button">Create Collaborative Board &rarr;</button>
+      <div class="template-modal-grid" id="create-board-frameworks" role="radiogroup" aria-label="Starter framework"></div>
+
+      <div class="create-board-footer">
+        <span class="create-board-space" id="create-board-space">Strategy &amp; Planning</span>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn--ghost" id="modal-create-cancel" type="button">Cancel</button>
+          <button class="btn btn--blue" id="modal-create-submit" type="button">Create board &rarr;</button>
+        </div>
       </div>
     </div>
   </div>

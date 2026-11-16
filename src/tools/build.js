@@ -48,6 +48,7 @@ const ASSETS = [
   '/assets/js/main.js',
   '/assets/js/login.js',
   '/assets/js/dashboard.js',
+  '/assets/js/workspace-frameworks.js',
   '/assets/js/app.js',
   '/assets/js/wbs-tree-diagram.js',
   '/assets/js/project-planning.js',

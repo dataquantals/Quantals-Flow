@@ -1039,6 +1039,30 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
 .template-pick-card strong { display: block; font-size: 14px; color: var(--ink); margin-bottom: 2px; }
 .template-pick-card small { font-size: 12px; color: var(--ink-soft); line-height: 1.35; display: block; }
 
+/* Dashboard "Start New Board" gallery */
+.create-board-name { margin-bottom: 16px; }
+.create-board-name label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 5px;
+}
+.create-board-name input {
+  width: 100%; padding: 10px 13px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 14px; outline: none; background: #fff; color: var(--ink);
+}
+.create-board-name input:focus {
+  border-color: var(--blue); box-shadow: 0 0 0 3px rgba(66, 98, 255, 0.12);
+}
+.create-board-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.create-board-space { font-size: 12px; color: var(--ink-soft); }
+.create-board-space::before { content: "Space: "; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .template-modal-grid { grid-template-columns: 1fr; }
+  .create-board-footer { flex-direction: column; align-items: stretch; }
+  .create-board-footer > div { justify-content: flex-end; }
+}
+
 /* Empty Collaborative Board Starter Hub (21st.dev Magic + UI/UX Pro Max) */
 .empty-board-starter[hidden] {
   display: none !important;

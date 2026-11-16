@@ -194,14 +194,6 @@
 
     grid.innerHTML = html;
 
-    var newBlankBtn = document.getElementById('card-new-blank');
-    if (newBlankBtn) {
-      newBlankBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        openCreateBoardModal('New Collaborative Board', 'AI & Product Strategy');
-      });
-    }
-
     grid.querySelectorAll('[data-star-id]').forEach(function (btn) {
       btn.addEventListener('click', async function (e) {
         e.preventDefault();
@@ -263,7 +255,41 @@
 
   var createModal = document.getElementById('modal-create-board');
   var newBoardTitleInput = document.getElementById('new-board-title');
-  var newBoardSpaceSelect = document.getElementById('new-board-space');
+  var frameworkGrid = document.getElementById('create-board-frameworks');
+  var createSpaceEl = document.getElementById('create-board-space');
+  var frameworkList = Array.isArray(window.WorkspaceFrameworks) ? window.WorkspaceFrameworks : [];
+  var selectedFrameworkId = frameworkList.length ? frameworkList[0].id : '';
+  var boardNameTouched = false;
+
+  function selectedFramework() {
+    if (window.WorkspaceFrameworks && window.WorkspaceFrameworks.byId) {
+      return window.WorkspaceFrameworks.byId(selectedFrameworkId) || frameworkList[0] || null;
+    }
+    return frameworkList[0] || null;
+  }
+
+  function renderFrameworkCards() {
+    if (!frameworkGrid) return;
+    frameworkGrid.innerHTML = frameworkList.map(function (f) {
+      var selected = f.id === selectedFrameworkId;
+      return '<button class="template-pick-card' + (selected ? ' is-selected' : '') + '"' +
+        ' data-framework="' + f.id + '" type="button" role="radio" aria-checked="' + (selected ? 'true' : 'false') + '">' +
+        '<span class="template-pick-card__icon" style="background:' + f.tint + '; color:' + f.ink + ';" aria-hidden="true">' + f.icon + '</span>' +
+        '<span><strong>' + f.label + '</strong><small>' + f.blurb + '</small></span>' +
+      '</button>';
+    }).join('');
+  }
+
+  function selectFramework(id) {
+    var f = window.WorkspaceFrameworks && window.WorkspaceFrameworks.byId
+      ? window.WorkspaceFrameworks.byId(id)
+      : null;
+    if (!f) return;
+    selectedFrameworkId = f.id;
+    if (createSpaceEl) createSpaceEl.textContent = f.category;
+    if (newBoardTitleInput && !boardNameTouched) newBoardTitleInput.value = f.defaultTitle;
+    renderFrameworkCards();
+  }
 
   function closeCreateBoardModal() {
     if (!createModal) return;
@@ -272,17 +298,25 @@
     createModal.style.display = 'none';
   }
 
-  function openCreateBoardModal(defaultTitle, defaultCategory) {
-    if (!createModal) {
-      createNewBoard(defaultTitle || 'New Collaborative Board', defaultCategory || 'AI & Product Strategy');
+  function openCreateBoardModal(defaultFrameworkId) {
+    var fallback = defaultFrameworkId || (frameworkList[0] && frameworkList[0].id) || '';
+    var framework = window.WorkspaceFrameworks && window.WorkspaceFrameworks.byId
+      ? window.WorkspaceFrameworks.byId(fallback)
+      : null;
+
+    if (!createModal || !frameworkList.length) {
+      createNewBoard(framework || { module: 'project-planning', category: 'Strategy & Planning' }, framework ? framework.defaultTitle : null);
       return;
     }
+
+    selectedFrameworkId = framework ? framework.id : frameworkList[0].id;
+    boardNameTouched = false;
     if (newBoardTitleInput) {
-      newBoardTitleInput.value = defaultTitle || 'New Collaborative Board';
+      newBoardTitleInput.value = framework ? framework.defaultTitle : 'New Collaborative Board';
     }
-    if (newBoardSpaceSelect && defaultCategory) {
-      newBoardSpaceSelect.value = defaultCategory;
-    }
+    if (createSpaceEl && framework) createSpaceEl.textContent = framework.category;
+    renderFrameworkCards();
+
     createModal.hidden = false;
     createModal.classList.add('is-open');
     createModal.style.display = 'grid';
@@ -294,29 +328,42 @@
     }
   }
 
-  async function createNewBoard(titleText, category) {
-    var title = String(titleText || 'New Collaborative Board').trim() || 'New Collaborative Board';
+  async function createNewBoard(framework, titleText) {
+    var f = framework || {
+      module: 'project-planning',
+      category: 'Strategy & Planning',
+      defaultTitle: 'New Collaborative Board'
+    };
+    var mod = f.module || 'project-planning';
+    var title = String(titleText || f.defaultTitle || 'New Collaborative Board').trim() || 'New Collaborative Board';
     try {
       var res = await fetch('/api/boards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title,
-          category: category || 'AI & Product Strategy',
+          category: f.category || 'AI & Product Strategy',
           state: {
             version: 2,
-            workspaceMode: 'project-planning',
-            activeModule: 'project-planning'
+            items: [],
+            paths: [],
+            workspaceMode: mod === 'project-planning' ? 'project-planning' : 'canvas',
+            activeModule: mod
           }
         })
       });
       if (res.ok) {
         var data = await res.json();
-        window.location.href = buildBoardPath(data.board.id, 'project-planning', data.board.title);
-        return;
+        var id = data.board && data.board.id;
+        if (id) {
+          window.location.href = '/app/?board=' + encodeURIComponent(id) +
+            '&template=' + encodeURIComponent(mod) +
+            '&module=' + encodeURIComponent(mod);
+          return;
+        }
       }
     } catch (e) {}
-    window.location.href = '/app/?module=project-planning';
+    window.location.href = '/app/?module=' + encodeURIComponent(mod);
   }
 
   document.getElementById('modal-create-close')?.addEventListener('click', closeCreateBoardModal);
@@ -325,11 +372,30 @@
     if (e.target === createModal) closeCreateBoardModal();
   });
 
+  frameworkGrid?.addEventListener('click', function (e) {
+    var card = e.target.closest('[data-framework]');
+    if (!card) return;
+    selectFramework(card.dataset.framework);
+  });
+
+  frameworkGrid?.addEventListener('dblclick', function (e) {
+    var card = e.target.closest('[data-framework]');
+    if (!card) return;
+    selectFramework(card.dataset.framework);
+    document.getElementById('modal-create-submit')?.click();
+  });
+
   document.getElementById('modal-create-submit')?.addEventListener('click', function () {
-    var title = (newBoardTitleInput && newBoardTitleInput.value.trim()) || 'New Collaborative Board';
-    var space = (newBoardSpaceSelect && newBoardSpaceSelect.value) || 'AI & Product Strategy';
+    var framework = selectedFramework();
+    var title = (newBoardTitleInput && newBoardTitleInput.value.trim()) ||
+      (framework && framework.defaultTitle) ||
+      'New Collaborative Board';
     closeCreateBoardModal();
-    createNewBoard(title, space);
+    createNewBoard(framework, title);
+  });
+
+  newBoardTitleInput?.addEventListener('input', function () {
+    boardNameTouched = true;
   });
 
   newBoardTitleInput?.addEventListener('keydown', function (e) {
@@ -338,6 +404,20 @@
       document.getElementById('modal-create-submit')?.click();
     }
   });
+
+  /* The "Start New Collaborative Board" card exists twice: as static markup for
+     the first paint, then again inside renderBoards() after the boards load.
+     Delegating on the grid keeps one handler for both copies instead of
+     rebinding after every render, and the static href stays as a no-JS fallback. */
+  var boardsGrid = document.getElementById('dash-boards-grid');
+  if (boardsGrid) {
+    boardsGrid.addEventListener('click', function (e) {
+      var card = e.target.closest('.dash-card--new');
+      if (!card) return;
+      e.preventDefault();
+      openCreateBoardModal('project-planning');
+    });
+  }
 
   /* Sidebar filters with Client-Side History API Navigation */
   document.querySelectorAll('.dash-nav__item[data-filter]').forEach(function (btn) {
@@ -362,7 +442,7 @@
   var createBoardBtn = document.getElementById('btn-create-board');
   if (createBoardBtn) {
     createBoardBtn.addEventListener('click', function () {
-      openCreateBoardModal('New Collaborative Board', 'AI & Product Strategy');
+      openCreateBoardModal('project-planning');
     });
   }
 
