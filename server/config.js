@@ -65,6 +65,13 @@ export const config = {
 
   deepseekApiKey: process.env.DEEPSEEK_API_KEY || '',
 
+  cloudinary: {
+    url:
+      process.env.CLOUDINARY_URL ||
+      'cloudinary://764744472548129:QdPcOpYAS5_KDHWJNLCPYdtPvXM@dbay0ozoo',
+    folder: process.env.CLOUDINARY_FOLDER || 'circuit-overseers-visit'
+  },
+
   // Failed sign-in attempts allowed per IP before a temporary lockout.
   rateLimit: {
     windowMs: 1000 * 60 * 10,

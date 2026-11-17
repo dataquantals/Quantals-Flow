@@ -118,6 +118,28 @@ db.exec(`
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_project_plans_updated ON project_plans(updated_at DESC)');
 
+/**
+ * Uploaded files. Bytes live in Cloudinary; this table holds metadata + the
+ * secure URL so the dashboard can list/download/delete without re-querying
+ * Cloudinary on every render.
+ */
+db.exec(`
+  CREATE TABLE IF NOT EXISTS files (
+    id            TEXT    PRIMARY KEY,
+    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    name          TEXT    NOT NULL,
+    size          INTEGER NOT NULL DEFAULT 0,
+    mime          TEXT    NOT NULL DEFAULT '',
+    url           TEXT    NOT NULL,
+    public_id     TEXT    NOT NULL DEFAULT '',
+    resource_type TEXT    NOT NULL DEFAULT 'image',
+    created_at    INTEGER NOT NULL,
+    updated_at    INTEGER NOT NULL
+  );
+`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_files_updated ON files(updated_at DESC)');
+
 // Row-level ownership. Every board and plan belongs to exactly one user; every
 // read, write and delete below is scoped by that user id. `ALTER TABLE` throws
 // when the column already exists, which is the idempotent path.
@@ -364,15 +386,20 @@ export function listBoards({ query = '', starredOnly = false, userId } = {}) {
   }
   sql += ' WHERE ' + clauses.join(' AND ');
   sql += ' ORDER BY updated_at DESC';
-  return db.prepare(sql).all(...params).map(row => ({
-    id: publicBoardId(row.id),
-    title: row.title,
-    category: row.category,
-    starred: Boolean(row.starred),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    hasSavedState: Boolean(row.state_json && row.state_json !== '{}')
-  }));
+  return db.prepare(sql).all(...params).map(row => {
+    const state = parseStateJson(row.state_json);
+    const activeModule = state.activeModule || (state.workspaceMode === 'project-planning' ? 'project-planning' : '');
+    return {
+      id: publicBoardId(row.id),
+      title: row.title,
+      category: row.category,
+      starred: Boolean(row.starred),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      activeModule,
+      hasSavedState: Boolean(row.state_json && row.state_json !== '{}')
+    };
+  });
 }
 
 /** A board the caller owns, or null. Someone else's board looks like a missing one. */
@@ -657,6 +684,38 @@ export function purgeExpiredSessions(now = Date.now()) {
   return changes;
 }
 
+export function listFiles({ userId } = {}) {
+  if (userId) {
+    return db
+      .prepare('SELECT * FROM files WHERE user_id = ? ORDER BY updated_at DESC')
+      .all(userId);
+  }
+  return db.prepare('SELECT * FROM files ORDER BY updated_at DESC').all();
+}
+
+export function getFileById(id, userId) {
+  if (userId) {
+    return db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(id, userId) || null;
+  }
+  return db.prepare('SELECT * FROM files WHERE id = ?').get(id) || null;
+}
+
+export function insertFile({ id, userId, name, size, mime, url, publicId, resourceType }) {
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO files (id, user_id, name, size, mime, url, public_id, resource_type, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, userId ?? null, name, size || 0, mime || '', url, publicId || '', resourceType || 'image', now, now);
+  return getFileById(id, userId);
+}
+
+export function deleteFile(id, userId) {
+  const row = getFileById(id, userId);
+  if (!row) return null;
+  db.prepare('DELETE FROM files WHERE id = ?').run(id);
+  return row;
+}
+
 /** Admin-only user directory (omits password hashes). */
 export function listUsers() {
   return db
@@ -676,6 +735,290 @@ export function getSystemStats() {
     planCount,
     sessionCount,
     timestamp: Date.now()
+  };
+}
+
+// ============================================================================
+// Files & 3D Folders (scoped per user, paired with Cloudinary signed uploads)
+// ============================================================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_folders (
+    id         TEXT    PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name       TEXT    NOT NULL,
+    parent_id  TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_user_folders_user ON user_folders(user_id)');
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_files (
+    id            TEXT    PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    folder_id     TEXT,
+    name          TEXT    NOT NULL,
+    mime_type     TEXT    NOT NULL DEFAULT 'application/octet-stream',
+    size          INTEGER NOT NULL DEFAULT 0,
+    extension     TEXT    NOT NULL DEFAULT '',
+    url           TEXT    NOT NULL DEFAULT '',
+    public_id     TEXT    NOT NULL DEFAULT '',
+    resource_type TEXT    NOT NULL DEFAULT 'image',
+    visibility    TEXT    NOT NULL DEFAULT 'coordinators',
+    uploaded_by   TEXT    NOT NULL DEFAULT '',
+    data_base64   TEXT,
+    created_at    INTEGER NOT NULL
+  );
+`);
+db.exec('CREATE INDEX IF NOT EXISTS idx_user_files_user ON user_files(user_id, created_at DESC)');
+
+function ensureUserFilesAndFoldersSeeded(userId) {
+  if (userId == null) return;
+  try {
+    const now = Date.now();
+    const folderDefs = [
+      { id: 'folder-data-quantals', name: 'DATA QUANTALS FILE' },
+      { id: 'folder-library', name: 'LIBRARY' },
+      { id: 'folder-local-needs', name: 'Local Needs' },
+      { id: 'folder-meetings', name: 'Meetings' },
+      { id: 'folder-sign-language', name: 'SIGN LANGUAGE' },
+      { id: 'folder-timetables', name: 'TIMETABLES' }
+    ];
+
+    const getFolderByName = db.prepare('SELECT id FROM user_folders WHERE user_id = ? AND LOWER(name) = LOWER(?)');
+    const insertFolder = db.prepare('INSERT INTO user_folders (id, user_id, name, parent_id, created_at, updated_at) VALUES (?, ?, ?, NULL, ?, ?)');
+
+    const idMap = {};
+    for (const f of folderDefs) {
+      const existing = getFolderByName.get(userId, f.name);
+      if (existing) {
+        idMap[f.id] = existing.id;
+      } else {
+        insertFolder.run(f.id, userId, f.name, now, now);
+        idMap[f.id] = f.id;
+      }
+    }
+
+    const sampleFiles = [
+      // DATA QUANTALS FILE (9 items)
+      { folderId: 'folder-data-quantals', name: 'ZRA SMART INVOICE.pdf', mime: 'application/pdf', ext: 'pdf', size: 245760 },
+      { folderId: 'folder-data-quantals', name: 'Tax Clearance Certificate.pdf', mime: 'application/pdf', ext: 'pdf', size: 184320 },
+      { folderId: 'folder-data-quantals', name: 'Company Registration PACRA.pdf', mime: 'application/pdf', ext: 'pdf', size: 327680 },
+      { folderId: 'folder-data-quantals', name: 'Bank Statement Summary.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: 'xlsx', size: 98304 },
+      { folderId: 'folder-data-quantals', name: 'Quarterly Financial Audit.pdf', mime: 'application/pdf', ext: 'pdf', size: 419840 },
+      { folderId: 'folder-data-quantals', name: 'Client Retainer Agreements.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx', size: 79872 },
+      { folderId: 'folder-data-quantals', name: 'Legal Compliance Review.pdf', mime: 'application/pdf', ext: 'pdf', size: 153600 },
+      { folderId: 'folder-data-quantals', name: 'Asset Management Schedule.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: 'xlsx', size: 63488 },
+      { folderId: 'folder-data-quantals', name: 'Operational Procedures Manual.pdf', mime: 'application/pdf', ext: 'pdf', size: 532480 },
+
+      // LIBRARY (12 items)
+      { folderId: 'folder-library', name: 'Exactly What to Say The Magic Words.pdf', mime: 'application/pdf', ext: 'pdf', size: 1228800 },
+      { folderId: 'folder-library', name: 'Thinking Fast and Slow Summary.pdf', mime: 'application/pdf', ext: 'pdf', size: 870400 },
+      { folderId: 'folder-library', name: 'Principles by Ray Dalio.pdf', mime: 'application/pdf', ext: 'pdf', size: 2457600 },
+      { folderId: 'folder-library', name: 'The Lean Startup Eric Ries.pdf', mime: 'application/pdf', ext: 'pdf', size: 1126400 },
+      { folderId: 'folder-library', name: 'Atomic Habits Workbook.pdf', mime: 'application/pdf', ext: 'pdf', size: 665600 },
+      { folderId: 'folder-library', name: 'Crucial Conversations Guide.pdf', mime: 'application/pdf', ext: 'pdf', size: 737280 },
+      { folderId: 'folder-library', name: 'Zero to One Peter Thiel.pdf', mime: 'application/pdf', ext: 'pdf', size: 972800 },
+      { folderId: 'folder-library', name: 'Design Patterns Elements.pdf', mime: 'application/pdf', ext: 'pdf', size: 1536000 },
+      { folderId: 'folder-library', name: 'Clean Architecture Handbook.pdf', mime: 'application/pdf', ext: 'pdf', size: 1843200 },
+      { folderId: 'folder-library', name: 'Scrum Master Field Guide.pdf', mime: 'application/pdf', ext: 'pdf', size: 440320 },
+      { folderId: 'folder-library', name: 'User Story Mapping Guide.pdf', mime: 'application/pdf', ext: 'pdf', size: 901120 },
+      { folderId: 'folder-library', name: 'Product Leadership Framework.pdf', mime: 'application/pdf', ext: 'pdf', size: 727040 },
+
+      // Local Needs (1 item)
+      { folderId: 'folder-local-needs', name: 'Weekly Signs and Programme.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx', size: 55296 },
+
+      // Meetings (3 items)
+      { folderId: 'folder-meetings', name: 'S-27b_s-BrZMB_E.pdf', mime: 'application/pdf', ext: 'pdf', size: 317440 },
+      { folderId: 'folder-meetings', name: 'Midweek Meeting Schedule Q4.pdf', mime: 'application/pdf', ext: 'pdf', size: 184320 },
+      { folderId: 'folder-meetings', name: 'Weekend Discourse Topics.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx', size: 63488 },
+
+      // SIGN LANGUAGE (14 items)
+      { folderId: 'folder-sign-language', name: 'Module1_Sign_Language_Basics.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ext: 'pptx', size: 3276800 },
+      { folderId: 'folder-sign-language', name: 'Module2_Vocabulary_Expressions.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ext: 'pptx', size: 2867200 },
+      { folderId: 'folder-sign-language', name: 'Module3_Grammar_Structure.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ext: 'pptx', size: 3174400 },
+      { folderId: 'folder-sign-language', name: 'Visual Cue Reference Guide.pdf', mime: 'application/pdf', ext: 'pdf', size: 942080 },
+      { folderId: 'folder-sign-language', name: 'Practice Video Transcripts.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx', size: 86016 },
+      { folderId: 'folder-sign-language', name: 'Fingerspelling Alphabet Chart.png', mime: 'image/png', ext: 'png', size: 460800 },
+      { folderId: 'folder-sign-language', name: 'Interpreter Code of Conduct.pdf', mime: 'application/pdf', ext: 'pdf', size: 143360 },
+      { folderId: 'folder-sign-language', name: 'Sign Language Curriculum.pdf', mime: 'application/pdf', ext: 'pdf', size: 839680 },
+      { folderId: 'folder-sign-language', name: 'Class Attendance Register.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: 'xlsx', size: 49152 },
+      { folderId: 'folder-sign-language', name: 'Student Progress Assessment.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx', size: 76800 },
+      { folderId: 'folder-sign-language', name: 'Workshop Handout Day 1.pdf', mime: 'application/pdf', ext: 'pdf', size: 337920 },
+      { folderId: 'folder-sign-language', name: 'Workshop Handout Day 2.pdf', mime: 'application/pdf', ext: 'pdf', size: 317440 },
+      { folderId: 'folder-sign-language', name: 'Glossary of Specialized Signs.pdf', mime: 'application/pdf', ext: 'pdf', size: 655360 },
+      { folderId: 'folder-sign-language', name: 'Evaluation Checklist.pdf', mime: 'application/pdf', ext: 'pdf', size: 112640 },
+
+      // TIMETABLES (1 item)
+      { folderId: 'folder-timetables', name: 'AO1 DUTY ROTA FROM NOV 2026.pdf', mime: 'application/pdf', ext: 'pdf', size: 168960 },
+
+      // Root items (3 items) -> Total = 43 files
+      { folderId: null, name: 'QuantalFlow Master Service Agreement.pdf', mime: 'application/pdf', ext: 'pdf', size: 215040 },
+      { folderId: null, name: 'System Architecture Blueprint.png', mime: 'image/png', ext: 'png', size: 524288 },
+      { folderId: null, name: 'Q4 Roadmap & Milestone Review.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: 'xlsx', size: 102400 }
+    ];
+
+    const checkFile = db.prepare('SELECT id FROM user_files WHERE user_id = ? AND name = ?');
+    const insertFile = db.prepare(`
+      INSERT INTO user_files (id, user_id, folder_id, name, mime_type, size, extension, url, public_id, resource_type, visibility, uploaded_by, data_base64, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, '', '', 'raw', 'coordinators', 'Admin', '', ?)
+    `);
+
+    for (let i = 0; i < sampleFiles.length; i++) {
+      const f = sampleFiles[i];
+      if (!checkFile.get(userId, f.name)) {
+        const fileId = 'file-seed-' + (i + 1) + '-' + userId;
+        const targetFolder = f.folderId ? (idMap[f.folderId] || f.folderId) : null;
+        insertFile.run(fileId, userId, targetFolder, f.name, f.mime, f.size, f.ext, now - (i * 60000));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to seed default user files and folders:', err);
+  }
+}
+
+export function listUserFolders(userId) {
+  if (userId == null) return [];
+  ensureUserFilesAndFoldersSeeded(userId);
+  return db
+    .prepare('SELECT id, name, parent_id, created_at, updated_at FROM user_folders WHERE user_id = ? ORDER BY name COLLATE NOCASE ASC')
+    .all(userId)
+    .map((r) => ({
+      id: r.id,
+      key: r.id,
+      name: r.name,
+      type: 'folder',
+      parentId: r.parent_id || null,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at
+    }));
+}
+
+export function saveUserFolder(userId, { key, name, parentId = null }) {
+  if (userId == null) throw forbidden();
+  const cleanKey = String(key || '').trim();
+  const cleanName = String(name || '').replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!cleanKey || !cleanName) {
+    const err = new Error('Folder name and key are required.');
+    err.status = 400;
+    throw err;
+  }
+  const cleanParent = parentId ? String(parentId).trim() : null;
+  if (cleanParent === cleanKey) {
+    const err = new Error('A folder cannot be inside itself.');
+    err.status = 400;
+    throw err;
+  }
+  const now = Date.now();
+  const existing = db.prepare('SELECT id FROM user_folders WHERE id = ? AND user_id = ?').get(cleanKey, userId);
+  if (existing) {
+    db.prepare('UPDATE user_folders SET name = ?, parent_id = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+      .run(cleanName, cleanParent, now, cleanKey, userId);
+  } else {
+    db.prepare('INSERT INTO user_folders (id, user_id, name, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(cleanKey, userId, cleanName, cleanParent, now, now);
+  }
+  const row = db.prepare('SELECT id, name, parent_id, created_at, updated_at FROM user_folders WHERE id = ? AND user_id = ?').get(cleanKey, userId);
+  return {
+    id: row.id,
+    key: row.id,
+    name: row.name,
+    type: 'folder',
+    parentId: row.parent_id || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+export function deleteUserFolder(userId, key) {
+  if (userId == null) throw forbidden();
+  const cleanKey = String(key || '').trim();
+  const folder = db.prepare('SELECT id, parent_id FROM user_folders WHERE id = ? AND user_id = ?').get(cleanKey, userId);
+  if (!folder) return { deleted: false };
+  const parentId = folder.parent_id || null;
+  const now = Date.now();
+  db.prepare('UPDATE user_folders SET parent_id = ?, updated_at = ? WHERE parent_id = ? AND user_id = ?')
+    .run(parentId, now, cleanKey, userId);
+  db.prepare('UPDATE user_files SET folder_id = ? WHERE folder_id = ? AND user_id = ?')
+    .run(parentId, cleanKey, userId);
+  db.prepare('DELETE FROM user_folders WHERE id = ? AND user_id = ?').run(cleanKey, userId);
+  return { deleted: true };
+}
+
+function toPublicUserFile(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    size: r.size,
+    mimeType: r.mime_type,
+    visibility: r.visibility || 'coordinators',
+    uploadedBy: r.uploaded_by || '',
+    folderId: r.folder_id || null,
+    createdAt: r.created_at,
+    url: r.url || ''
+  };
+}
+
+export function listUserFiles(userId) {
+  if (userId == null) return [];
+  return db
+    .prepare('SELECT id, folder_id, name, mime_type, size, visibility, uploaded_by, url, created_at FROM user_files WHERE user_id = ? ORDER BY created_at DESC')
+    .all(userId)
+    .map(toPublicUserFile);
+}
+
+export function createUserFile(userId, file) {
+  if (userId == null) throw forbidden();
+  const id = String(file.id || '').trim();
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO user_files (id, user_id, folder_id, name, mime_type, size, extension, url, public_id, resource_type, visibility, uploaded_by, data_base64, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    userId,
+    file.folderId || null,
+    file.name,
+    file.mimeType || 'application/octet-stream',
+    Number(file.size) || 0,
+    file.extension || '',
+    file.url || '',
+    file.publicId || '',
+    file.resourceType || 'image',
+    file.visibility || 'coordinators',
+    file.uploadedBy || '',
+    file.dataBase64 || null,
+    now
+  );
+  const row = db.prepare('SELECT id, folder_id, name, mime_type, size, visibility, uploaded_by, url, created_at FROM user_files WHERE id = ? AND user_id = ?').get(id, userId);
+  return row ? toPublicUserFile(row) : null;
+}
+
+export function getUserFile(userId, fileId) {
+  if (userId == null) throw forbidden();
+  return db.prepare('SELECT * FROM user_files WHERE id = ? AND user_id = ?').get(String(fileId || ''), userId) || null;
+}
+
+export function moveUserFile(userId, fileId, folderId) {
+  if (userId == null) throw forbidden();
+  const dest = folderId ? String(folderId).trim() : null;
+  const changes = db.prepare('UPDATE user_files SET folder_id = ? WHERE id = ? AND user_id = ?')
+    .run(dest, String(fileId || ''), userId).changes;
+  return { moved: changes > 0, fileId, folderId: dest };
+}
+
+export function deleteUserFile(userId, fileId) {
+  if (userId == null) throw forbidden();
+  const existing = db.prepare('SELECT id, name, public_id, resource_type FROM user_files WHERE id = ? AND user_id = ?')
+    .get(String(fileId || ''), userId);
+  if (!existing) return null;
+  db.prepare('DELETE FROM user_files WHERE id = ? AND user_id = ?').run(existing.id, userId);
+  return {
+    id: existing.id,
+    name: existing.name,
+    publicId: existing.public_id || '',
+    resourceType: existing.resource_type || 'image'
   };
 }
 

@@ -1,0 +1,70 @@
+---
+title: Files | QuantalFlow
+description: Upload, organize, and share files backed by Cloudinary storage.
+route: /files/
+layout: standalone
+body_class: files-body
+scripts: /assets/js/files.js
+---
+  <header class="dash-top">
+    <a class="logo" href="/dashboard/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+    <div class="dash-search-bar">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="files-search" placeholder="Search files…" aria-label="Search files" />
+    </div>
+    <div class="dash-top__right">
+      <a class="btn btn--ghost" href="/dashboard/" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">Dashboard</a>
+      <button class="btn btn--dark" type="button" id="files-logout">Log out</button>
+    </div>
+  </header>
+
+  <div class="files-layout">
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="dash-nav__item is-active" href="/files/" style="text-decoration:none;" aria-current="page">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Files</span>
+        <span class="dash-nav__badge" style="background:#eff6ff; color:#2563eb;">Cloud</span>
+      </a>
+    </aside>
+
+    <main class="files-main">
+      <section class="files-hero">
+        <div>
+          <h1>Files</h1>
+          <p class="files-hero__sub">Uploads are stored in Cloudinary. Drag &amp; drop or click to add files (max 10 MB each).</p>
+        </div>
+        <div class="files-hero__actions">
+          <input type="file" id="files-input" multiple hidden />
+          <button class="btn btn--blue" type="button" id="files-upload-btn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 20h16"/></svg>
+            <span>Upload files</span>
+          </button>
+        </div>
+      </section>
+
+      <div class="files-dropzone" id="files-dropzone">
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p>Drag &amp; drop files here, or use the Upload button</p>
+        <small>Images, PDFs, documents and more · up to 10 MB</small>
+      </div>
+
+      <div class="files-toolbar">
+        <span id="files-count" class="files-count">Loading…</span>
+        <div class="files-toolbar__right">
+          <button class="btn btn--ghost btn--sm" type="button" id="files-refresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="files-grid" id="files-grid"></div>
+      <div class="files-empty" id="files-empty" hidden>
+        <p>No files yet. Upload your first file above.</p>
+      </div>
+    </main>
+  </div>

@@ -1,0 +1,1910 @@
+/*
+ * REAL 3D MANILA / WINDOWS FOLDER & FILE MANAGEMENT STYLES (folder.css)
+ *
+ * Combines:
+ *  1. Tactile 3D Real Folder (.f3d) with back board, protruding top tab,
+ *     peeking document sheets, and hinged golden-brown front pocket flap
+ *  2. Shelf integration (.files-folders, .files-folder-card, .files-folder-actions)
+ *  3. Interactive Path Bar / Breadcrumbs (.files-breadcrumb)
+ *  4. Toolbar Segmented Control (Grid | List), Sort Select, and New Folder button
+ *  5. Sortable List / Table View (.files-table-container, .files-table)
+ *  6. Floating Context Menu (.apple-context-menu)
+ *  7. Fluid New Folder Composer (.files-newfolder)
+ */
+
+:root {
+  --apple-folder-blue: #0A84FF;
+  --apple-folder-blue-dark: #0071E3;
+  --apple-surface-card: #FFFFFF;
+  --apple-surface-hover: #F6F8FA;
+  --apple-surface-border: rgba(0, 0, 0, 0.08);
+  --apple-text-primary: #1D1D1F;
+  --apple-text-secondary: #6E6E73;
+  --apple-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] {
+  --apple-folder-blue: #2997FF;
+  --apple-folder-blue-dark: #0A84FF;
+  --apple-surface-card: #252528;
+  --apple-surface-hover: #2D2D31;
+  --apple-surface-border: rgba(255, 255, 255, 0.12);
+  --apple-text-primary: #F5F5F7;
+  --apple-text-secondary: #A1A1A6;
+}
+
+/* ======================================================================
+ * 1. Real 3D Physical Folder (.f3d)
+ * ====================================================================== */
+.f3d {
+  --f3d-w: 220px;
+  --f3d-h: 138px;
+  --f3d-color: #E8A850;
+  --f3d-paper: #ffffff;
+  --f3d-ink: #2B1803;
+  --f3d-edge: rgba(120, 68, 6, 0.28);
+  --f3d-shadow: rgba(92, 52, 6, 0.34);
+  --f3d-speed: 560ms;
+  --f3d-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --f3d-blur: 9px;
+  --f3d-delay: 0ms;
+  position: relative;
+  width: var(--f3d-w);
+  flex: 0 0 auto;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.f3d-scene {
+  position: relative;
+  width: 100%;
+  height: calc(var(--f3d-h) + 46px);
+  perspective: 950px;
+  perspective-origin: 50% 88%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Soft contact shadow so the folder sits on the shelf naturally */
+.f3d-ground {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 1px;
+  height: 16px;
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    rgba(92, 54, 8, 0.32),
+    rgba(92, 54, 8, 0.12) 62%,
+    rgba(92, 54, 8, 0) 100%
+  );
+  opacity: 0.85;
+  transition: opacity 220ms var(--f3d-ease);
+}
+
+.f3d.is-open .f3d-ground,
+.f3d.is-drop .f3d-ground {
+  opacity: 0.55;
+}
+
+.f3d-tilt {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: var(--f3d-h);
+  transform-style: preserve-3d;
+  transition: transform 420ms var(--f3d-ease);
+  will-change: transform;
+}
+
+.f3d-body {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* ---- Back board (inside of the physical folder + top tab) -------------- */
+.f3d-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 0 14px 14px 14px;
+  /* Fallback for browsers without color-mix() (older Android WebView) */
+  background: linear-gradient(180deg, #D79A4A 0%, #B07A33 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--f3d-color) 88%, #B4690E) 0%,
+    color-mix(in srgb, var(--f3d-color) 70%, #7A4305) 100%
+  );
+  border: 1px solid rgba(145, 84, 8, 0.45);
+  box-shadow:
+    0 14px 26px -14px var(--f3d-shadow),
+    inset 0 1px 0 rgba(255, 244, 214, 0.42),
+    inset 0 -10px 18px -10px rgba(68, 36, 2, 0.45);
+  transform: translateZ(-12px);
+}
+
+.f3d[data-tab="right"] .f3d-back {
+  border-radius: 14px 0 14px 14px;
+}
+
+/* Inner pocket liner of the manila folder */
+.f3d-back::before {
+  content: "";
+  position: absolute;
+  inset: 7px 7px 7px;
+  border-radius: 4px 10px 10px 10px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 250, 235, 0.22) 0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    rgba(60, 32, 2, 0.16) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(255, 245, 220, 0.16);
+  pointer-events: none;
+}
+
+/* Top physical folder tab protruding from the back board */
+.f3d-back-tab {
+  position: absolute;
+  left: -1px;
+  bottom: calc(100% - 1px);
+  min-width: 56%;
+  max-width: 82%;
+  height: 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 10px;
+  border-radius: 10px 13px 0 0;
+  background: linear-gradient(180deg, #EBB466 0%, #D79A4A 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--f3d-color) 94%, #FFF3C4) 0%,
+    color-mix(in srgb, var(--f3d-color) 88%, #B4690E) 100%
+  );
+  border: 1px solid rgba(145, 84, 8, 0.45);
+  border-bottom: none;
+  box-shadow: inset 0 1.5px 0 rgba(255, 252, 235, 0.65);
+  color: #3B2204;
+  overflow: hidden;
+}
+
+.f3d[data-tab="right"] .f3d-back-tab {
+  left: auto;
+  right: -1px;
+  border-radius: 13px 10px 0 0;
+}
+
+.f3d-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+}
+
+.f3d-tab-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.f3d-tab-label {
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: #3B2204;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Empty folder dashed pocket hint */
+.f3d-empty {
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 12%;
+  bottom: 14%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1.5px dashed rgba(255, 248, 228, 0.55);
+  color: rgba(255, 250, 238, 0.92);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  opacity: 0;
+  transform: translateZ(2px);
+  transition: opacity 200ms var(--f3d-ease);
+  pointer-events: none;
+}
+
+.f3d.is-empty.is-open .f3d-empty,
+.f3d.is-empty.is-drop .f3d-empty {
+  opacity: 1;
+}
+
+/* ---- Peeking Paper Sheets (.f3d-sheets / .f3d-sheet) ------------------- */
+.f3d-sheets {
+  position: absolute;
+  left: 6.5%;
+  right: 6.5%;
+  top: 4px;
+  bottom: 8px;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.f3d-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 76px;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 5px 6px 4px 4px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  box-shadow:
+    0 3px 8px -2px rgba(15, 23, 42, 0.24),
+    inset 0 1px 0 #FFFFFF;
+  color: #1E293B;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(8px) translateZ(calc(-4px - var(--i) * 1px));
+  transition:
+    transform var(--f3d-speed) var(--f3d-ease),
+    opacity 180ms ease,
+    box-shadow 180ms ease;
+}
+
+/* Mini document icon on each paper sheet */
+.f3d-sheet::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 13px;
+  height: 15px;
+  margin-top: 1px;
+  border-radius: 2px;
+  background: linear-gradient(160deg, #FEF3C7, #FDE68A);
+  box-shadow: inset 0 0 0 1px rgba(180, 110, 12, 0.32);
+}
+
+.f3d-sheet-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.f3d-sheet.has-image {
+  padding-left: 6px;
+  gap: 6px;
+}
+
+.f3d-sheet.has-image::before {
+  display: none;
+}
+
+.f3d-sheet-thumb {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #e6edf6;
+  box-shadow: inset 0 0 0 1px rgba(16, 34, 56, 0.12);
+}
+
+.f3d-sheet-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.f3d-sheet[data-ext]::after {
+  content: attr(data-ext);
+  margin-left: auto;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(232, 168, 80, 0.18);
+  color: #8C5206;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Closed folder: top 3 paper sheets peek visibly above the front flap! */
+.f3d[data-peek="true"]:not(.is-open) .f3d-sheet {
+  opacity: 1;
+  transform: translateY(calc(-10px - var(--i) * 5px))
+    translateX(calc((var(--i) - 1) * 3px))
+    translateZ(calc(-2px - var(--i) * 1.5px))
+    rotate(calc((var(--i) - 1) * 1.2deg));
+}
+
+.f3d[data-peek="true"]:not(.is-open) .f3d-sheet:nth-child(n + 4) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hovering a closed folder gently lifts the peeking sheets */
+@media (hover: hover) and (pointer: fine) {
+  .f3d[data-peek="true"]:hover:not(.is-open) .f3d-sheet {
+    transform: translateY(calc(-16px - var(--i) * 6px))
+      translateX(calc((var(--i) - 1) * 4px))
+      translateZ(calc(4px - var(--i) * 1.5px))
+      rotate(calc((var(--i) - 1) * 1.6deg));
+  }
+}
+
+/* Open folder: sheets fan out in 3D */
+.f3d.is-open .f3d-sheet {
+  opacity: 1;
+  box-shadow: 0 10px 18px -8px rgba(16, 34, 56, 0.42);
+  transform: translateY(calc(-22px - var(--i) * 10px))
+    translateX(calc((var(--i) - 2) * 5px))
+    translateZ(calc(24px - var(--i) * 2px))
+    rotate(calc((var(--i) - 2) * -1deg));
+}
+
+.f3d[data-layout="spread"].is-open .f3d-sheet {
+  transform: translateY(calc(-20px - var(--i) * 6px))
+    translateX(calc((var(--i) - 2.5) * 13px))
+    translateZ(calc(24px - var(--i) * 2px))
+    rotate(calc((var(--i) - 2.5) * 3deg));
+}
+
+.f3d-sheet:focus-visible {
+  outline: 2px solid #8C5206;
+  outline-offset: 2px;
+}
+
+/* ---- Front Pocket Flap (.f3d-cover) ----------------------------------- */
+.f3d-cover {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 15px;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 14px 15px 12px;
+  border: 1px solid rgba(166, 98, 8, 0.48);
+  border-radius: 10px 14px 14px 14px;
+  background: linear-gradient(168deg, #F5D08A 0%, #EEB95C 28%, #E8A850 68%, #C98A3C 100%);
+  background: linear-gradient(
+    168deg,
+    color-mix(in srgb, var(--f3d-color) 62%, #FFF5C0) 0%,
+    color-mix(in srgb, var(--f3d-color) 88%, #FFD24C) 28%,
+    var(--f3d-color) 68%,
+    color-mix(in srgb, var(--f3d-color) 84%, #9A5806) 100%
+  );
+  box-shadow:
+    0 14px 24px -12px var(--f3d-shadow),
+    0 -2px 6px rgba(45, 25, 2, 0.12),
+    inset 0 2px 0 rgba(255, 253, 240, 0.78),
+    inset 0 -1px 0 rgba(120, 68, 4, 0.35);
+  color: var(--f3d-ink);
+  text-align: left;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transform-origin: 50% 100%;
+  transform: rotateX(0deg);
+  transition:
+    transform var(--f3d-speed) var(--f3d-ease),
+    box-shadow 240ms var(--f3d-ease);
+  font: inherit;
+  overflow: hidden;
+}
+
+/* Subtle Manila folder bottom score crease line */
+.f3d-cover-crease {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 7px;
+  height: 1px;
+  background: rgba(120, 68, 4, 0.22);
+  box-shadow: 0 1px 0 rgba(255, 252, 235, 0.45);
+  pointer-events: none;
+}
+
+.f3d-cover-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.f3d-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.22;
+  color: #2B1803;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.f3d-count {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(74, 41, 4, 0.13);
+  border: 1px solid rgba(74, 41, 4, 0.14);
+  color: #3B2204;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+}
+
+.f3d-count::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #784406;
+  opacity: 0.85;
+}
+
+/* Diagonal specular sheen across the front cover */
+.f3d-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    112deg,
+    rgba(255, 255, 255, 0.38) 0%,
+    rgba(255, 255, 255, 0.1) 36%,
+    rgba(255, 255, 255, 0) 62%
+  );
+  opacity: 0.88;
+  transition: opacity 220ms ease;
+}
+
+/* ---- Open & Hover states ---------------------------------------------- */
+.f3d.is-open .f3d-cover {
+  transform: rotateX(-64deg) translateY(-1px);
+  box-shadow:
+    0 8px 16px -10px var(--f3d-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.f3d.is-open .f3d-sheen {
+  opacity: 0.4;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .f3d:hover:not(.is-open) .f3d-cover {
+    transform: rotateX(-14deg);
+    box-shadow:
+      0 20px 30px -14px var(--f3d-shadow),
+      0 -2px 6px rgba(45, 25, 2, 0.14),
+      inset 0 2px 0 rgba(255, 253, 240, 0.85);
+  }
+  .f3d:hover .f3d-sheen {
+    opacity: 1;
+  }
+  .f3d .f3d-sheet:hover {
+    box-shadow: 0 12px 20px -8px rgba(16, 34, 56, 0.48);
+  }
+}
+
+.f3d-cover:focus-visible {
+  outline: 2px solid #8C5206;
+  outline-offset: 3px;
+}
+
+/* Drag-and-drop over folder: cracks flap open further */
+.f3d.is-drop .f3d-cover,
+.files-folder-card.is-drop-target .f3d-cover {
+  transform: rotateX(-24deg) !important;
+  box-shadow:
+    0 0 0 3px rgba(212, 155, 65, 0.65),
+    0 24px 36px -16px var(--f3d-shadow) !important;
+}
+
+.f3d.is-drop .f3d-sheet,
+.files-folder-card.is-drop-target .f3d-sheet {
+  opacity: 1;
+  transform: translateY(calc(-14px - var(--i) * 6px))
+    translateX(calc((var(--i) - 2) * 4px))
+    translateZ(calc(18px - var(--i) * 2px))
+    rotate(calc((var(--i) - 2) * -0.8deg));
+}
+
+/* ---- Intro animation -------------------------------------------------- */
+.f3d[data-intro="true"] {
+  opacity: 0;
+  transform: translateY(10px) scale(0.97);
+  animation: f3d-in 480ms var(--f3d-ease) forwards;
+  animation-delay: var(--f3d-delay);
+}
+
+@keyframes f3d-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ======================================================================
+ * 2. Shelf Integration (.files-folders & .files-folder-card)
+ * ====================================================================== */
+.files-folders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 24px 28px;
+  padding: 20px 8px 26px;
+  border-bottom: 1px solid var(--color-border-on-surface, rgba(0, 0, 0, 0.08));
+}
+
+.files-folders[hidden] {
+  display: none !important;
+}
+
+.files-folder-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transition: transform 220ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.files-folder-card.is-drop-target {
+  transform: translateY(-3px);
+}
+
+.files-folder-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.files-folder-open {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 114, 22, 0.32);
+  background: linear-gradient(180deg, #FFFDF8 0%, #FDF5E6 100%);
+  color: #6B3F05;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(92, 52, 6, 0.08);
+  transition: all 150ms ease;
+}
+
+.files-folder-open:hover {
+  background: linear-gradient(180deg, #F8C652 0%, #E8A850 100%);
+  border-color: #C47F1B;
+  color: #2B1803;
+  box-shadow: 0 3px 8px rgba(180, 114, 22, 0.22);
+}
+
+.files-folder-open:active {
+  transform: scale(0.97);
+}
+
+.files-folder-tools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.files-folder-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-subtle, #64748B);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.files-folder-tool:hover {
+  background: rgba(212, 155, 65, 0.16);
+  color: #3B2204;
+}
+
+.files-folder-tool.is-danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #DC2626;
+}
+
+/* ======================================================================
+ * 3. Interactive Path Bar (Breadcrumbs)
+ * ====================================================================== */
+.files-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin: 10px 0 14px;
+  background: rgba(248, 244, 236, 0.85);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(180, 130, 50, 0.2);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.files-breadcrumb[hidden] {
+  display: none !important;
+}
+
+.files-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #6B3F05;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms ease;
+  user-select: none;
+}
+
+.files-crumb:hover {
+  background: rgba(232, 168, 80, 0.18);
+}
+
+.files-crumb[aria-current="page"] {
+  color: #2B1803;
+  background: #FFFFFF;
+  border-color: rgba(180, 130, 50, 0.25);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+  cursor: default;
+}
+
+.files-crumb-sep {
+  display: inline-flex;
+  align-items: center;
+  color: #94A3B8;
+  opacity: 0.7;
+  user-select: none;
+}
+
+.files-crumb.files-row-drop-target,
+.files-crumb.is-drop-target {
+  background: rgba(232, 168, 80, 0.28) !important;
+  border-color: #D49B41 !important;
+  transform: scale(1.04);
+}
+
+/* ======================================================================
+ * 4. Toolbar Controls (Grid/List Segmented Toggle, Sort, New Folder Btn)
+ * ====================================================================== */
+.files-toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 9px;
+  gap: 2px;
+}
+
+.segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.segmented-btn:hover {
+  color: #0F172A;
+}
+
+.segmented-btn.is-active {
+  background: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.files-sort-select {
+  height: 32px;
+  padding: 0 26px 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background-color: #FFFFFF;
+  color: #1E293B;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.files-newfolder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 114, 22, 0.38);
+  background: linear-gradient(180deg, #FFFDF7 0%, #FDF3DC 100%);
+  color: #5C3A08;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(92, 52, 6, 0.08);
+  transition:
+    transform 120ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.files-newfolder-btn:hover {
+  background: linear-gradient(180deg, #FDE6A2 0%, #F5C76B 100%);
+  border-color: #C47F1B;
+  color: #2B1803;
+  box-shadow: 0 3px 8px rgba(180, 114, 22, 0.18);
+}
+
+.files-newfolder-btn:active {
+  transform: scale(0.96);
+}
+
+.files-newfolder-btn svg {
+  flex: 0 0 auto;
+}
+
+/* ======================================================================
+ * 5. Sortable List / Table View (.files-table-container)
+ * ====================================================================== */
+.files-table-container {
+  margin-top: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  background: #FFFFFF;
+  overflow-x: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.files-table-container[hidden] {
+  display: none !important;
+}
+
+.files-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.files-table thead th {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748B;
+  background: #F8FAFC;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.files-table thead th:hover {
+  color: #0F172A;
+  background: #F1F5F9;
+}
+
+.files-table tbody tr {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  transition: background-color 120ms ease;
+  cursor: pointer;
+}
+
+.files-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.files-table tbody tr:hover {
+  background: rgba(232, 168, 80, 0.08);
+}
+
+.files-table tbody tr.is-selected {
+  background: rgba(232, 168, 80, 0.18);
+}
+
+.files-table td {
+  padding: 10px 14px;
+  vertical-align: middle;
+  color: #1E293B;
+}
+
+/* Keep real table-cell display (flex on a <td> breaks table layout) */
+.files-table-name-cell {
+  display: table-cell;
+  vertical-align: middle;
+  font-weight: 600;
+  min-width: 150px;
+}
+
+.files-table-name-cell > * {
+  vertical-align: middle;
+}
+
+.files-table-name-cell > .files-table-icon,
+.files-table-name-cell > .files-chip {
+  margin-right: 10px;
+}
+
+/* Folder glyph in list view: never let the flex row shrink it away */
+.files-table-name-cell .files-table-icon {
+  display: inline-block;
+  flex: 0 0 22px;
+  width: 22px;
+  min-width: 22px;
+  height: 18px;
+  overflow: visible;
+}
+
+.files-table-name-cell > span:not(.files-chip) {
+  display: inline-block;
+  max-width: calc(100% - 40px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files-table-actions-cell {
+  display: table-cell;
+  vertical-align: middle;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.files-table-actions-cell > * {
+  margin-left: 6px;
+}
+
+/* Phone: Explorer-style list — folder icon + name, with a compact actions column */
+@media (max-width: 640px) {
+  .files-table thead th:nth-child(2),
+  .files-table thead th:nth-child(3),
+  .files-table thead th:nth-child(4),
+  .files-table tbody td:nth-child(2),
+  .files-table tbody td:nth-child(3),
+  .files-table tbody td:nth-child(4) {
+    display: none;
+  }
+  .files-table td,
+  .files-table thead th {
+    padding: 10px 8px;
+  }
+  .files-table-name-cell > span:not(.files-chip) {
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+
+/* ======================================================================
+ * 6. Floating Context Menu (.apple-context-menu)
+ * ====================================================================== */
+.apple-context-menu {
+  position: fixed;
+  z-index: 2500;
+  min-width: 196px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow:
+    0 18px 40px -12px rgba(15, 23, 42, 0.28),
+    0 4px 12px -2px rgba(15, 23, 42, 0.12);
+}
+
+.apple-context-menu[hidden] {
+  display: none !important;
+}
+
+.apple-context-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #1E293B;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 100ms ease, color 100ms ease;
+}
+
+.apple-context-item:hover {
+  background: #E8A850;
+  color: #2B1803;
+}
+
+.apple-context-item.is-danger {
+  color: #DC2626;
+}
+
+.apple-context-item.is-danger:hover {
+  background: #DC2626;
+  color: #FFFFFF;
+}
+
+.apple-context-item-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.apple-context-kbd {
+  font-size: 11px;
+  opacity: 0.65;
+  font-family: inherit;
+}
+
+.apple-context-sep {
+  height: 1px;
+  margin: 5px 6px;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+/* ======================================================================
+ * 7. New Folder — Fluid Material Composer (.files-newfolder)
+ * ====================================================================== */
+.files-newfolder-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(16, 33, 56, 0.32);
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.files-newfolder-scrim.is-visible {
+  opacity: 1;
+}
+
+.files-newfolder {
+  --nf-p: 0;
+  --nf-drag: 0px;
+  position: fixed;
+  z-index: 1201;
+  width: min(360px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    0 28px 60px -24px rgba(16, 33, 56, 0.42),
+    0 10px 24px -14px rgba(16, 33, 56, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  opacity: var(--nf-p);
+  transform: translateY(calc((1 - var(--nf-p)) * 10px + var(--nf-drag)))
+    scale(calc(0.96 + var(--nf-p) * 0.04));
+  transform-origin: var(--nf-origin, 100% 0);
+  will-change: transform, opacity;
+  touch-action: manipulation;
+}
+
+.files-newfolder[hidden] {
+  display: none !important;
+}
+
+.files-newfolder-grab {
+  display: none;
+}
+
+.files-newfolder-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.files-newfolder-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: rgba(232, 168, 80, 0.2);
+  color: #784406;
+  border: 1px solid rgba(180, 114, 22, 0.25);
+}
+
+.files-newfolder-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #1E293B;
+}
+
+.files-newfolder-hint {
+  margin-top: 1px;
+  font-size: 12px;
+  color: #64748B;
+}
+
+.files-newfolder-hint strong {
+  color: #334155;
+  font-weight: 600;
+}
+
+.files-newfolder-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.files-newfolder-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 34px 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: #FFFFFF;
+  color: #0F172A;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.files-newfolder-input:focus {
+  border-color: #D49B41;
+  box-shadow: 0 0 0 3px rgba(232, 168, 80, 0.28);
+}
+
+.files-newfolder-clear {
+  position: absolute;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.08);
+  color: #475569;
+  cursor: pointer;
+}
+
+.files-newfolder-clear[hidden] {
+  display: none !important;
+}
+
+.files-newfolder-error {
+  margin-top: -2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #DC2626;
+}
+
+.files-newfolder-error[hidden] {
+  display: none !important;
+}
+
+.files-newfolder-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.files-newfolder-cancel,
+.files-newfolder-create {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.files-newfolder-cancel {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #475569;
+}
+
+.files-newfolder-cancel:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.files-newfolder-create {
+  background: linear-gradient(180deg, #F5BC38 0%, #D49B41 100%);
+  border: 1px solid #B87818;
+  color: #2B1803;
+  box-shadow: 0 4px 12px -4px rgba(180, 114, 22, 0.45);
+}
+
+.files-newfolder-create:hover:not(:disabled) {
+  background: linear-gradient(180deg, #F8C954 0%, #DF9E38 100%);
+}
+
+.files-newfolder-create:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* ---- Drag & drop rows ------------------------------------------------- */
+.files-row[draggable="true"] {
+  cursor: grab;
+}
+
+.files-row[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.files-row.files-row-dragging {
+  opacity: 0.45;
+}
+
+.files-row.files-row-drop-target {
+  outline: 2px dashed #D49B41;
+  outline-offset: -2px;
+  background: rgba(232, 168, 80, 0.12);
+}
+
+.files-view-empty {
+  padding: 18px 14px;
+  border: 1px dashed rgba(180, 130, 50, 0.35);
+  border-radius: 12px;
+  background: rgba(253, 248, 237, 0.65);
+  text-align: center;
+  font-size: 12.5px;
+  color: #64748B;
+}
+
+@media (max-width: 560px) {
+  .f3d {
+    --f3d-w: 172px !important;
+    --f3d-h: 114px !important;
+  }
+  .files-folders {
+    gap: 18px 14px;
+    padding: 16px 2px 20px;
+  }
+}
+
+/* The coordinator screen globally hides every <svg>/<img> (style.css). Re-enable folder icons. */
+#screen-coordinator .files-table-name-cell .files-table-icon,
+#screen-coordinator .files-folder-row .windows-folder-glyph {
+  display: inline-block !important;
+  width: 22px !important;
+  height: 18px !important;
+  flex: 0 0 22px;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+
+#screen-coordinator .f3d-tab-icon svg,
+#screen-coordinator .f3d-sheet-thumb img {
+  display: block !important;
+}
+
+#screen-coordinator .files-crumb svg,
+#screen-coordinator .files-crumb .windows-folder-glyph {
+  display: inline-block !important;
+}
+
+/* ======================================================================
+ * New Folder — mobile bottom sheet
+ * Pinned to the bottom of the screen and lifted above the on-screen
+ * keyboard (--nf-kb is set from visualViewport by new-folder.js).
+ * ====================================================================== */
+@media (max-width: 720px) {
+  .files-newfolder {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: var(--nf-kb, 0px);
+    width: auto;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.98);
+    transform-origin: 50% 100%;
+    transform: translateY(calc((1 - var(--nf-p)) * 48px + var(--nf-drag)));
+  }
+
+  .files-newfolder-grab {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0 4px;
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .files-newfolder-grab span {
+    width: 38px;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(16, 33, 56, 0.25);
+  }
+
+  /* 16px+ stops iOS/Android from zooming the page when the input is focused */
+  .files-newfolder-input {
+    font-size: 16px;
+  }
+}
+
+
+/* ======================================================================
+ * 8. Files Page & Cloudinary Upload Panel (from Circuit-Overseer-s-visit)
+ * ====================================================================== */
+:root {
+  --color-primary: #1E4472;
+  --color-primary-dark: #153254;
+  --color-primary-light: #2A5D9C;
+  --color-primary-subtle: #EBF2FA;
+  --color-primary-soft: #DCE8F5;
+  --color-on-primary: #FFFFFF;
+  --color-cream: #FAF7F0;
+  --color-cream-dark: #F2ECE0;
+  --color-cream-border: #E8E1D3;
+  --color-purple: #5B3278;
+  --color-purple-light: #F3EDF8;
+  --color-purple-border: #D8C6E6;
+  --color-purple-soft: #EFE7F6;
+  --color-white: #FFFFFF;
+  --color-text-dark: #1A202C;
+  --color-text-muted: #4A5568;
+  --color-text-subtle: #718096;
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E0;
+  --color-border-on-surface: #EDF2F7;
+  --color-success: #207245;
+  --color-success-bg: #E8F5EE;
+  --color-success-accent: #38A169;
+  --color-warning: #B7791F;
+  --color-warning-bg: #FEFCBF;
+  --color-warning-accent: #D97706;
+  --color-danger: #C53030;
+  --color-danger-bg: #FFF5F5;
+  --color-danger-accent: #E53E3E;
+  --color-ring: var(--color-primary);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.files-page-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 24px 28px;
+  box-shadow: 0 6px 20px -8px rgba(15, 23, 42, 0.07);
+}
+
+.files-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.files-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.files-title-group .section-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text-dark);
+}
+
+.files-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-soft);
+}
+
+/* ---- Alert Box ---- */
+.alert-box {
+  display: none;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+.alert-box.visible {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.alert-success {
+  background-color: var(--color-success-bg);
+  border: 1.5px solid #9AE6B4;
+  color: #1C4532;
+}
+.alert-error {
+  background-color: var(--color-danger-bg);
+  border: 1.5px solid #FEB2B2;
+  color: #742A2A;
+}
+.alert-info {
+  background-color: var(--color-primary-subtle);
+  border: 1.5px solid #BEE3F8;
+  color: var(--color-primary-dark);
+}
+
+/* ---- Dropzone ---- */
+.files-dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 26px 20px;
+  text-align: center;
+  border: 2px dashed var(--color-primary-light);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--color-white) 0%, var(--color-primary-subtle) 100%);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.files-dropzone:hover { border-color: var(--color-primary); }
+.files-dropzone:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 3px;
+}
+.files-dropzone-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  transform: scale(1.006);
+}
+.files-dropzone.files-locked { opacity: 0.6; cursor: not-allowed; }
+
+.files-dropzone-icon { color: var(--color-primary); line-height: 0; }
+.files-dropzone-title { font-size: 15px; font-weight: 700; color: var(--color-text-dark); }
+.files-dropzone-sub { font-size: 12.5px; color: var(--color-text-subtle); max-width: 48ch; }
+.files-input-hidden { display: none; }
+.files-pick-btn {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(30, 68, 114, 0.22);
+  transition: background-color 150ms ease, transform 120ms ease;
+}
+.files-pick-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+.files-pick-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.files-pick-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Progress ---- */
+.files-progress { display: flex; flex-direction: column; gap: 7px; }
+.files-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-border);
+}
+.files-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-primary-light), var(--color-primary));
+  transition: width 0.2s ease;
+}
+.files-progress-text { font-size: 12.5px; color: var(--color-text-muted); }
+
+/* ---- Toolbar ---- */
+.files-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-on-surface);
+}
+.files-toolbar .export-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  margin: 0;
+}
+.badge-purple-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--color-purple-light);
+  border: 1px solid var(--color-purple-border);
+  color: var(--color-purple);
+  font-size: 11.5px;
+  font-weight: 750;
+}
+.files-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.files-visibility-label { font-size: 12px; color: var(--color-text-subtle); font-weight: 600; }
+
+.files-refresh-btn,
+.files-row-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #FFFFFF;
+  color: #1E293B;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.files-refresh-btn:hover:not(:disabled),
+.files-row-btn:hover:not(:disabled) {
+  background: #F8FAFC;
+  border-color: rgba(15, 23, 42, 0.24);
+}
+.files-refresh-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ---- Empty state ---- */
+.files-empty-state {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 16px;
+  text-align: center;
+  border-radius: 12px;
+  background: var(--color-cream);
+  border: 1px dashed var(--color-cream-border);
+  color: var(--color-text-subtle);
+}
+.files-empty-icon { color: var(--color-primary); line-height: 0; opacity: 0.85; }
+.files-empty-title { font-weight: 700; color: var(--color-text-dark); font-size: 14px; }
+.files-empty-sub { font-size: 12.5px; max-width: 44ch; }
+
+/* ---- List ---- */
+.files-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.files-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.files-row:hover {
+  border-color: var(--color-primary-light);
+  box-shadow: 0 2px 10px rgba(30, 68, 114, 0.06);
+}
+.files-row.is-selected {
+  border-color: #D49B41;
+  background: rgba(232, 168, 80, 0.08);
+}
+
+.files-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-soft);
+}
+.files-chip-pdf { color: var(--color-danger); background: var(--color-danger-bg); border-color: var(--color-danger-accent); }
+.files-chip-doc { color: var(--color-primary); background: var(--color-primary-subtle); border-color: var(--color-primary-soft); }
+.files-chip-sheet { color: var(--color-success); background: var(--color-success-bg); border-color: var(--color-success-accent); }
+.files-chip-image { color: var(--color-purple); background: var(--color-purple-light); border-color: var(--color-purple-border); }
+.files-chip-slide { color: var(--color-warning); background: var(--color-warning-bg); border-color: var(--color-warning-accent); }
+.files-chip-generic { color: var(--color-text-muted); background: var(--color-cream-dark); border-color: var(--color-cream-border); }
+
+.files-row-info { flex: 1 1 auto; min-width: 0; }
+.files-row-name {
+  font-weight: 650;
+  font-size: 14px;
+  color: var(--color-text-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.files-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+.files-meta-sep { opacity: 0.5; }
+.files-row-sub { font-size: 11.5px; color: var(--color-text-subtle); margin-top: 1px; }
+
+.files-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.files-row-btn-danger { color: var(--color-danger); border-color: var(--color-danger-accent); }
+.files-row-btn-danger:hover { background: var(--color-danger-bg) !important; border-color: var(--color-danger) !important; }
+
+/* ---- Footer ---- */
+.files-storage-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-on-surface);
+  font-size: 12.5px;
+  color: var(--color-text-subtle);
+}
+.files-sync-ok { color: var(--color-success); font-weight: 600; }
+.files-sync-error { color: var(--color-warning); font-weight: 600; }
+
+/* ---- In-flight upload rows ---- */
+.files-row-pending { border-style: dashed; }
+.files-row-pending-done { border-color: var(--color-success-accent); }
+.files-row-pending-error {
+  border-color: var(--color-danger-accent);
+  background: var(--color-danger-bg);
+}
+.files-chip-pending {
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary-soft);
+}
+@keyframes files-spin {
+  to { transform: rotate(360deg); }
+}
+.files-spinner {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(30, 68, 114, 0.25);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: files-spin 0.8s linear infinite;
+}
+.files-pending-track {
+  position: relative;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--color-cream-dark);
+  overflow: hidden;
+}
+.files-pending-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+.files-pending-fill-error { background: var(--color-danger); }
+.files-pending-status { font-variant-numeric: tabular-nums; }
+.files-pending-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+}
+
+/* ---- Apple Menu Item aliases (used in #files-context-menu) ---- */
+.apple-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #1E293B;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 100ms ease, color 100ms ease;
+}
+.apple-menu-item:hover {
+  background: #E8A850;
+  color: #2B1803;
+}
+.apple-menu-item-danger {
+  color: #DC2626;
+}
+.apple-menu-item-danger:hover {
+  background: #DC2626;
+  color: #FFFFFF;
+}
+.apple-menu-item-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.apple-menu-item-kbd {
+  font-size: 11px;
+  opacity: 0.65;
+  font-family: inherit;
+}
+.apple-menu-divider {
+  height: 1px;
+  margin: 5px 6px;
+  background: rgba(15, 23, 42, 0.08);
+}
+.apple-folder-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(232, 168, 80, 0.16);
+  color: #784406;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---- In-App File Reader Modal ---- */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  z-index: 2200;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal-card {
+  background-color: #FFFFFF;
+  border-radius: 18px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.32);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.modal-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modal-close-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #FFFFFF;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.modal-close-btn:hover {
+  background: #F1F5F9;
+}
+#file-reader-modal .file-reader-card {
+  width: min(1040px, 95vw);
+  max-width: 1040px;
+  height: min(90vh, 940px);
+  display: flex;
+  flex-direction: column;
+}
+.file-reader-header-actions { display: flex; align-items: center; gap: 8px; }
+.file-reader-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--color-cream-dark, #f0ebdf);
+}
+.file-reader-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 8px;
+}
+.file-reader-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  background: #fff;
+  padding: 16px;
+  margin: 0;
+  border-radius: 8px;
+}
+.file-reader-pdf-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 72vh;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+}
+.file-reader-status {
+  padding: 32px 12px;
+  text-align: center;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 14px;
+}
+.file-reader-unsupported {
+  text-align: center;
+  padding: 44px 18px;
+}
+.file-reader-unsupported p {
+  margin: 0 0 16px;
+  color: var(--color-text-muted, #6b7280);
+}
+
+@media (max-width: 640px) {
+  .files-page-card { padding: 18px 16px; }
+  .files-row { flex-wrap: wrap; }
+  .files-row-actions { width: 100%; justify-content: flex-end; }
+  .files-toolbar-actions { width: 100%; }
+  .files-pick-btn { width: 100%; }
+}

@@ -34,7 +34,56 @@
   var PROJECT_MODULES = ['project-planning', 'mindmap', 'kanban', 'perspective', 'brainstorm'];
   var DEFAULT_WORKSPACE_MODULE = 'project-planning';
   var currentActiveModule = DEFAULT_WORKSPACE_MODULE;
+  /* The module saved in the board's own state, as distinct from the one the
+     URL asks to view. A deep link (?module=...) may open a different module
+     for this visit, but only an explicit switch (switchWorkspaceModule) may
+     overwrite what the board itself remembers — otherwise one bad link
+     silently converts a mind-map board into a planning board. */
+  var savedActiveModule = DEFAULT_WORKSPACE_MODULE;
+  /* Snapshot of the board's own saved state (server/localStorage). While a URL
+     module override is active, this is the truth serializeBoardState reports
+     back, so a deep-link visit cannot rewrite the board's saved canvas. */
+  var loadedStateRef = null;
   var boardModules = {};
+  var enabledModules = [];
+
+  var WORKSPACE_META = {
+    'project-planning': {
+      label: 'Project Planning',
+      blurb: 'Gantt, WBS, Kanban, timesheets and RAID in one plan',
+      tint: '#ecfdf5',
+      ink: '#059669',
+      icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg>'
+    },
+    'mindmap': {
+      label: 'Mind Map',
+      blurb: 'Connected central idea with branch nodes',
+      tint: '#eef2ff',
+      ink: '#4262ff',
+      icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>'
+    },
+    'kanban': {
+      label: 'Kanban Board',
+      blurb: 'To Do, In Progress and Done workflow columns',
+      tint: '#fff7ed',
+      ink: '#ea580c',
+      icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>'
+    },
+    'perspective': {
+      label: 'Perspective',
+      blurb: 'Strategic vision, objectives, risks and roadmap matrix',
+      tint: '#faf5ff',
+      ink: '#7c3aed',
+      icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
+    },
+    'brainstorm': {
+      label: 'Brainstorm',
+      blurb: 'Central topic ringed with collaborative idea notes',
+      tint: '#fef9c3',
+      ink: '#ca8a04',
+      icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>'
+    }
+  };
 
   /** Human-readable URL slug for a board title: "Data Quantals Plan" -> "data-quantals-plan". */
   function slugify(text) {
@@ -167,11 +216,17 @@
   currentActiveModule = initialRoute.explicitModule || DEFAULT_WORKSPACE_MODULE;
 
   /* ---------- Canvas State ---------- */
-  var currentTool = 'select'; // select, hand, sticky, shape, connector, text, frame, pen, comment
+  var currentTool = 'select'; // select, hand, sticky, shape, connector, text, frame, pen, comment, icon, clipart
   var currentColor = 'yellow';
   var currentShapeType = 'rect'; // rect, round, circle, diamond, cylinder
+  var currentConnectorType = 'orthogonal'; // orthogonal, curved, straight, freeform, points
+  var connectorCurrentToolOnly = false;
+  var connectorAutoRouting = true;
   var currentPenColor = '#1a1a2e';
   var currentPenWidth = 5;
+  var currentIconId = 'rocket';   // selected canvas icon (Lucide id)
+  var currentIconColor = 'ink';   // ink, blue, mint, violet, pink, orange
+  var currentClipartId = '1f600'; // last-picked clipart (Twemoji hexcode)
   var currentAiMode = 'stickies';
   var gridMode = 0; // 0 = dots, 1 = lines, 2 = clean
 
@@ -184,7 +239,13 @@
   var startPanY = 0;
 
   var selectedEl = null;
+  var selectedEls = [];
+  var isMarqueeSelecting = false;
+  var marqueeStartX = 0;
+  var marqueeStartY = 0;
+  var marqueeEl = null;
   var activeDragEl = null;
+  var dragGroupOffsets = [];
   var dragOffsetX = 0;
   var dragOffsetY = 0;
   var dragMoved = false;
@@ -202,16 +263,17 @@
   // Empty board starter overlay state
   var emptyStarterEl = document.getElementById('empty-board-starter');
   var starterDismissedByUser = false;
+  var isHydratingBoard = true;
 
   function hasCanvasItems() {
-    var count = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment').length;
+    var count = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').length;
     var hasPaths = drawingsGroup && drawingsGroup.children.length > 0;
     return count > 0 || Boolean(hasPaths);
   }
 
   function syncEmptyBoardStarter() {
     if (!emptyStarterEl) return;
-    if (hasCanvasItems() || starterDismissedByUser) {
+    if (isHydratingBoard || currentActiveModule === 'project-planning' || hasCanvasItems() || starterDismissedByUser) {
       emptyStarterEl.hidden = true;
       emptyStarterEl.style.display = 'none';
     } else {
@@ -222,7 +284,7 @@
 
   function clearCanvasElementsOnly() {
     selectElement(null);
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment').forEach(function (el) {
+    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
       el.remove();
     });
     connectors = [];
@@ -285,33 +347,67 @@
     return { x: x, y: y, w: w, h: h, cx: x + w / 2, cy: y + h / 2 };
   }
 
-  function computeAnchorPoints(fromEl, toEl) {
+  function computeAnchorPoints(fromEl, toEl, conn) {
     var a = getElementBounds(fromEl);
     var b = getElementBounds(toEl);
     var dx = b.cx - a.cx;
     var dy = b.cy - a.cy;
+    var cType = (conn && conn.type) ? conn.type : 'curved';
+    var autoRoute = (conn && conn.autoRoute !== undefined) ? Boolean(conn.autoRoute) : true;
 
     var startX, startY, endX, endY, c1x, c1y, c2x, c2y;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      startX = dx > 0 ? a.x + a.w : a.x;
+    var isHorizontal = !autoRoute || Math.abs(dx) > Math.abs(dy);
+    if (isHorizontal) {
+      startX = dx >= 0 ? a.x + a.w : a.x;
       startY = a.cy;
-      endX = dx > 0 ? b.x : b.x + b.w;
+      endX = dx >= 0 ? b.x : b.x + b.w;
       endY = b.cy;
-      var offset = Math.max(40, Math.abs(endX - startX) * 0.45);
-      c1x = startX + (dx > 0 ? offset : -offset);
-      c1y = startY;
-      c2x = endX - (dx > 0 ? offset : -offset);
-      c2y = endY;
     } else {
       startX = a.cx;
-      startY = dy > 0 ? a.y + a.h : a.y;
+      startY = dy >= 0 ? a.y + a.h : a.y;
       endX = b.cx;
-      endY = dy > 0 ? b.y : b.y + b.h;
+      endY = dy >= 0 ? b.y : b.y + b.h;
+    }
+
+    if (cType === 'straight') {
+      return 'M ' + Math.round(startX) + ' ' + Math.round(startY) +
+             ' L ' + Math.round(endX) + ' ' + Math.round(endY);
+    }
+
+    if (cType === 'orthogonal' || cType === 'points') {
+      if (isHorizontal) {
+        var midX = Math.round((startX + endX) / 2);
+        return 'M ' + Math.round(startX) + ' ' + Math.round(startY) +
+               ' L ' + midX + ' ' + Math.round(startY) +
+               ' L ' + midX + ' ' + Math.round(endY) +
+               ' L ' + Math.round(endX) + ' ' + Math.round(endY);
+      }
+      var midY = Math.round((startY + endY) / 2);
+      return 'M ' + Math.round(startX) + ' ' + Math.round(startY) +
+             ' L ' + Math.round(startX) + ' ' + midY +
+             ' L ' + Math.round(endX) + ' ' + midY +
+             ' L ' + Math.round(endX) + ' ' + Math.round(endY);
+    }
+
+    if (cType === 'freeform') {
+      var qx = Math.round((startX + endX) / 2 - (endY - startY) * 0.28);
+      var qy = Math.round((startY + endY) / 2 + (endX - startX) * 0.18);
+      return 'M ' + Math.round(startX) + ' ' + Math.round(startY) +
+             ' Q ' + qx + ' ' + qy + ', ' + Math.round(endX) + ' ' + Math.round(endY);
+    }
+
+    if (isHorizontal) {
+      var offset = Math.max(40, Math.abs(endX - startX) * 0.45);
+      c1x = startX + (dx >= 0 ? offset : -offset);
+      c1y = startY;
+      c2x = endX - (dx >= 0 ? offset : -offset);
+      c2y = endY;
+    } else {
       var vOffset = Math.max(40, Math.abs(endY - startY) * 0.45);
       c1x = startX;
-      c1y = startY + (dy > 0 ? vOffset : -vOffset);
+      c1y = startY + (dy >= 0 ? vOffset : -vOffset);
       c2x = endX;
-      c2y = endY - (dy > 0 ? vOffset : -vOffset);
+      c2y = endY - (dy >= 0 ? vOffset : -vOffset);
     }
 
     return 'M ' + Math.round(startX) + ' ' + Math.round(startY) +
@@ -327,7 +423,7 @@
       var fromEl = world.querySelector('[data-id="' + conn.fromId + '"]');
       var toEl = world.querySelector('[data-id="' + conn.toId + '"]');
       if (!fromEl || !toEl) return false;
-      var d = computeAnchorPoints(fromEl, toEl);
+      var d = computeAnchorPoints(fromEl, toEl, conn);
       var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', d);
       path.setAttribute('class', 'quantalflow-connector-path');
@@ -354,14 +450,14 @@
     world.querySelectorAll('.canvas-frame').forEach(function (frame) {
       if (!frame.dataset.id) frame.dataset.id = nextId('frame');
       ensureResizeHandle(frame);
-      var children = frame.querySelectorAll('.canvas-sticky, .canvas-shape');
+      var children = frame.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-icon, .canvas-clipart, .canvas-table');
       children.forEach(function (child) {
         if (!child.dataset.id) child.dataset.id = nextId('item');
         world.appendChild(child);
       });
     });
 
-    world.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment').forEach(function (el) {
+    world.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
       if (!el.dataset.id) el.dataset.id = nextId('item');
       bindInteractiveElement(el);
     });
@@ -397,24 +493,30 @@
   /* ---------- Selection & Floating Context Toolbar ---------- */
   var contextToolbar = document.getElementById('context-toolbar');
 
-  function selectElement(el) {
-    if (selectedEl && selectedEl !== el) {
-      selectedEl.classList.remove('is-selected');
-    }
-    selectedEl = el;
-    if (!el) {
-      if (contextToolbar) {
+  function setSelectedElements(list) {
+    selectedEls.forEach(function (item) {
+      if (item) item.classList.remove('is-selected');
+    });
+    if (selectedEl) selectedEl.classList.remove('is-selected');
+    selectedEls = (list || []).filter(Boolean);
+    selectedEls.forEach(function (item) {
+      item.classList.add('is-selected');
+    });
+    selectedEl = selectedEls.length ? selectedEls[selectedEls.length - 1] : null;
+    if (contextToolbar) {
+      if (selectedEls.length === 1) {
+        contextToolbar.hidden = false;
+        contextToolbar.style.display = 'flex';
+        updateContextToolbarPosition();
+      } else {
         contextToolbar.hidden = true;
         contextToolbar.style.display = 'none';
       }
-      return;
     }
-    el.classList.add('is-selected');
-    if (contextToolbar) {
-      contextToolbar.hidden = false;
-      contextToolbar.style.display = 'flex';
-      updateContextToolbarPosition();
-    }
+  }
+
+  function selectElement(el) {
+    setSelectedElements(el ? [el] : []);
   }
 
   function updateContextToolbarPosition() {
@@ -451,11 +553,15 @@
           connectors.push({
             id: nextId('conn'),
             fromId: pendingConnectorFromId,
-            toId: el.dataset.id
+            toId: el.dataset.id,
+            type: currentConnectorType === 'points' ? 'orthogonal' : currentConnectorType,
+            autoRoute: connectorAutoRouting
           });
           pendingConnectorFromId = null;
           renderConnectors();
-          setTool('select');
+          if (!connectorCurrentToolOnly) {
+            setTool('select');
+          }
           scheduleSave();
         }
         return;
@@ -468,7 +574,25 @@
         return;
       }
 
-      selectElement(el);
+      if (e.shiftKey) {
+        var nextSel = selectedEls.slice();
+        var sIdx = nextSel.indexOf(el);
+        if (sIdx === -1) nextSel.push(el);
+        else nextSel.splice(sIdx, 1);
+        setSelectedElements(nextSel);
+      } else if (selectedEls.length <= 1 || selectedEls.indexOf(el) === -1) {
+        selectElement(el);
+      }
+
+      // Excel-like spreadsheet table: clicking inside the grid or formula bar
+      // interacts with cells instead of dragging the whole table. Dragging the
+      // top .xl-ribbon bar (outside buttons) moves the table on the canvas.
+      if (el.classList.contains('canvas-table')) {
+        if (e.target.closest('.canvas-table__scroll, .xl-formulabar, .xl-ribbon__btn')) {
+          e.stopPropagation();
+          return;
+        }
+      }
 
       // Allow inline text editing on double-click or when clicking inside focused contenteditable
       var editable = e.target.closest('[contenteditable="true"]');
@@ -482,11 +606,24 @@
       var rect = el.getBoundingClientRect();
       dragOffsetX = (e.clientX - rect.left) / zoom;
       dragOffsetY = (e.clientY - rect.top) / zoom;
+      var dragOriginX = parseFloat(el.style.left) || 0;
+      var dragOriginY = parseFloat(el.style.top) || 0;
+      dragGroupOffsets = selectedEls
+        .filter(function (item) { return item && item !== el; })
+        .map(function (item) {
+          return {
+            el: item,
+            dx: (parseFloat(item.style.left) || 0) - dragOriginX,
+            dy: (parseFloat(item.style.top) || 0) - dragOriginY
+          };
+        });
       e.stopPropagation();
     });
 
     el.addEventListener('dblclick', function (e) {
-      var editable = el.querySelector('[contenteditable="true"]');
+      // Focus the editable the user actually double-clicked (matters for
+      // multi-cell elements like the spreadsheet table, not just the first one).
+      var editable = e.target && e.target.closest ? e.target.closest('[contenteditable="true"]') : null;
       if (editable) {
         e.stopPropagation();
         editable.focus();
@@ -558,6 +695,768 @@
     return el;
   }
 
+  /* Canvas icon: a scalable Lucide glyph. `iconId` looks up the lazily-loaded
+     window.CanvasIcons library; an unknown id falls back to a circle so a
+     restore can never leave an empty box behind. */
+  function createIcon(x, y, iconId, color, size, customId) {
+    var lib = window.CanvasIcons;
+    var icon = lib && lib.byId ? lib.byId(iconId) : null;
+    var el = document.createElement('div');
+    var c = color || currentIconColor || 'ink';
+    el.className = 'canvas-icon canvas-icon--' + c;
+    el.dataset.id = customId || nextId('icon');
+    el.dataset.icon = icon ? icon.id : (iconId || 'rocket');
+    el.dataset.color = c;
+    var px = Number(size) || 48;
+    el.style.left = Math.round(x) + 'px';
+    el.style.top = Math.round(y) + 'px';
+    el.style.width = px + 'px';
+    el.style.height = px + 'px';
+    el.title = icon ? icon.label + ' icon' : 'Icon';
+    el.innerHTML =
+      '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      (icon ? icon.body : '<circle cx="12" cy="12" r="9"/>') +
+      '</svg>';
+    if (!icon && iconId) {
+      // Library may not have loaded yet (e.g. a restored board on first paint).
+      // Keep the id and refresh the glyph as soon as it arrives.
+      ensureIconLibrary(function () {
+        var ic = window.CanvasIcons.byId(el.dataset.icon);
+        if (!ic) return;
+        var svg = el.querySelector('svg');
+        if (svg) svg.innerHTML = ic.body;
+        el.title = ic.label + ' icon';
+      });
+    }
+    world.appendChild(el);
+    bindInteractiveElement(el);
+    updateMinimap();
+    syncEmptyBoardStarter();
+    return el;
+  }
+
+  /* Canvas clipart: a full-color Twemoji artwork. `clipartId` looks up the
+     lazily-loaded window.CanvasCliparts library; an unknown id falls back to a
+     plain smiley so a restore can never leave an empty box behind. */
+  function createClipart(x, y, clipartId, size, customId) {
+    var lib = window.CanvasCliparts;
+    var art = lib && lib.byId ? lib.byId(clipartId) : null;
+    var el = document.createElement('div');
+    el.className = 'canvas-clipart';
+    el.dataset.id = customId || nextId('clipart');
+    el.dataset.clipart = art ? art.id : (clipartId || '1f600');
+    var px = Number(size) || 64;
+    el.style.left = Math.round(x) + 'px';
+    el.style.top = Math.round(y) + 'px';
+    el.style.width = px + 'px';
+    el.style.height = px + 'px';
+    el.title = art ? art.label : 'Clipart';
+    el.innerHTML =
+      '<svg viewBox="' + (art ? art.viewBox : '0 0 36 36') + '" width="100%" height="100%" aria-hidden="true">' +
+      (art ? art.body : '<circle cx="18" cy="18" r="17" fill="#ffcc4d"/><circle cx="12" cy="15" r="1.8" fill="#664500"/><circle cx="24" cy="15" r="1.8" fill="#664500"/><path d="M11 24c1.5 2.4 4 3.5 7 3.5s5.5-1.1 7-3.5" fill="none" stroke="#664500" stroke-width="2" stroke-linecap="round"/>') +
+      '</svg>';
+    if (!art && clipartId) {
+      // Library may not have loaded yet (e.g. a restored board on first paint).
+      // Keep the id and swap in the real artwork as soon as it arrives.
+      ensureClipartLibrary(function () {
+        var c = window.CanvasCliparts.byId(el.dataset.clipart);
+        if (!c) return;
+        var svg = el.querySelector('svg');
+        if (svg) {
+          svg.setAttribute('viewBox', c.viewBox);
+          svg.innerHTML = c.body;
+        }
+        el.title = c.label;
+      });
+    }
+    world.appendChild(el);
+    bindInteractiveElement(el);
+    updateMinimap();
+    syncEmptyBoardStarter();
+    return el;
+  }
+
+  /* Spreadsheet table (Excel-like): ribbon, Name Box + fx formula bar,
+     A/B/C column headers (with column resize), numbered rows, cell selection,
+     formula evaluation (=SUM, =AVERAGE, =MIN, =MAX, =COUNT, arithmetic),
+     keyboard navigation (Enter/Tab/Arrows/F2/Esc), CSV export & status bar. */
+  function createTable(x, y, cells, customId) {
+    var rows = Math.max(1, cells ? cells.length : 6);
+    var cols = Math.max(1, cells && cells[0] ? cells[0].length : 5);
+    var colWidths = [];
+    for (var wi = 0; wi < cols; wi++) colWidths.push(110);
+
+    var el = document.createElement('div');
+    el.className = 'canvas-table';
+    el.dataset.id = customId || nextId('table');
+    el.style.left = Math.round(x) + 'px';
+    el.style.top = Math.round(y) + 'px';
+
+    function updateTableWidth() {
+      var total = 36;
+      for (var i = 0; i < cols; i++) total += (colWidths[i] || 110);
+      el.style.width = Math.max(360, total + 2) + 'px';
+    }
+    updateTableWidth();
+
+    var selRow = 0;
+    var selCol = 0;
+    var editingTd = null;
+    var editOriginalRaw = '';
+
+    function colName(i) {
+      var s = '';
+      i += 1;
+      while (i > 0) {
+        var m = (i - 1) % 26;
+        s = String.fromCharCode(65 + m) + s;
+        i = Math.floor((i - 1) / 26);
+      }
+      return s;
+    }
+
+    function colIndexFromLetters(letters) {
+      var up = String(letters || '').toUpperCase();
+      var idx = 0;
+      for (var i = 0; i < up.length; i++) {
+        idx = idx * 26 + (up.charCodeAt(i) - 64);
+      }
+      return idx - 1;
+    }
+
+    function cellRef(r, c) {
+      return colName(c) + String(r + 1);
+    }
+
+    function getTd(r, c) {
+      var tr = tableEl.querySelectorAll('tbody tr')[r];
+      if (!tr) return null;
+      return tr.querySelectorAll('td')[c] || null;
+    }
+
+    function readCells() {
+      return Array.prototype.map.call(tableEl.querySelectorAll('tbody tr'), function (tr) {
+        return Array.prototype.map.call(tr.querySelectorAll('td'), function (td) {
+          return td.dataset.raw !== undefined ? td.dataset.raw : td.textContent;
+        });
+      });
+    }
+
+    function evalCellValue(r, c, visited) {
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return '#REF!';
+      var td = getTd(r, c);
+      if (!td) return '';
+      var raw = td.dataset.raw !== undefined ? td.dataset.raw : td.textContent;
+      raw = String(raw || '');
+      if (raw.charAt(0) !== '=') return raw;
+
+      var key = r + ':' + c;
+      if (visited[key]) return '#CYCLE!';
+      visited[key] = true;
+
+      var expr = raw.slice(1).trim();
+      if (!expr) return '';
+
+      function expandRange(aRef, bRef) {
+        var m1 = /^([A-Za-z]+)(\d+)$/.exec(aRef);
+        var m2 = /^([A-Za-z]+)(\d+)$/.exec(bRef);
+        if (!m1 || !m2) return [];
+        var c1 = colIndexFromLetters(m1[1]);
+        var r1 = parseInt(m1[2], 10) - 1;
+        var c2 = colIndexFromLetters(m2[1]);
+        var r2 = parseInt(m2[2], 10) - 1;
+        var rMin = Math.min(r1, r2), rMax = Math.max(r1, r2);
+        var cMin = Math.min(c1, c2), cMax = Math.max(c1, c2);
+        var vals = [];
+        for (var rr = rMin; rr <= rMax; rr++) {
+          for (var cc = cMin; cc <= cMax; cc++) {
+            var v = evalCellValue(rr, cc, Object.assign({}, visited));
+            var n = parseFloat(v);
+            if (!isNaN(n) && isFinite(n)) vals.push(n);
+          }
+        }
+        return vals;
+      }
+
+      function collectArgs(argStr) {
+        var nums = [];
+        argStr.split(',').forEach(function (part) {
+          var p = part.trim();
+          if (!p) return;
+          if (p.indexOf(':') !== -1) {
+            var bounds = p.split(':');
+            nums = nums.concat(expandRange(bounds[0].trim(), bounds[1].trim()));
+          } else {
+            var refM = /^([A-Za-z]+)(\d+)$/.exec(p);
+            if (refM) {
+              var rv = evalCellValue(parseInt(refM[2], 10) - 1, colIndexFromLetters(refM[1]), Object.assign({}, visited));
+              var rn = parseFloat(rv);
+              if (!isNaN(rn) && isFinite(rn)) nums.push(rn);
+            } else {
+              var lit = parseFloat(p);
+              if (!isNaN(lit) && isFinite(lit)) nums.push(lit);
+            }
+          }
+        });
+        return nums;
+      }
+
+      try {
+        var replaced = expr.replace(/\b(SUM|AVERAGE|AVG|MIN|MAX|COUNT)\s*\(([^()]*)\)/gi, function (_, fn, args) {
+          var nums = collectArgs(args);
+          var f = fn.toUpperCase();
+          if (f === 'COUNT') return String(nums.length);
+          if (!nums.length) return '0';
+          if (f === 'SUM') return String(nums.reduce(function (a, b) { return a + b; }, 0));
+          if (f === 'AVERAGE' || f === 'AVG') return String(nums.reduce(function (a, b) { return a + b; }, 0) / nums.length);
+          if (f === 'MIN') return String(Math.min.apply(null, nums));
+          if (f === 'MAX') return String(Math.max.apply(null, nums));
+          return '0';
+        });
+
+        replaced = replaced.replace(/\b([A-Za-z]+)(\d+)\b/g, function (full, colL, rowN) {
+          var rr = parseInt(rowN, 10) - 1;
+          var cc = colIndexFromLetters(colL);
+          if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) return 'NaN';
+          var v = evalCellValue(rr, cc, Object.assign({}, visited));
+          var n = parseFloat(v);
+          return isNaN(n) ? '0' : String(n);
+        });
+
+        if (!/^[0-9+\-*/().\sEe]+$/.test(replaced)) return '#ERR!';
+        var out = Function('"use strict"; return (' + replaced + ')')();
+        if (typeof out === 'number' && isFinite(out)) {
+          return Number.isInteger(out) ? String(out) : String(Math.round(out * 10000) / 10000);
+        }
+        return '#ERR!';
+      } catch (e) {
+        return '#ERR!';
+      }
+    }
+
+    function recalcAll() {
+      var bodyRows = tableEl.querySelectorAll('tbody tr');
+      for (var r = 0; r < bodyRows.length; r++) {
+        var tds = bodyRows[r].querySelectorAll('td');
+        for (var c = 0; c < tds.length; c++) {
+          var td = tds[c];
+          if (td === editingTd) continue;
+          var raw = td.dataset.raw !== undefined ? td.dataset.raw : td.textContent;
+          td.dataset.raw = raw;
+          var display = raw.charAt(0) === '=' ? evalCellValue(r, c, {}) : raw;
+          td.textContent = display;
+          if (td.classList.contains('is-cell-selected')) {
+            var fh = document.createElement('span');
+            fh.className = 'xl-fill-handle';
+            td.appendChild(fh);
+          }
+          var isNumeric = display !== '' && !isNaN(Number(display)) && isFinite(Number(display));
+          if (isNumeric) td.setAttribute('data-num', '1');
+          else td.removeAttribute('data-num');
+        }
+      }
+      updateStatusBar();
+    }
+
+    // Ribbon (Excel Green)
+    var ribbon = document.createElement('div');
+    ribbon.className = 'xl-ribbon';
+    ribbon.innerHTML =
+      '<div class="xl-ribbon__left">' +
+        '<span class="xl-ribbon__badge" aria-hidden="true">X</span>' +
+        '<span class="xl-ribbon__title">Spreadsheet</span>' +
+      '</div>' +
+      '<div class="xl-ribbon__actions">' +
+        '<button type="button" class="xl-ribbon__btn" data-xl-bold title="Bold selected cell (Ctrl+B)"><strong>B</strong></button>' +
+        '<button type="button" class="xl-ribbon__btn" data-tbl-add-col title="Add column">+ Col</button>' +
+        '<button type="button" class="xl-ribbon__btn" data-tbl-add-row title="Add row">+ Row</button>' +
+        '<button type="button" class="xl-ribbon__btn" data-xl-clear title="Clear selected cell">Clear</button>' +
+        '<button type="button" class="xl-ribbon__btn" data-xl-csv title="Export sheet as CSV">CSV</button>' +
+      '</div>';
+
+    // Formula bar (Name Box + fx input)
+    var formulaBar = document.createElement('div');
+    formulaBar.className = 'xl-formulabar';
+    var nameBox = document.createElement('div');
+    nameBox.className = 'xl-namebox';
+    nameBox.textContent = 'A1';
+    var fxLabel = document.createElement('span');
+    fxLabel.className = 'xl-fx-label';
+    fxLabel.textContent = 'fx';
+    var fxInput = document.createElement('input');
+    fxInput.type = 'text';
+    fxInput.className = 'xl-fx-input';
+    fxInput.placeholder = 'Value or formula (e.g. =SUM(A1:A4))';
+    fxInput.setAttribute('aria-label', 'Formula bar');
+    formulaBar.appendChild(nameBox);
+    formulaBar.appendChild(fxLabel);
+    formulaBar.appendChild(fxInput);
+
+    var tableEl = document.createElement('table');
+
+    var scroll = document.createElement('div');
+    scroll.className = 'canvas-table__scroll';
+    scroll.appendChild(tableEl);
+
+    // Bottom status bar (Sheet1 tab + live stats)
+    var statusBar = document.createElement('div');
+    statusBar.className = 'xl-statusbar';
+    statusBar.innerHTML =
+      '<span class="xl-sheet-tab">Sheet1</span>' +
+      '<span class="xl-statusbar__stats" data-xl-stats>6 &times; 5</span>';
+
+    el.appendChild(ribbon);
+    el.appendChild(formulaBar);
+    el.appendChild(scroll);
+    el.appendChild(statusBar);
+
+    function updateStatusBar() {
+      var statsEl = statusBar.querySelector('[data-xl-stats]');
+      if (!statsEl) return;
+      var nums = [];
+      var tds = tableEl.querySelectorAll('tbody td');
+      tds.forEach(function (td) {
+        var n = parseFloat(td.textContent);
+        if (!isNaN(n) && isFinite(n)) nums.push(n);
+      });
+      var parts = [rows + ' \u00d7 ' + cols];
+      if (nums.length > 0) {
+        var sum = nums.reduce(function (a, b) { return a + b; }, 0);
+        var avg = sum / nums.length;
+        parts.push('COUNT: ' + nums.length);
+        parts.push('SUM: ' + (Number.isInteger(sum) ? sum : (Math.round(sum * 100) / 100)));
+        parts.push('AVG: ' + (Math.round(avg * 100) / 100));
+      }
+      statsEl.textContent = parts.join('  |  ');
+    }
+
+    function updateSelectionUI() {
+      tableEl.querySelectorAll('.is-cell-selected').forEach(function (cell) {
+        cell.classList.remove('is-cell-selected');
+        var fh = cell.querySelector('.xl-fill-handle');
+        if (fh) fh.remove();
+      });
+      tableEl.querySelectorAll('.is-col-active').forEach(function (th) { th.classList.remove('is-col-active'); });
+      tableEl.querySelectorAll('.is-row-active').forEach(function (th) { th.classList.remove('is-row-active'); });
+
+      selRow = Math.max(0, Math.min(rows - 1, selRow));
+      selCol = Math.max(0, Math.min(cols - 1, selCol));
+
+      var colTh = tableEl.querySelectorAll('thead th.tbl-col-head')[selCol];
+      if (colTh) colTh.classList.add('is-col-active');
+      var rowTr = tableEl.querySelectorAll('tbody tr')[selRow];
+      if (rowTr) {
+        var rTh = rowTr.querySelector('th.tbl-row-head');
+        if (rTh) rTh.classList.add('is-row-active');
+      }
+
+      var td = getTd(selRow, selCol);
+      if (td) {
+        td.classList.add('is-cell-selected');
+        if (td !== editingTd) {
+          var fh = document.createElement('span');
+          fh.className = 'xl-fill-handle';
+          td.appendChild(fh);
+        }
+        nameBox.textContent = cellRef(selRow, selCol);
+        fxInput.value = td.dataset.raw !== undefined ? td.dataset.raw : td.textContent;
+        var boldBtn = ribbon.querySelector('[data-xl-bold]');
+        if (boldBtn) boldBtn.classList.toggle('is-active', td.getAttribute('data-bold') === '1');
+      }
+    }
+
+    function commitEdit(td, keepRaw) {
+      if (!td) return;
+      var newRaw = keepRaw !== undefined ? keepRaw : td.textContent;
+      td.contentEditable = 'false';
+      td.classList.remove('is-cell-editing');
+      td.dataset.raw = newRaw;
+      editingTd = null;
+      recalcAll();
+      updateSelectionUI();
+      scheduleSave();
+    }
+
+    function enterEditMode(td, initialChar) {
+      if (!td) return;
+      if (editingTd && editingTd !== td) commitEdit(editingTd);
+      editingTd = td;
+      var raw = td.dataset.raw !== undefined ? td.dataset.raw : td.textContent;
+      editOriginalRaw = raw;
+      var fh = td.querySelector('.xl-fill-handle');
+      if (fh) fh.remove();
+      td.classList.add('is-cell-editing');
+      td.contentEditable = 'true';
+      td.textContent = initialChar !== undefined ? initialChar : raw;
+      td.focus();
+      // Place caret at end
+      try {
+        var range = document.createRange();
+        range.selectNodeContents(td);
+        range.collapse(false);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (e) {}
+    }
+
+    function build() {
+      tableEl.innerHTML = '';
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      var corner = document.createElement('th');
+      corner.className = 'tbl-corner';
+      headRow.appendChild(corner);
+
+      for (var c = 0; c < cols; c++) {
+        var th = document.createElement('th');
+        th.className = 'tbl-col-head';
+        var w = colWidths[c] || 110;
+        th.style.width = w + 'px';
+        th.style.minWidth = w + 'px';
+
+        var lbl = document.createElement('span');
+        lbl.textContent = colName(c);
+        th.appendChild(lbl);
+
+        var delCol = document.createElement('button');
+        delCol.type = 'button';
+        delCol.className = 'cell-x';
+        delCol.dataset.delCol = String(c);
+        delCol.title = 'Delete column';
+        delCol.innerHTML = '&times;';
+        th.appendChild(delCol);
+
+        var resizer = document.createElement('span');
+        resizer.className = 'xl-col-resizer';
+        resizer.dataset.colIndex = String(c);
+        th.appendChild(resizer);
+
+        headRow.appendChild(th);
+      }
+      thead.appendChild(headRow);
+      tableEl.appendChild(thead);
+
+      var tbody = document.createElement('tbody');
+      for (var r = 0; r < rows; r++) {
+        var tr = document.createElement('tr');
+        var rowHead = document.createElement('th');
+        rowHead.className = 'tbl-row-head';
+        var num = document.createElement('span');
+        num.textContent = String(r + 1);
+        rowHead.appendChild(num);
+        var delRow = document.createElement('button');
+        delRow.type = 'button';
+        delRow.className = 'cell-x';
+        delRow.dataset.delRow = String(r);
+        delRow.title = 'Delete row';
+        delRow.innerHTML = '&times;';
+        rowHead.appendChild(delRow);
+        tr.appendChild(rowHead);
+
+        for (var cc = 0; cc < cols; cc++) {
+          var td = document.createElement('td');
+          td.tabIndex = 0;
+          var initialRaw = (cells && cells[r] && cells[r][cc]) ? String(cells[r][cc]) : '';
+          td.dataset.raw = initialRaw;
+          td.textContent = initialRaw;
+          td.dataset.r = String(r);
+          td.dataset.c = String(cc);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      tableEl.appendChild(tbody);
+      recalcAll();
+      updateSelectionUI();
+    }
+
+    build();
+
+    // Column resizer drag
+    var resizingCol = -1;
+    var resizeStartX = 0;
+    var resizeStartW = 110;
+    tableEl.addEventListener('mousedown', function (e) {
+      var resizer = e.target.closest('.xl-col-resizer');
+      if (!resizer) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resizingCol = Number(resizer.dataset.colIndex);
+      resizeStartX = e.clientX;
+      resizeStartW = colWidths[resizingCol] || 110;
+    });
+    window.addEventListener('mousemove', function (e) {
+      if (resizingCol < 0) return;
+      var delta = (e.clientX - resizeStartX) / zoom;
+      var nextW = Math.max(64, Math.round(resizeStartW + delta));
+      colWidths[resizingCol] = nextW;
+      var th = tableEl.querySelectorAll('thead th.tbl-col-head')[resizingCol];
+      if (th) {
+        th.style.width = nextW + 'px';
+        th.style.minWidth = nextW + 'px';
+      }
+      updateTableWidth();
+    });
+    window.addEventListener('mouseup', function () {
+      if (resizingCol >= 0) resizingCol = -1;
+    });
+
+    // Click cell to select, dblclick to edit
+    tableEl.addEventListener('mousedown', function (e) {
+      var td = e.target.closest('td');
+      if (!td) return;
+      if (editingTd && editingTd !== td) commitEdit(editingTd);
+      selRow = Number(td.dataset.r) || 0;
+      selCol = Number(td.dataset.c) || 0;
+      updateSelectionUI();
+      if (td !== editingTd) td.focus();
+    });
+
+    tableEl.addEventListener('dblclick', function (e) {
+      var td = e.target.closest('td');
+      if (!td) return;
+      e.stopPropagation();
+      selRow = Number(td.dataset.r) || 0;
+      selCol = Number(td.dataset.c) || 0;
+      enterEditMode(td);
+    });
+
+    tableEl.addEventListener('focusout', function (e) {
+      var td = e.target.closest('td');
+      if (td && td === editingTd) {
+        commitEdit(td);
+      }
+    });
+
+    tableEl.addEventListener('input', function (e) {
+      if (e.target && e.target.tagName === 'TD' && e.target === editingTd) {
+        fxInput.value = e.target.textContent;
+      }
+    });
+
+    // Keyboard navigation & Excel shortcuts inside the grid
+    tableEl.addEventListener('keydown', function (e) {
+      var td = e.target.closest('td');
+      if (!td) return;
+
+      if (e.key === 'Escape' && editingTd === td) {
+        e.preventDefault();
+        e.stopPropagation();
+        td.textContent = editOriginalRaw;
+        commitEdit(td, editOriginalRaw);
+        td.focus();
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (editingTd === td) commitEdit(td);
+        selRow = Math.min(rows - 1, selRow + 1);
+        updateSelectionUI();
+        var nextDown = getTd(selRow, selCol);
+        if (nextDown) nextDown.focus();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (editingTd === td) commitEdit(td);
+        if (e.shiftKey) {
+          if (selCol > 0) selCol -= 1;
+          else if (selRow > 0) { selRow -= 1; selCol = cols - 1; }
+        } else {
+          if (selCol + 1 < cols) selCol += 1;
+          else if (selRow + 1 < rows) { selRow += 1; selCol = 0; }
+        }
+        updateSelectionUI();
+        var nextTab = getTd(selRow, selCol);
+        if (nextTab) nextTab.focus();
+        return;
+      }
+
+      if (editingTd === td) return;
+
+      if (e.key === 'F2') {
+        e.preventDefault();
+        e.stopPropagation();
+        enterEditMode(td);
+        return;
+      }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'ArrowUp') selRow = Math.max(0, selRow - 1);
+        else if (e.key === 'ArrowDown') selRow = Math.min(rows - 1, selRow + 1);
+        else if (e.key === 'ArrowLeft') selCol = Math.max(0, selCol - 1);
+        else if (e.key === 'ArrowRight') selCol = Math.min(cols - 1, selCol + 1);
+        updateSelectionUI();
+        var navTd = getTd(selRow, selCol);
+        if (navTd) navTd.focus();
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        e.stopPropagation();
+        pushHistory();
+        td.dataset.raw = '';
+        td.textContent = '';
+        recalcAll();
+        updateSelectionUI();
+        scheduleSave();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        e.stopPropagation();
+        var isBold = td.getAttribute('data-bold') === '1';
+        if (isBold) td.removeAttribute('data-bold');
+        else td.setAttribute('data-bold', '1');
+        updateSelectionUI();
+        return;
+      }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        enterEditMode(td, e.key);
+      }
+    });
+
+    // Formula bar editing
+    fxInput.addEventListener('input', function () {
+      var td = getTd(selRow, selCol);
+      if (!td) return;
+      td.dataset.raw = fxInput.value;
+      if (fxInput.value.charAt(0) !== '=') {
+        td.textContent = fxInput.value;
+      }
+    });
+    fxInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var td = getTd(selRow, selCol);
+        if (td) {
+          pushHistory();
+          td.dataset.raw = fxInput.value;
+          recalcAll();
+          scheduleSave();
+        }
+        selRow = Math.min(rows - 1, selRow + 1);
+        updateSelectionUI();
+        var nextTd = getTd(selRow, selCol);
+        if (nextTd) nextTd.focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        updateSelectionUI();
+        var curTd = getTd(selRow, selCol);
+        if (curTd) curTd.focus();
+      }
+    });
+    fxInput.addEventListener('blur', function () {
+      var td = getTd(selRow, selCol);
+      if (td) {
+        td.dataset.raw = fxInput.value;
+        recalcAll();
+        updateSelectionUI();
+        scheduleSave();
+      }
+    });
+
+    el.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var isAddCol = btn.hasAttribute('data-tbl-add-col');
+      var isAddRow = btn.hasAttribute('data-tbl-add-row');
+      var isDelCol = btn.hasAttribute('data-del-col');
+      var isDelRow = btn.hasAttribute('data-del-row');
+      var isBold = btn.hasAttribute('data-xl-bold');
+      var isClear = btn.hasAttribute('data-xl-clear');
+      var isCsv = btn.hasAttribute('data-xl-csv');
+      if (!isAddCol && !isAddRow && !isDelCol && !isDelRow && !isBold && !isClear && !isCsv) return;
+      e.stopPropagation();
+
+      if (isBold) {
+        var bTd = getTd(selRow, selCol);
+        if (bTd) {
+          if (bTd.getAttribute('data-bold') === '1') bTd.removeAttribute('data-bold');
+          else bTd.setAttribute('data-bold', '1');
+          updateSelectionUI();
+        }
+        return;
+      }
+      if (isClear) {
+        var cTd = getTd(selRow, selCol);
+        if (cTd) {
+          pushHistory();
+          cTd.dataset.raw = '';
+          cTd.textContent = '';
+          recalcAll();
+          updateSelectionUI();
+          scheduleSave();
+        }
+        return;
+      }
+      if (isCsv) {
+        var rowsData = Array.prototype.map.call(tableEl.querySelectorAll('tbody tr'), function (tr) {
+          return Array.prototype.map.call(tr.querySelectorAll('td'), function (td) {
+            var val = String(td.textContent || '');
+            return '"' + val.replace(/"/g, '""') + '"';
+          }).join(',');
+        }).join('\n');
+        var blob = new Blob([rowsData], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'spreadsheet.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        showToast('Exported spreadsheet.csv');
+        return;
+      }
+
+      if (isDelCol || isDelRow) {
+        var what = isDelCol ? 'column' : 'row';
+        if (!confirm('Delete this ' + what + '?')) return;
+      }
+      pushHistory();
+      cells = readCells();
+      if (isAddCol) {
+        cols += 1;
+        colWidths.push(110);
+      } else if (isAddRow) {
+        rows += 1;
+      } else if (isDelCol) {
+        var dc = Number(btn.dataset.delCol);
+        if (cols > 1) {
+          cols -= 1;
+          colWidths.splice(dc, 1);
+          cells = cells.map(function (rowArr) {
+            return rowArr.filter(function (_, i) { return i !== dc; });
+          });
+        }
+      } else {
+        var dr = Number(btn.dataset.delRow);
+        if (rows > 1) {
+          rows -= 1;
+          cells = cells.filter(function (_, i) { return i !== dr; });
+        }
+      }
+      build();
+      updateTableWidth();
+      scheduleSave();
+    });
+
+    world.appendChild(el);
+    bindInteractiveElement(el);
+    updateMinimap();
+    syncEmptyBoardStarter();
+    return el;
+  }
+
   function createFrame(x, y, title, w, h, customId) {
     var el = document.createElement('div');
     el.className = 'canvas-frame';
@@ -617,7 +1516,9 @@
   var toolBtns = document.querySelectorAll('.tool-btn[data-tool]');
   var colorPopover = document.getElementById('color-popover');
   var shapePopover = document.getElementById('shape-popover');
+  var connectorPopover = document.getElementById('connector-popover');
   var penPopover = document.getElementById('pen-popover');
+  var iconModal = document.getElementById('modal-icons');
 
   function setTool(toolName) {
     currentTool = toolName;
@@ -625,17 +1526,31 @@
       b.classList.toggle('is-active', b.dataset.tool === toolName);
     });
 
-    if (['sticky', 'shape', 'text', 'frame', 'pen', 'comment'].indexOf(toolName) !== -1) {
+    if (['sticky', 'shape', 'text', 'frame', 'pen', 'comment', 'connector'].indexOf(toolName) !== -1) {
       starterDismissedByUser = true;
       syncEmptyBoardStarter();
     }
 
     if (colorPopover) colorPopover.hidden = (toolName !== 'sticky');
     if (shapePopover) shapePopover.hidden = (toolName !== 'shape');
+    if (connectorPopover) connectorPopover.hidden = (toolName !== 'connector');
     if (penPopover) penPopover.hidden = (toolName !== 'pen');
+    world.classList.toggle('show-connection-points', toolName === 'connector' && currentConnectorType === 'points');
+
+    if (toolName === 'icon') {
+      starterDismissedByUser = true;
+      syncEmptyBoardStarter();
+      openIconPicker();
+    }
+
+    if (toolName === 'clipart') {
+      starterDismissedByUser = true;
+      syncEmptyBoardStarter();
+      openClipartPicker();
+    }
 
     viewport.classList.toggle('is-panning', toolName === 'hand');
-    viewport.classList.toggle('is-crosshair', ['sticky', 'shape', 'text', 'frame', 'pen', 'comment', 'connector'].indexOf(toolName) !== -1);
+    viewport.classList.toggle('is-crosshair', ['sticky', 'shape', 'text', 'frame', 'pen', 'comment', 'connector', 'icon', 'clipart'].indexOf(toolName) !== -1);
 
     if (toolName !== 'connector' && pendingConnectorFromId) {
       var prev = world.querySelector('[data-id="' + pendingConnectorFromId + '"]');
@@ -647,6 +1562,49 @@
   toolBtns.forEach(function (btn) {
     btn.addEventListener('click', function () {
       setTool(btn.dataset.tool);
+    });
+  });
+
+  /* ---------- More Tools Popover (Miro-style extended tool library) ---------- */
+  var moreToolsBtn = document.getElementById('btn-more-tools');
+  var moreToolsPopover = document.getElementById('more-tools-popover');
+
+  function toggleMoreTools(show) {
+    if (!moreToolsPopover) return;
+    if (show && moreToolsPopover.hidden) {
+      // Anchor next to the "+" button (right side of the toolbar rail).
+      var host = moreToolsPopover.offsetParent;
+      if (host && moreToolsBtn) {
+        var br = moreToolsBtn.getBoundingClientRect();
+        var hr = host.getBoundingClientRect();
+        moreToolsPopover.style.left = Math.round(br.right - hr.left + 10) + 'px';
+        moreToolsPopover.style.top = Math.max(8, Math.round(br.top - hr.top)) + 'px';
+      }
+    }
+    moreToolsPopover.hidden = !show;
+    if (moreToolsBtn) moreToolsBtn.setAttribute('aria-expanded', show ? 'true' : 'false');
+  }
+
+  moreToolsBtn?.addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleMoreTools(moreToolsPopover.hidden);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (moreToolsPopover && !moreToolsPopover.hidden && !moreToolsPopover.contains(e.target)) {
+      toggleMoreTools(false);
+    }
+  });
+
+  document.querySelectorAll('[data-more-tool]').forEach(function (item) {
+    item.addEventListener('click', function () {
+      toggleMoreTools(false);
+      var kind = item.dataset.moreTool;
+      // Place below any existing content so the new tool never overlaps
+      // components the user already has on the canvas (mirrors the template
+      // picker behaviour above).
+      var offset = hasCanvasItems() ? { x: 180, y: 540 } : { x: 180, y: 120 };
+      insertTemplateByType(kind, offset.x, offset.y);
     });
   });
 
@@ -667,6 +1625,29 @@
     });
   });
 
+  document.querySelectorAll('.connector-menu__item[data-connector-type]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.connector-menu__item[data-connector-type]').forEach(function (b) {
+        b.classList.remove('is-selected');
+        b.setAttribute('aria-checked', 'false');
+      });
+      btn.classList.add('is-selected');
+      btn.setAttribute('aria-checked', 'true');
+      currentConnectorType = btn.dataset.connectorType || 'orthogonal';
+      world.classList.toggle('show-connection-points', currentTool === 'connector' && currentConnectorType === 'points');
+      showToast('Selected ' + btn.innerText.trim() + ' — click two items to connect');
+    });
+  });
+
+  document.getElementById('conn-current-tool-only')?.addEventListener('change', function (e) {
+    connectorCurrentToolOnly = Boolean(e.target.checked);
+  });
+
+  document.getElementById('conn-auto-routing')?.addEventListener('change', function (e) {
+    connectorAutoRouting = Boolean(e.target.checked);
+    renderConnectors();
+  });
+
   document.querySelectorAll('.pen-swatch[data-pen-color]').forEach(function (sw) {
     sw.addEventListener('click', function () {
       document.querySelectorAll('.pen-swatch').forEach(function (b) { b.classList.remove('is-selected'); });
@@ -681,6 +1662,421 @@
       currentPenWidth = Number(penWidthSelect.value) || 5;
     });
   }
+
+  /* ---------- Icon Picker (Lucide library, lazy-loaded, multi-select) ---------- */
+  var iconGrid = document.getElementById('icon-grid');
+  var iconSearch = document.getElementById('icon-search');
+  var iconGridCount = document.getElementById('icon-grid-count');
+  var iconInsertBtn = document.getElementById('modal-icons-insert');
+  var iconClearBtn = document.getElementById('modal-icons-clear');
+  var iconLibraryState = 'idle'; // idle | loading | ready | failed
+  var iconLibraryCallbacks = [];
+  var selectedIconIds = [];
+  var ICON_RENDER_LIMIT = 360; // cap DOM size; search narrows instead of listing everything
+
+  function syncIconSelectionControls() {
+    var count = selectedIconIds.length;
+    if (iconInsertBtn) {
+      iconInsertBtn.disabled = count === 0;
+      iconInsertBtn.textContent = count > 0 ? ('Insert Selected (' + count + ')') : 'Insert Selected (0)';
+    }
+    if (iconClearBtn) {
+      iconClearBtn.hidden = count === 0;
+    }
+  }
+
+  function ensureIconLibrary(done) {
+    if (window.CanvasIcons) { done(); return; }
+    if (iconLibraryState === 'failed') {
+      showToast('Could not load the icon library');
+      return;
+    }
+    iconLibraryCallbacks.push(done);
+    if (iconLibraryState === 'loading') return;
+    iconLibraryState = 'loading';
+    var src = (iconModal && iconModal.dataset.iconsSrc) || '/assets/js/canvas-icons.js';
+    var script = document.createElement('script');
+    script.src = src;
+    script.addEventListener('load', function () {
+      iconLibraryState = 'ready';
+      iconLibraryCallbacks.forEach(function (cb) { cb(); });
+      iconLibraryCallbacks = [];
+    });
+    script.addEventListener('error', function () {
+      iconLibraryState = 'failed';
+      iconLibraryCallbacks = [];
+      showToast('Could not load the icon library');
+    });
+    document.head.appendChild(script);
+  }
+
+  function iconMatchesQuery(searchStr, q) {
+    // Per-word prefix match against space-separated tokens. Plain substring
+    // matching made "rocket" hit every icon tagged "sprocket" (c-o-g etc.).
+    var tokens = searchStr.split(' ');
+    var words = q.split(/\s+/).filter(Boolean);
+    return words.every(function (w) {
+      return tokens.some(function (t) { return t.indexOf(w) === 0; });
+    });
+  }
+
+  function renderIconGrid(query) {
+    if (!iconGrid) return;
+    var lib = window.CanvasIcons;
+    if (!lib) return;
+    var q = String(query || '').trim().toLowerCase();
+    var matches = lib.list;
+    if (q) {
+      matches = lib.list.filter(function (ic) { return iconMatchesQuery(ic.search, q); });
+    }
+    var shown = matches.slice(0, ICON_RENDER_LIMIT);
+    iconGrid.innerHTML = shown.map(function (ic) {
+      var isSel = selectedIconIds.indexOf(ic.id) !== -1;
+      return '<button class="icon-option' + (isSel ? ' is-selected' : '') + '"' +
+        ' data-icon-id="' + ic.id + '" type="button" role="option" aria-selected="' + (isSel ? 'true' : 'false') + '"' +
+        ' title="' + ic.label + '">' +
+        '<span class="icon-option__check" aria-hidden="true">&#10003;</span>' +
+        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ic.body + '</svg>' +
+        '<span class="icon-option__label">' + ic.label + '</span>' +
+        '</button>';
+    }).join('');
+
+    if (iconGridCount) {
+      var selPrefix = selectedIconIds.length ? (selectedIconIds.length + ' selected \u2022 ') : '';
+      iconGridCount.textContent = selPrefix + (shown.length === matches.length
+        ? 'Showing ' + shown.length + ' of ' + lib.count + ' icons'
+        : 'Showing ' + shown.length + ' of ' + matches.length + ' matches (' + lib.count + ' total) — keep typing to narrow');
+    }
+    syncIconSelectionControls();
+  }
+
+  function placeIconsAtWorld(x, y, iconIdsToPlace) {
+    var list = Array.isArray(iconIdsToPlace) && iconIdsToPlace.length
+      ? iconIdsToPlace.slice()
+      : (selectedIconIds.length ? selectedIconIds.slice() : [currentIconId || 'rocket']);
+    pushHistory();
+    var size = 48;
+    var gap = 68;
+    var cols = Math.min(6, Math.max(1, Math.ceil(Math.sqrt(list.length))));
+    var rows = Math.ceil(list.length / cols);
+    var startX = x - ((Math.min(list.length, cols) - 1) * gap) / 2;
+    var startY = y - ((rows - 1) * gap) / 2;
+    var lastIcon = null;
+    list.forEach(function (id, idx) {
+      var col = idx % cols;
+      var row = Math.floor(idx / cols);
+      lastIcon = createIcon(startX + col * gap - size / 2, startY + row * gap - size / 2, id, currentIconColor, size);
+    });
+    if (lastIcon) selectElement(lastIcon);
+    setTool('select');
+    scheduleSave();
+    if (list.length > 1) {
+      showToast('Placed ' + list.length + ' icons on the canvas');
+    }
+  }
+
+  function placeIconAtWorld(x, y) {
+    placeIconsAtWorld(x, y);
+  }
+
+  function openIconPicker() {
+    if (!iconModal) return;
+    openModal(iconModal);
+    syncIconSelectionControls();
+    if (iconSearch) setTimeout(function () { iconSearch.focus(); }, 50);
+    ensureIconLibrary(function () {
+      renderIconGrid(iconSearch ? iconSearch.value : '');
+    });
+  }
+
+  if (iconSearch) {
+    var iconSearchTimer = null;
+    iconSearch.addEventListener('input', function () {
+      clearTimeout(iconSearchTimer);
+      iconSearchTimer = setTimeout(function () {
+        ensureIconLibrary(function () { renderIconGrid(iconSearch.value); });
+      }, 120);
+    });
+  }
+
+  iconGrid?.addEventListener('click', function (e) {
+    var opt = e.target.closest('[data-icon-id]');
+    if (!opt) return;
+    var id = opt.dataset.iconId;
+    if (!id) return;
+    var idx = selectedIconIds.indexOf(id);
+    if (idx === -1) {
+      selectedIconIds.push(id);
+      currentIconId = id;
+    } else {
+      selectedIconIds.splice(idx, 1);
+      if (selectedIconIds.length) {
+        currentIconId = selectedIconIds[selectedIconIds.length - 1];
+      }
+    }
+    var isSel = selectedIconIds.indexOf(id) !== -1;
+    opt.classList.toggle('is-selected', isSel);
+    opt.setAttribute('aria-selected', isSel ? 'true' : 'false');
+    syncIconSelectionControls();
+    if (iconGridCount && window.CanvasIcons) {
+      var shownCount = iconGrid.querySelectorAll('.icon-option').length;
+      var selPrefix = selectedIconIds.length ? (selectedIconIds.length + ' selected \u2022 ') : '';
+      iconGridCount.textContent = selPrefix + 'Showing ' + shownCount + ' of ' + window.CanvasIcons.count + ' icons';
+    }
+  });
+
+  iconGrid?.addEventListener('dblclick', function (e) {
+    var opt = e.target.closest('[data-icon-id]');
+    if (!opt) return;
+    var id = opt.dataset.iconId;
+    if (!id) return;
+    if (selectedIconIds.indexOf(id) === -1) selectedIconIds.push(id);
+    currentIconId = id;
+    var toInsert = selectedIconIds.slice();
+    selectedIconIds = [];
+    syncIconSelectionControls();
+    closeModal(iconModal);
+    var rect = viewport.getBoundingClientRect();
+    var pt = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    placeIconsAtWorld(pt.x, pt.y, toInsert);
+  });
+
+  iconInsertBtn?.addEventListener('click', function () {
+    if (!selectedIconIds.length) return;
+    var toInsert = selectedIconIds.slice();
+    selectedIconIds = [];
+    syncIconSelectionControls();
+    closeModal(iconModal);
+    var rect = viewport.getBoundingClientRect();
+    var pt = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    placeIconsAtWorld(pt.x, pt.y, toInsert);
+  });
+
+  iconClearBtn?.addEventListener('click', function () {
+    selectedIconIds = [];
+    iconGrid?.querySelectorAll('.icon-option.is-selected').forEach(function (b) {
+      b.classList.remove('is-selected');
+      b.setAttribute('aria-selected', 'false');
+    });
+    syncIconSelectionControls();
+    renderIconGrid(iconSearch ? iconSearch.value : '');
+  });
+
+  document.querySelectorAll('.icon-swatch[data-icon-color]').forEach(function (sw) {
+    sw.addEventListener('click', function () {
+      document.querySelectorAll('.icon-swatch').forEach(function (b) { b.classList.remove('is-selected'); });
+      sw.classList.add('is-selected');
+      currentIconColor = sw.dataset.iconColor || 'ink';
+    });
+  });
+
+  document.getElementById('modal-icons-close')?.addEventListener('click', function () { closeModal(iconModal); });
+  document.getElementById('modal-icons-done')?.addEventListener('click', function () { closeModal(iconModal); });
+  iconModal?.addEventListener('click', function (e) {
+    if (e.target === iconModal) closeModal(iconModal);
+  });
+
+  /* ---------- Clipart Picker (Twemoji library, lazy-loaded, multi-select) ---------- */
+  var clipartModal = document.getElementById('modal-clipart');
+  var clipartGrid = document.getElementById('clipart-grid');
+  var clipartSearch = document.getElementById('clipart-search');
+  var clipartGridCount = document.getElementById('clipart-grid-count');
+  var clipartInsertBtn = document.getElementById('modal-clipart-insert');
+  var clipartClearBtn = document.getElementById('modal-clipart-clear');
+  var clipartLibraryState = 'idle'; // idle | loading | ready | failed
+  var clipartLibraryCallbacks = [];
+  var selectedClipartIds = [];
+  var CLIPART_RENDER_LIMIT = 360; // cap DOM size; search narrows instead of listing everything
+
+  function syncClipartSelectionControls() {
+    var count = selectedClipartIds.length;
+    if (clipartInsertBtn) {
+      clipartInsertBtn.disabled = count === 0;
+      clipartInsertBtn.textContent = count > 0 ? ('Insert Selected (' + count + ')') : 'Insert Selected (0)';
+    }
+    if (clipartClearBtn) {
+      clipartClearBtn.hidden = count === 0;
+    }
+  }
+
+  function ensureClipartLibrary(done) {
+    if (window.CanvasCliparts) { done(); return; }
+    if (clipartLibraryState === 'failed') {
+      showToast('Could not load the clipart library');
+      return;
+    }
+    clipartLibraryCallbacks.push(done);
+    if (clipartLibraryState === 'loading') return;
+    clipartLibraryState = 'loading';
+    var src = (clipartModal && clipartModal.dataset.clipartSrc) || '/assets/js/canvas-clipart.js';
+    var script = document.createElement('script');
+    script.src = src;
+    script.addEventListener('load', function () {
+      clipartLibraryState = 'ready';
+      clipartLibraryCallbacks.forEach(function (cb) { cb(); });
+      clipartLibraryCallbacks = [];
+    });
+    script.addEventListener('error', function () {
+      clipartLibraryState = 'failed';
+      clipartLibraryCallbacks = [];
+      showToast('Could not load the clipart library');
+    });
+    document.head.appendChild(script);
+  }
+
+  function clipartMatchesQuery(searchStr, q) {
+    // Per-word prefix match against space-separated tokens (same rule the
+    // icon picker uses) so "dog" never hits "hot dog"-less false tokens.
+    var tokens = searchStr.split(' ');
+    var words = q.split(/\s+/).filter(Boolean);
+    return words.every(function (w) {
+      return tokens.some(function (t) { return t.indexOf(w) === 0; });
+    });
+  }
+
+  function renderClipartGrid(query) {
+    if (!clipartGrid) return;
+    var lib = window.CanvasCliparts;
+    if (!lib) return;
+    var q = String(query || '').trim().toLowerCase();
+    var matches = lib.list;
+    if (q) {
+      matches = lib.list.filter(function (c) { return clipartMatchesQuery(c.search, q); });
+    }
+    var shown = matches.slice(0, CLIPART_RENDER_LIMIT);
+    clipartGrid.innerHTML = shown.map(function (c) {
+      var isSel = selectedClipartIds.indexOf(c.id) !== -1;
+      return '<button class="icon-option clipart-option' + (isSel ? ' is-selected' : '') + '"' +
+        ' data-clipart-id="' + c.id + '" type="button" role="option" aria-selected="' + (isSel ? 'true' : 'false') + '"' +
+        ' title="' + c.label + '">' +
+        '<span class="icon-option__check" aria-hidden="true">&#10003;</span>' +
+        '<svg viewBox="' + c.viewBox + '" width="28" height="28" aria-hidden="true">' + c.body + '</svg>' +
+        '<span class="icon-option__label">' + c.label + '</span>' +
+        '</button>';
+    }).join('');
+
+    if (clipartGridCount) {
+      var selPrefix = selectedClipartIds.length ? (selectedClipartIds.length + ' selected \u2022 ') : '';
+      clipartGridCount.textContent = selPrefix + (shown.length === matches.length
+        ? 'Showing ' + shown.length + ' of ' + lib.count + ' cliparts'
+        : 'Showing ' + shown.length + ' of ' + matches.length + ' matches (' + lib.count + ' total) — keep typing to narrow');
+    }
+    syncClipartSelectionControls();
+  }
+
+  function placeClipartsAtWorld(x, y, clipartIdsToPlace) {
+    var list = Array.isArray(clipartIdsToPlace) && clipartIdsToPlace.length
+      ? clipartIdsToPlace.slice()
+      : (selectedClipartIds.length ? selectedClipartIds.slice() : [currentClipartId || '1f600']);
+    pushHistory();
+    var size = 64;
+    var gap = 84;
+    var cols = Math.min(6, Math.max(1, Math.ceil(Math.sqrt(list.length))));
+    var rows = Math.ceil(list.length / cols);
+    var startX = x - ((Math.min(list.length, cols) - 1) * gap) / 2;
+    var startY = y - ((rows - 1) * gap) / 2;
+    var lastArt = null;
+    list.forEach(function (id, idx) {
+      var col = idx % cols;
+      var row = Math.floor(idx / cols);
+      lastArt = createClipart(startX + col * gap - size / 2, startY + row * gap - size / 2, id, size);
+    });
+    if (lastArt) selectElement(lastArt);
+    setTool('select');
+    scheduleSave();
+    if (list.length > 1) {
+      showToast('Placed ' + list.length + ' cliparts on the canvas');
+    }
+  }
+
+  function openClipartPicker() {
+    if (!clipartModal) return;
+    openModal(clipartModal);
+    syncClipartSelectionControls();
+    if (clipartSearch) setTimeout(function () { clipartSearch.focus(); }, 50);
+    ensureClipartLibrary(function () {
+      renderClipartGrid(clipartSearch ? clipartSearch.value : '');
+    });
+  }
+
+  if (clipartSearch) {
+    var clipartSearchTimer = null;
+    clipartSearch.addEventListener('input', function () {
+      clearTimeout(clipartSearchTimer);
+      clipartSearchTimer = setTimeout(function () {
+        ensureClipartLibrary(function () { renderClipartGrid(clipartSearch.value); });
+      }, 120);
+    });
+  }
+
+  clipartGrid?.addEventListener('click', function (e) {
+    var opt = e.target.closest('[data-clipart-id]');
+    if (!opt) return;
+    var id = opt.dataset.clipartId;
+    if (!id) return;
+    var idx = selectedClipartIds.indexOf(id);
+    if (idx === -1) {
+      selectedClipartIds.push(id);
+      currentClipartId = id;
+    } else {
+      selectedClipartIds.splice(idx, 1);
+      if (selectedClipartIds.length) {
+        currentClipartId = selectedClipartIds[selectedClipartIds.length - 1];
+      }
+    }
+    var isSel = selectedClipartIds.indexOf(id) !== -1;
+    opt.classList.toggle('is-selected', isSel);
+    opt.setAttribute('aria-selected', isSel ? 'true' : 'false');
+    syncClipartSelectionControls();
+    if (clipartGridCount && window.CanvasCliparts) {
+      var shownCount = clipartGrid.querySelectorAll('.clipart-option').length;
+      var selPrefix = selectedClipartIds.length ? (selectedClipartIds.length + ' selected \u2022 ') : '';
+      clipartGridCount.textContent = selPrefix + 'Showing ' + shownCount + ' of ' + window.CanvasCliparts.count + ' cliparts';
+    }
+  });
+
+  clipartGrid?.addEventListener('dblclick', function (e) {
+    var opt = e.target.closest('[data-clipart-id]');
+    if (!opt) return;
+    var id = opt.dataset.clipartId;
+    if (!id) return;
+    if (selectedClipartIds.indexOf(id) === -1) selectedClipartIds.push(id);
+    currentClipartId = id;
+    var toInsert = selectedClipartIds.slice();
+    selectedClipartIds = [];
+    syncClipartSelectionControls();
+    closeModal(clipartModal);
+    var rect = viewport.getBoundingClientRect();
+    var pt = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    placeClipartsAtWorld(pt.x, pt.y, toInsert);
+  });
+
+  clipartInsertBtn?.addEventListener('click', function () {
+    if (!selectedClipartIds.length) return;
+    var toInsert = selectedClipartIds.slice();
+    selectedClipartIds = [];
+    syncClipartSelectionControls();
+    closeModal(clipartModal);
+    var rect = viewport.getBoundingClientRect();
+    var pt = screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    placeClipartsAtWorld(pt.x, pt.y, toInsert);
+  });
+
+  clipartClearBtn?.addEventListener('click', function () {
+    selectedClipartIds = [];
+    clipartGrid?.querySelectorAll('.clipart-option.is-selected').forEach(function (b) {
+      b.classList.remove('is-selected');
+      b.setAttribute('aria-selected', 'false');
+    });
+    syncClipartSelectionControls();
+    renderClipartGrid(clipartSearch ? clipartSearch.value : '');
+  });
+
+  document.getElementById('modal-clipart-close')?.addEventListener('click', function () { closeModal(clipartModal); });
+  document.getElementById('modal-clipart-done')?.addEventListener('click', function () { closeModal(clipartModal); });
+  clipartModal?.addEventListener('click', function (e) {
+    if (e.target === clipartModal) closeModal(clipartModal);
+  });
 
   /* ---------- Viewport Mouse Interaction (Create, Pan, Draw, Drag, Resize) ---------- */
   viewport.addEventListener('mousedown', function (e) {
@@ -752,14 +2148,73 @@
       return;
     }
 
-    if (e.target === viewport || e.target === world || e.target.classList.contains('quantalflow-svg-layer') || currentTool === 'hand' || spacePressed) {
-      selectElement(null);
+    if (isBackground && currentTool === 'icon') {
+      var posI = screenToWorld(e.clientX, e.clientY);
+      placeIconsAtWorld(posI.x, posI.y);
+      return;
+    }
+
+    if (isBackground && currentTool === 'clipart') {
+      var posA = screenToWorld(e.clientX, e.clientY);
+      placeClipartsAtWorld(posA.x, posA.y);
+      return;
+    }
+
+    // Pan only when Hand tool is active, Space is held, or middle mouse button is used.
+    if (currentTool === 'hand' || spacePressed || e.button === 1) {
+      if (e.button === 1) e.preventDefault();
       isPanning = true;
       startPanX = e.clientX - panX;
       startPanY = e.clientY - panY;
       viewport.classList.add('is-dragging-pan');
+      return;
+    }
+
+    // Select (V) tool on empty canvas / background: start marquee highlight selection!
+    if (currentTool === 'select' && isBackground) {
+      selectElement(null);
+      isMarqueeSelecting = true;
+      var vpRect = viewport.getBoundingClientRect();
+      marqueeStartX = e.clientX - vpRect.left;
+      marqueeStartY = e.clientY - vpRect.top;
+      marqueeEl = document.createElement('div');
+      marqueeEl.className = 'canvas-marquee';
+      marqueeEl.style.left = Math.round(marqueeStartX) + 'px';
+      marqueeEl.style.top = Math.round(marqueeStartY) + 'px';
+      marqueeEl.style.width = '0px';
+      marqueeEl.style.height = '0px';
+      viewport.appendChild(marqueeEl);
     }
   });
+
+  function updateMarqueeSelection(clientX, clientY) {
+    if (!isMarqueeSelecting || !marqueeEl) return;
+    var vpRect = viewport.getBoundingClientRect();
+    var curX = clientX - vpRect.left;
+    var curY = clientY - vpRect.top;
+    var left = Math.min(marqueeStartX, curX);
+    var top = Math.min(marqueeStartY, curY);
+    var width = Math.abs(curX - marqueeStartX);
+    var height = Math.abs(curY - marqueeStartY);
+    marqueeEl.style.left = Math.round(left) + 'px';
+    marqueeEl.style.top = Math.round(top) + 'px';
+    marqueeEl.style.width = Math.round(width) + 'px';
+    marqueeEl.style.height = Math.round(height) + 'px';
+
+    if (width < 4 && height < 4) return;
+    var boxLeft = vpRect.left + left;
+    var boxTop = vpRect.top + top;
+    var boxRight = boxLeft + width;
+    var boxBottom = boxTop + height;
+
+    var hits = [];
+    world.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-frame').forEach(function (item) {
+      var r = item.getBoundingClientRect();
+      var intersects = !(r.right < boxLeft || r.left > boxRight || r.bottom < boxTop || r.top > boxBottom);
+      if (intersects) hits.push(item);
+    });
+    setSelectedElements(hits);
+  }
 
   window.addEventListener('mousemove', function (e) {
     if (isDrawingPen && activePathEl) {
@@ -782,6 +2237,11 @@
       return;
     }
 
+    if (isMarqueeSelecting) {
+      updateMarqueeSelection(e.clientX, e.clientY);
+      return;
+    }
+
     if (isPanning) {
       panX = e.clientX - startPanX;
       panY = e.clientY - startPanY;
@@ -797,15 +2257,21 @@
       var worldRect = world.getBoundingClientRect();
       var x = (e.clientX - worldRect.left) / zoom - dragOffsetX;
       var y = (e.clientY - worldRect.top) / zoom - dragOffsetY;
-      activeDragEl.style.left = Math.max(0, Math.round(x)) + 'px';
-      activeDragEl.style.top = Math.max(0, Math.round(y)) + 'px';
+      var nextX = Math.max(0, Math.round(x));
+      var nextY = Math.max(0, Math.round(y));
+      activeDragEl.style.left = nextX + 'px';
+      activeDragEl.style.top = nextY + 'px';
+      dragGroupOffsets.forEach(function (entry) {
+        entry.el.style.left = Math.max(0, Math.round(nextX + entry.dx)) + 'px';
+        entry.el.style.top = Math.max(0, Math.round(nextY + entry.dy)) + 'px';
+      });
       renderConnectors();
       updateContextToolbarPosition();
       updateMinimap();
     }
   });
 
-  window.addEventListener('mouseup', function () {
+  window.addEventListener('mouseup', function (e) {
     if (isDrawingPen) {
       isDrawingPen = false;
       activePathEl = null;
@@ -816,6 +2282,14 @@
       activeResizeEl = null;
       scheduleSave();
     }
+    if (isMarqueeSelecting) {
+      updateMarqueeSelection(e.clientX, e.clientY);
+      isMarqueeSelecting = false;
+      if (marqueeEl) {
+        marqueeEl.remove();
+        marqueeEl = null;
+      }
+    }
     if (isPanning) {
       isPanning = false;
       viewport.classList.remove('is-dragging-pan');
@@ -823,6 +2297,7 @@
     if (activeDragEl) {
       if (dragMoved) scheduleSave();
       activeDragEl = null;
+      dragGroupOffsets = [];
       dragMoved = false;
     }
   });
@@ -845,6 +2320,9 @@
           selectedEl.classList.remove('canvas-shape--fill-' + c);
         });
         selectedEl.classList.add('canvas-shape--fill-' + color);
+        selectedEl.dataset.color = color;
+      } else if (selectedEl.classList.contains('canvas-icon')) {
+        selectedEl.className = selectedEl.className.replace(/canvas-icon--\S+/, 'canvas-icon--' + color);
         selectedEl.dataset.color = color;
       }
       scheduleSave();
@@ -897,6 +2375,17 @@
     } else if (el.classList.contains('canvas-text')) {
       var tText = el.querySelector('.canvas-text__content')?.innerHTML || '';
       clone = createText(x, y, tText);
+    } else if (el.classList.contains('canvas-icon')) {
+      clone = createIcon(x, y, el.dataset.icon, el.dataset.color, el.offsetWidth);
+    } else if (el.classList.contains('canvas-clipart')) {
+      clone = createClipart(x, y, el.dataset.clipart, el.offsetWidth);
+    } else if (el.classList.contains('canvas-table')) {
+      var tblCells = Array.prototype.map.call(el.querySelectorAll('tbody tr'), function (tr) {
+        return Array.prototype.map.call(tr.querySelectorAll('td'), function (td) {
+          return td.dataset.raw !== undefined ? td.dataset.raw : td.textContent;
+        });
+      });
+      clone = createTable(x, y, tblCells);
     } else if (el.classList.contains('canvas-frame')) {
       var fTitle = el.querySelector('.canvas-frame__title')?.textContent || 'Copied Frame';
       clone = createFrame(x, y, fTitle, el.offsetWidth, el.offsetHeight);
@@ -906,13 +2395,19 @@
   }
 
   function deleteElement(el) {
-    if (!el) return;
+    var targets = (selectedEls.length > 1 && (!el || selectedEls.indexOf(el) !== -1))
+      ? selectedEls.slice()
+      : (el ? [el] : []);
+    if (!targets.length) return;
     pushHistory();
-    var id = el.dataset.id;
-    connectors = connectors.filter(function (c) {
-      return c.fromId !== id && c.toId !== id;
+    var removedIds = {};
+    targets.forEach(function (item) {
+      if (item && item.dataset && item.dataset.id) removedIds[item.dataset.id] = true;
+      if (item) item.remove();
     });
-    el.remove();
+    connectors = connectors.filter(function (c) {
+      return !removedIds[c.fromId] && !removedIds[c.toId];
+    });
     selectElement(null);
     renderConnectors();
     updateMinimap();
@@ -1052,7 +2547,7 @@
   }
 
   function fitToScreen() {
-    var items = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape');
+    var items = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table');
     if (!items.length) return resetZoom();
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     items.forEach(function (el) {
@@ -1091,13 +2586,22 @@
 
   /* ---------- Undo / Redo History Engine ---------- */
   function serializeBoardState() {
+    // Deep-link view (?module=... different from the board's own module):
+    // report the saved state untouched so this visit cannot rewrite the
+    // board's canvas, modules or activeModule behind the user's back.
+    if (currentActiveModule !== savedActiveModule && loadedStateRef) {
+      return loadedStateRef;
+    }
     var items = [];
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment').forEach(function (el) {
+    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart').forEach(function (el) {
       var type = 'sticky';
       if (el.classList.contains('canvas-frame')) type = 'frame';
       else if (el.classList.contains('canvas-shape')) type = 'shape';
       else if (el.classList.contains('canvas-text')) type = 'text';
       else if (el.classList.contains('canvas-comment')) type = 'comment';
+      else if (el.classList.contains('canvas-icon')) type = 'icon';
+      else if (el.classList.contains('canvas-clipart')) type = 'clipart';
+      else if (el.classList.contains('canvas-table')) type = 'table';
 
       var text = '';
       if (type === 'frame') text = el.querySelector('.canvas-frame__title')?.textContent || '';
@@ -1117,6 +2621,15 @@
         h: el.style.height ? parseFloat(el.style.height) : undefined,
         color: el.dataset.color || 'yellow',
         shapeType: el.dataset.shapeType || 'rect',
+        iconId: el.dataset.icon || 'rocket',
+        clipartId: el.dataset.clipart || '',
+        cells: type === 'table'
+          ? Array.prototype.map.call(el.querySelectorAll('tbody tr'), function (tr) {
+              return Array.prototype.map.call(tr.querySelectorAll('td'), function (td) {
+                return td.dataset.raw !== undefined ? td.dataset.raw : td.textContent;
+              });
+            })
+          : undefined,
         text: text,
         votes: votes
       });
@@ -1146,8 +2659,12 @@
 
     return {
       version: 2,
-      workspaceMode: currentActiveModule === 'project-planning' ? 'project-planning' : 'canvas',
-      activeModule: currentActiveModule || DEFAULT_WORKSPACE_MODULE,
+      // Persist the board's own module, not the URL view override — a visit
+      // with ?module=... must never rewrite which workspace this board opens
+      // with by default.
+      workspaceMode: savedActiveModule === 'project-planning' ? 'project-planning' : 'canvas',
+      activeModule: savedActiveModule || DEFAULT_WORKSPACE_MODULE,
+      enabledModules: enabledModules.slice(),
       modules: boardModules,
       items: items,
       connectors: JSON.parse(JSON.stringify(connectors)),
@@ -1160,7 +2677,7 @@
     isRestoringHistory = true;
     selectElement(null);
 
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment').forEach(function (el) {
+    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
       el.remove();
     });
     if (drawingsGroup) drawingsGroup.innerHTML = '';
@@ -1178,6 +2695,12 @@
         createText(item.x, item.y, item.text, item.color, item.id);
       } else if (item.type === 'comment') {
         createCommentPin(item.x, item.y, item.text, 'You', item.id);
+      } else if (item.type === 'icon') {
+        createIcon(item.x, item.y, item.iconId, item.color, item.w, item.id);
+      } else if (item.type === 'clipart') {
+        createClipart(item.x, item.y, item.clipartId, item.w, item.id);
+      } else if (item.type === 'table') {
+        createTable(item.x, item.y, item.cells, item.id);
       }
     });
 
@@ -1242,12 +2765,12 @@
   var saveTimer = null;
 
   function setSaveStatus(status) {
-    if (!saveText || !saveDot) return;
+    if (!saveDot) return;
     if (status === 'saving') {
-      saveText.textContent = 'Saving changes…';
+      if (saveText) saveText.textContent = 'Saving changes…';
       saveDot.style.background = '#f59e0b';
     } else {
-      saveText.textContent = 'Saved to Cloud';
+      if (saveText) saveText.textContent = 'Saved to Cloud';
       saveDot.style.background = '#10b981';
     }
   }
@@ -1301,8 +2824,265 @@
     return null;
   }
 
+  function ensureModuleEnabled(mod) {
+    var normalized = String(mod || '').toLowerCase();
+    if (PROJECT_MODULES.indexOf(normalized) === -1) return;
+    if (enabledModules.indexOf(normalized) === -1) {
+      enabledModules.push(normalized);
+    }
+  }
+
+  function resolveInitialEnabledModules(stateObj, activeMod) {
+    var list = [];
+    if (stateObj && Array.isArray(stateObj.enabledModules) && stateObj.enabledModules.length) {
+      stateObj.enabledModules.forEach(function (m) {
+        var norm = String(m || '').toLowerCase();
+        if (PROJECT_MODULES.indexOf(norm) !== -1 && list.indexOf(norm) === -1) {
+          list.push(norm);
+        }
+      });
+    } else if (stateObj && stateObj.modules && typeof stateObj.modules === 'object' && Object.keys(stateObj.modules).length) {
+      Object.keys(stateObj.modules).forEach(function (k) {
+        var norm = String(k || '').toLowerCase();
+        if (PROJECT_MODULES.indexOf(norm) !== -1 && list.indexOf(norm) === -1) {
+          list.push(norm);
+        }
+      });
+    } else {
+      list = PROJECT_MODULES.slice();
+    }
+    if (stateObj && stateObj.workspaceMode === 'project-planning' && list.indexOf('project-planning') === -1) {
+      list.push('project-planning');
+    }
+    if (activeMod && PROJECT_MODULES.indexOf(activeMod) !== -1 && list.indexOf(activeMod) === -1) {
+      list.push(activeMod);
+    }
+    if (!list.length) {
+      list = PROJECT_MODULES.slice();
+    }
+    enabledModules = list;
+  }
+
+  var topbarWsDropdown = document.getElementById('topbar-ws-dropdown');
+  var topbarWsBtn = document.getElementById('topbar-ws-dropdown-btn');
+  var topbarWsIcon = document.getElementById('topbar-ws-icon');
+  var topbarWsLabel = document.getElementById('topbar-ws-label');
+  var topbarWsMenu = document.getElementById('topbar-ws-dropdown-menu');
+
+  function closeTopbarWsDropdown() {
+    if (!topbarWsDropdown || !topbarWsMenu) return;
+    topbarWsMenu.hidden = true;
+    topbarWsDropdown.classList.remove('is-open');
+    topbarWsBtn?.setAttribute('aria-expanded', 'false');
+  }
+
+  function buildWsDropdownMenuHtml() {
+    var otherModules = enabledModules.filter(function (mod) {
+      return mod !== currentActiveModule;
+    });
+    var itemsHtml = '';
+    if (otherModules.length > 0) {
+      itemsHtml = enabledModules.map(function (mod) {
+        var meta = WORKSPACE_META[mod] || { label: mod, icon: '' };
+        var isAct = mod === currentActiveModule;
+        return '<div class="topbar-ws-dropdown__row">' +
+          '<button class="topbar-ws-dropdown__item' + (isAct ? ' is-active' : '') + '"' +
+            ' data-ws-module="' + mod + '" type="button" role="menuitem">' +
+            '<span class="topbar-ws-dropdown__icon" aria-hidden="true">' + meta.icon + '</span>' +
+            '<span>' + meta.label + '</span>' +
+            (isAct ? '<span class="topbar-ws-dropdown__item-check" aria-hidden="true">&#10003;</span>' : '') +
+          '</button>' +
+          '<button class="topbar-ws-dropdown__remove" data-remove-ws-module="' + mod + '" type="button" title="Remove ' + meta.label + ' from this board" aria-label="Remove ' + meta.label + '">&times;</button>' +
+        '</div>';
+      }).join('') + '<div class="topbar-ws-dropdown__divider"></div>';
+    }
+    itemsHtml +=
+      '<button class="topbar-ws-dropdown__item topbar-ws-dropdown__item--add" data-dropdown-add-ws="true" type="button" role="menuitem">' +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>' +
+        '<span>Add Workspace</span>' +
+      '</button>' +
+      '<div class="topbar-ws-dropdown__divider"></div>' +
+      '<button class="topbar-ws-dropdown__item topbar-ws-dropdown__item--danger" data-dropdown-delete-ws="true" type="button" role="menuitem">' +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>' +
+        '<span>Delete Workspace</span>' +
+      '</button>';
+    return itemsHtml;
+  }
+
+  function removeWorkspaceModule(modToRemove) {
+    var modMeta = WORKSPACE_META[modToRemove] || { label: modToRemove };
+    if (!confirm('Remove "' + modMeta.label + '" from this workspace?\n\nIts items in this module will be cleared.')) {
+      return;
+    }
+    enabledModules = enabledModules.filter(function (m) { return m !== modToRemove; });
+    if (boardModules && boardModules[modToRemove]) {
+      delete boardModules[modToRemove];
+    }
+    if (!enabledModules.length) {
+      enabledModules = [DEFAULT_WORKSPACE_MODULE];
+    }
+    if (currentActiveModule === modToRemove) {
+      switchWorkspaceModule(enabledModules[0], true);
+    } else {
+      renderSideNavWorkspaces();
+    }
+    scheduleSave();
+    showToast('Removed ' + modMeta.label + ' from this workspace');
+  }
+
+  async function deleteCurrentWorkspace() {
+    var titleEl = document.getElementById('board-title-input');
+    var wsName = (titleEl && titleEl.value.trim()) || 'this workspace';
+    if (!confirm('Delete "' + wsName + '"?\n\nThis will permanently delete this workspace and all its data. This cannot be undone.')) {
+      return;
+    }
+    if (!boardId) {
+      window.location.href = '/dashboard/';
+      return;
+    }
+    try {
+      var res = await fetch('/api/boards/' + encodeURIComponent(boardId), { method: 'DELETE' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json().catch(function () { return {}; });
+      if (!data.ok) throw new Error('Delete rejected');
+      try {
+        localStorage.removeItem('quantalflow_pp_state_v2_' + boardId);
+      } catch (err) {}
+      window.location.href = '/dashboard/';
+    } catch (err) {
+      alert('Could not delete this workspace. Please try again.');
+    }
+  }
+
+  function renderSideNavWorkspaces() {
+    var activeMeta = WORKSPACE_META[currentActiveModule] || { label: 'Mind Map', icon: '' };
+    if (topbarWsLabel) topbarWsLabel.textContent = activeMeta.label;
+    if (topbarWsIcon) topbarWsIcon.innerHTML = activeMeta.icon || '';
+
+    // The project-planning suite renders its own workspace dropdown in its header.
+    if (topbarWsMenu) {
+      topbarWsMenu.innerHTML = buildWsDropdownMenuHtml();
+    }
+
+    if (window.ProjectPlanningSuite && window.ProjectPlanningSuite.syncWorkspaceTabs) {
+      window.ProjectPlanningSuite.syncWorkspaceTabs();
+    }
+  }
+
+  topbarWsBtn?.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (!topbarWsMenu || !topbarWsDropdown) return;
+    var willOpen = topbarWsMenu.hidden;
+    if (willOpen) {
+      renderSideNavWorkspaces();
+      topbarWsMenu.hidden = false;
+      topbarWsDropdown.classList.add('is-open');
+      topbarWsBtn.setAttribute('aria-expanded', 'true');
+    } else {
+      closeTopbarWsDropdown();
+    }
+  });
+
+  topbarWsMenu?.addEventListener('click', async function (e) {
+    var addBtn = e.target.closest('[data-dropdown-add-ws]');
+    if (addBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeTopbarWsDropdown();
+      renderAddWorkspaceGrid();
+      openModal(document.getElementById('modal-add-workspace'));
+      return;
+    }
+
+    var removeModBtn = e.target.closest('[data-remove-ws-module]');
+    if (removeModBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      removeWorkspaceModule(removeModBtn.getAttribute('data-remove-ws-module'));
+      return;
+    }
+
+    var deleteWsBtn = e.target.closest('[data-dropdown-delete-ws]');
+    if (deleteWsBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeTopbarWsDropdown();
+      deleteCurrentWorkspace();
+      return;
+    }
+
+    var wsItem = e.target.closest('[data-ws-module]');
+    if (wsItem) {
+      e.preventDefault();
+      e.stopPropagation();
+      var targetMod = wsItem.getAttribute('data-ws-module');
+      closeTopbarWsDropdown();
+      if (targetMod) {
+        switchWorkspaceModule(targetMod, true);
+      }
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    if (topbarWsDropdown && !topbarWsDropdown.contains(e.target)) {
+      closeTopbarWsDropdown();
+    }
+  });
+
+  function renderAddWorkspaceGrid() {
+    var grid = document.getElementById('add-workspace-grid');
+    if (!grid) return;
+    var cardsHtml = PROJECT_MODULES.map(function (mod) {
+      var meta = WORKSPACE_META[mod] || { label: mod, blurb: '', tint: '#eef2ff', ink: '#4262ff', icon: '' };
+      var isAdded = enabledModules.indexOf(mod) !== -1;
+      var isCurrent = mod === currentActiveModule;
+      var badgeText = isCurrent ? 'Active' : (isAdded ? 'Added' : '+ Add');
+      return '<button class="add-ws-card' + (isAdded ? ' is-added' : '') + '" data-add-ws-module="' + mod + '" type="button">' +
+        '<span class="template-pick-card__icon" style="background:' + meta.tint + '; color:' + meta.ink + ';" aria-hidden="true">' + meta.icon + '</span>' +
+        '<span class="template-pick-card__content">' +
+          '<span class="template-pick-card__top">' +
+            '<strong>' + meta.label + '</strong>' +
+            '<span class="add-ws-card__badge">' + badgeText + '</span>' +
+          '</span>' +
+          '<small>' + meta.blurb + '</small>' +
+        '</span>' +
+      '</button>';
+    }).join('');
+
+    cardsHtml +=
+      '<button class="add-ws-card" data-open-templates-modal="true" type="button">' +
+        '<span class="template-pick-card__icon" style="background:#f1f5f9; color:#475569;" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>' +
+        '</span>' +
+        '<span class="template-pick-card__content">' +
+          '<span class="template-pick-card__top">' +
+            '<strong>Templates</strong>' +
+            '<span class="add-ws-card__badge">Library</span>' +
+          '</span>' +
+          '<small>Insert structural frameworks &amp; starter layouts onto the canvas</small>' +
+        '</span>' +
+      '</button>';
+
+    grid.innerHTML = cardsHtml;
+  }
+
+  function addWorkspaceModule(mod) {
+    var normalized = String(mod || '').toLowerCase();
+    if (PROJECT_MODULES.indexOf(normalized) === -1) return;
+    var already = enabledModules.indexOf(normalized) !== -1;
+    ensureModuleEnabled(normalized);
+    renderSideNavWorkspaces();
+    switchWorkspaceModule(normalized, true);
+    if (!already) {
+      var meta = WORKSPACE_META[normalized];
+      showToast('Added ' + (meta ? meta.label : normalized) + ' to this workspace');
+    }
+  }
+
   function syncWorkspaceSwitcherUI(activeMod) {
     var target = activeMod || currentActiveModule || DEFAULT_WORKSPACE_MODULE;
+    ensureModuleEnabled(target);
+    renderSideNavWorkspaces();
     document.querySelectorAll('[data-ws-module]').forEach(function (btn) {
       var isMatch = btn.dataset.wsModule === target;
       btn.classList.toggle('is-active', isMatch);
@@ -1316,8 +3096,10 @@
       normalized = DEFAULT_WORKSPACE_MODULE;
     }
 
-    // Save current canvas module items before switching away
-    if (currentActiveModule && currentActiveModule !== 'project-planning') {
+    // Save current canvas module items before switching away — but only when
+    // the canvas actually belongs to the module we are leaving. During a URL
+    // override view the canvas is not the board's own content.
+    if (currentActiveModule && currentActiveModule !== 'project-planning' && currentActiveModule === savedActiveModule) {
       boardModules[currentActiveModule] = {
         version: 2,
         items: serializeBoardState().items,
@@ -1327,6 +3109,8 @@
     }
 
     currentActiveModule = normalized;
+    savedActiveModule = normalized; // an explicit switch is what the board remembers
+    ensureModuleEnabled(currentActiveModule);
     syncWorkspaceSwitcherUI(currentActiveModule);
 
     var currentTitle = titleInput ? titleInput.value.trim() : 'Project Workspace';
@@ -1360,6 +3144,17 @@
         restoreBoardState(savedModState);
         starterDismissedByUser = true;
         syncEmptyBoardStarter();
+      } else if (
+        loadedStateRef &&
+        (loadedStateRef.activeModule || '') === currentActiveModule &&
+        Array.isArray(loadedStateRef.items) &&
+        (loadedStateRef.items.length > 0 || (Array.isArray(loadedStateRef.paths) && loadedStateRef.paths.length > 0))
+      ) {
+        // Canvas lived at the top level (older save shape): restore it rather
+        // than stamping a fresh template over the board's original content.
+        restoreBoardState(loadedStateRef);
+        starterDismissedByUser = true;
+        syncEmptyBoardStarter();
       } else {
         insertTemplateByType(currentActiveModule, 180, 110);
       }
@@ -1379,6 +3174,7 @@
   });
 
   async function loadBoardFromServer() {
+    isHydratingBoard = true;
     clearCanvasElementsOnly();
     starterDismissedByUser = false;
     boardModules = {};
@@ -1386,112 +3182,161 @@
     var shareInput = document.getElementById('share-link-input');
     var routeNow = parseAppRoute(window.location.pathname, window.location.search);
     var explicitMod = routeNow.explicitModule;
+    if (explicitMod) {
+      currentActiveModule = explicitMod;
+      ensureModuleEnabled(currentActiveModule);
+      renderSideNavWorkspaces();
+      if (explicitMod !== 'project-planning' && window.ProjectPlanningSuite) {
+        window.ProjectPlanningSuite.close();
+      }
+    }
 
     try {
-      var board = await fetchBoardByAnyId(boardId);
-      if (board) {
-        boardId = board.id || boardId;
-        if (titleInput && board.title) {
-          titleInput.value = board.title;
-          document.title = board.title + ' | QuantalFlow App';
-        }
-        if (shareInput) {
-          shareInput.value = window.location.origin + buildBoardPath(boardId, '', board.title);
-        }
-        if (starBtn) starBtn.classList.toggle('is-starred', Boolean(board.starred));
-
-        if (board.state && board.state.modules && typeof board.state.modules === 'object') {
-          boardModules = board.state.modules;
-        }
-
-        // Determine active module:
-        // 1. Explicit module in URL (?module=...) wins.
-        // 2. Otherwise default to 'project-planning' when opening a project!
-        var resolvedModule = explicitMod || DEFAULT_WORKSPACE_MODULE;
-        currentActiveModule = resolvedModule;
-        syncWorkspaceSwitcherUI(currentActiveModule);
-        syncUrlToTitle(board.title, currentActiveModule);
-
-        if (currentActiveModule === 'project-planning') {
-          starterDismissedByUser = true;
-          syncEmptyBoardStarter();
-          if (window.ProjectPlanningSuite) {
-            window.ProjectPlanningSuite.open(board.id || boardId, board.title || 'Project Planning Workspace');
+      try {
+        var board = await fetchBoardByAnyId(boardId);
+        if (board) {
+          boardId = board.id || boardId;
+          loadedStateRef = (board.state && board.state.version === 2) ? board.state : null;
+          if (titleInput && board.title) {
+            titleInput.value = board.title;
+            document.title = board.title + ' | QuantalFlow App';
           }
+          if (shareInput) {
+            shareInput.value = window.location.origin + buildBoardPath(boardId, '', board.title);
+          }
+          if (starBtn) starBtn.classList.toggle('is-starred', Boolean(board.starred));
+
+          if (board.state && board.state.modules && typeof board.state.modules === 'object') {
+            boardModules = board.state.modules;
+          }
+
+          // Determine active module:
+          // 1. Explicit module in URL (?module=...) wins.
+          // 2. Otherwise default to board's activeModule or 'project-planning'.
+          var stateActiveMod = (board.state && board.state.activeModule && PROJECT_MODULES.indexOf(board.state.activeModule) !== -1)
+            ? board.state.activeModule
+            : '';
+          var resolvedModule = explicitMod || stateActiveMod || DEFAULT_WORKSPACE_MODULE;
+          currentActiveModule = resolvedModule;
+          savedActiveModule = stateActiveMod || resolvedModule;
+
+          // Deep-link view (?module=... differing from the board's own module):
+          // keep the board's saved canvas under its own module key so switching
+          // modules later in this session cannot lose it and no save can wipe it.
+          if (
+            explicitMod &&
+            savedActiveModule !== explicitMod &&
+            loadedStateRef &&
+            Array.isArray(loadedStateRef.items) &&
+            (loadedStateRef.items.length > 0 || (Array.isArray(loadedStateRef.paths) && loadedStateRef.paths.length > 0))
+          ) {
+            var stashKey = savedActiveModule;
+            var existingStash = boardModules[stashKey];
+            if (!existingStash || !Array.isArray(existingStash.items) || existingStash.items.length === 0) {
+              boardModules[stashKey] = {
+                version: 2,
+                items: loadedStateRef.items,
+                connectors: Array.isArray(loadedStateRef.connectors) ? loadedStateRef.connectors : [],
+                paths: Array.isArray(loadedStateRef.paths) ? loadedStateRef.paths : []
+              };
+            }
+          }
+          resolveInitialEnabledModules(board.state, currentActiveModule);
+          syncWorkspaceSwitcherUI(currentActiveModule);
+          syncUrlToTitle(board.title, currentActiveModule);
+
+          if (currentActiveModule === 'project-planning') {
+            starterDismissedByUser = true;
+            syncEmptyBoardStarter();
+            if (window.ProjectPlanningSuite) {
+              window.ProjectPlanningSuite.open(board.id || boardId, board.title || 'Project Planning Workspace');
+            }
+            return;
+          }
+
+          if (window.ProjectPlanningSuite) {
+            window.ProjectPlanningSuite.close();
+          }
+
+          var moduleSpecificState = boardModules[currentActiveModule];
+          if (
+            moduleSpecificState &&
+            Array.isArray(moduleSpecificState.items) &&
+            (moduleSpecificState.items.length > 0 || (Array.isArray(moduleSpecificState.paths) && moduleSpecificState.paths.length > 0))
+          ) {
+            restoreBoardState(moduleSpecificState);
+            starterDismissedByUser = true;
+            syncEmptyBoardStarter();
+            return;
+          }
+
+          if (
+            board.state &&
+            board.state.version === 2 &&
+            Array.isArray(board.state.items) &&
+            (board.state.items.length > 0 || (Array.isArray(board.state.paths) && board.state.paths.length > 0))
+          ) {
+            restoreBoardState(board.state);
+            starterDismissedByUser = true;
+            syncEmptyBoardStarter();
+            return;
+          }
+
+          insertTemplateByType(currentActiveModule, 180, 110);
           return;
+        } else if (shareInput) {
+          shareInput.value = window.location.origin + buildBoardPath(boardId, '');
         }
+      } catch (e) {}
 
-        if (window.ProjectPlanningSuite) {
-          window.ProjectPlanningSuite.close();
+      // Fallback to localStorage if server had no saved items yet
+      try {
+        var cached = localStorage.getItem('quantalflow_board_' + boardId);
+        if (cached) {
+          var parsed = JSON.parse(cached);
+          if (parsed.title && titleInput) {
+            titleInput.value = parsed.title;
+            document.title = parsed.title + ' | QuantalFlow App';
+          }
+          if (parsed.state && parsed.state.version === 2) loadedStateRef = parsed.state;
+          if (parsed.state && parsed.state.modules && typeof parsed.state.modules === 'object') {
+            boardModules = parsed.state.modules;
+          }
         }
+      } catch (e) {}
 
-        var moduleSpecificState = boardModules[currentActiveModule];
-        if (
-          moduleSpecificState &&
-          Array.isArray(moduleSpecificState.items) &&
-          (moduleSpecificState.items.length > 0 || (Array.isArray(moduleSpecificState.paths) && moduleSpecificState.paths.length > 0))
-        ) {
-          restoreBoardState(moduleSpecificState);
-          starterDismissedByUser = true;
-          syncEmptyBoardStarter();
-          return;
-        }
+      var fallbackMod = explicitMod || DEFAULT_WORKSPACE_MODULE;
+      currentActiveModule = fallbackMod;
+      savedActiveModule = fallbackMod;
+      resolveInitialEnabledModules(null, currentActiveModule);
+      syncWorkspaceSwitcherUI(currentActiveModule);
 
-        if (
-          board.state &&
-          board.state.version === 2 &&
-          Array.isArray(board.state.items) &&
-          (board.state.items.length > 0 || (Array.isArray(board.state.paths) && board.state.paths.length > 0))
-        ) {
-          restoreBoardState(board.state);
-          starterDismissedByUser = true;
-          syncEmptyBoardStarter();
-          return;
-        }
-
-        insertTemplateByType(currentActiveModule, 180, 110);
+      if (currentActiveModule === 'project-planning' && window.ProjectPlanningSuite) {
+        starterDismissedByUser = true;
+        syncEmptyBoardStarter();
+        window.ProjectPlanningSuite.open(boardId, (titleInput && titleInput.value) || 'Project Planning Workspace');
         return;
-      } else if (shareInput) {
-        shareInput.value = window.location.origin + buildBoardPath(boardId, '');
       }
-    } catch (e) {}
 
-    // Fallback to localStorage if server had no saved items yet
-    try {
-      var cached = localStorage.getItem('quantalflow_board_' + boardId);
-      if (cached) {
-        var parsed = JSON.parse(cached);
-        if (parsed.title && titleInput) {
-          titleInput.value = parsed.title;
-          document.title = parsed.title + ' | QuantalFlow App';
-        }
-        if (parsed.state && parsed.state.modules && typeof parsed.state.modules === 'object') {
-          boardModules = parsed.state.modules;
-        }
+      if (window.ProjectPlanningSuite) {
+        window.ProjectPlanningSuite.close();
       }
-    } catch (e) {}
-
-    var fallbackMod = explicitMod || DEFAULT_WORKSPACE_MODULE;
-    currentActiveModule = fallbackMod;
-    syncWorkspaceSwitcherUI(currentActiveModule);
-
-    if (currentActiveModule === 'project-planning' && window.ProjectPlanningSuite) {
-      starterDismissedByUser = true;
+      insertTemplateByType(currentActiveModule, 180, 110);
+    } finally {
+      isHydratingBoard = false;
       syncEmptyBoardStarter();
-      window.ProjectPlanningSuite.open(boardId, (titleInput && titleInput.value) || 'Project Planning Workspace');
-      return;
     }
-
-    if (window.ProjectPlanningSuite) {
-      window.ProjectPlanningSuite.close();
-    }
-    insertTemplateByType(currentActiveModule, 180, 110);
   }
 
   /* Client-Side SPA Navigation & Browser History Support (popstate) */
   function navigateToBoardRoute(targetBoardId, targetModule, pushHistoryEntry) {
     var nextId = targetBoardId || 'new-collaborative-board';
-    var nextMod = (targetModule && PROJECT_MODULES.indexOf(targetModule) !== -1) ? targetModule : DEFAULT_WORKSPACE_MODULE;
+    // No explicit module (e.g. a history entry saved before one existed):
+    // keep the board's own module instead of forcing the planning default,
+    // which would persist a module flip on the next save.
+    var nextMod = (targetModule && PROJECT_MODULES.indexOf(targetModule) !== -1)
+      ? targetModule
+      : (savedActiveModule || DEFAULT_WORKSPACE_MODULE);
     var sameBoard = String(nextId) === String(boardId);
     boardId = nextId;
     initialTemplate = nextMod;
@@ -1518,7 +3363,16 @@
   window.QuantalFlowApp = {
     getBoardId: function () { return boardId; },
     getActiveModule: function () { return currentActiveModule; },
+    getEnabledModules: function () { return enabledModules.slice(); },
+    addWorkspaceModule: addWorkspaceModule,
+    openAddWorkspaceModal: function () {
+      renderAddWorkspaceGrid();
+      openModal(document.getElementById('modal-add-workspace'));
+    },
     switchModule: function (mod, pushHistory) { switchWorkspaceModule(mod, pushHistory); },
+    removeWorkspaceModule: removeWorkspaceModule,
+    deleteCurrentWorkspace: deleteCurrentWorkspace,
+    buildWsDropdownMenuHtml: buildWsDropdownMenuHtml,
     loadBoard: function (id, mod) { navigateToBoardRoute(id, mod, true); }
   };
 
@@ -1732,7 +3586,7 @@
     if (!minimap || minimap.hidden || !minimapStage) return;
     minimapStage.querySelectorAll('.minimap-dot').forEach(function (d) { d.remove(); });
     var scale = 0.085;
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape').forEach(function (el) {
+    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
       var b = getElementBounds(el);
       var dot = document.createElement('div');
       dot.className = 'minimap-dot';
@@ -1832,6 +3686,38 @@
   setupModal('btn-templates', 'modal-templates', ['modal-templates-close', 'modal-templates-done']);
   setupModal('btn-ai', 'modal-ai', ['modal-ai-close', 'modal-ai-cancel']);
   setupModal('btn-shortcuts', 'modal-shortcuts', ['modal-shortcuts-close', 'modal-shortcuts-done']);
+
+  var btnAddWs = document.getElementById('btn-add-workspace');
+  var modalAddWs = document.getElementById('modal-add-workspace');
+  if (btnAddWs && modalAddWs) {
+    btnAddWs.addEventListener('click', function (e) {
+      e.preventDefault();
+      renderAddWorkspaceGrid();
+      openModal(modalAddWs);
+    });
+    ['modal-add-ws-close', 'modal-add-ws-cancel'].forEach(function (cid) {
+      document.getElementById(cid)?.addEventListener('click', function (e) {
+        e.preventDefault();
+        closeModal(modalAddWs);
+      });
+    });
+    modalAddWs.addEventListener('click', function (e) {
+      if (e.target === modalAddWs) closeModal(modalAddWs);
+    });
+    document.getElementById('add-workspace-grid')?.addEventListener('click', function (e) {
+      var tplCard = e.target.closest('[data-open-templates-modal]');
+      if (tplCard) {
+        closeModal(modalAddWs);
+        openModal(document.getElementById('modal-templates'));
+        return;
+      }
+      var card = e.target.closest('[data-add-ws-module]');
+      if (!card) return;
+      var mod = card.dataset.addWsModule;
+      closeModal(modalAddWs);
+      if (mod) addWorkspaceModule(mod);
+    });
+  }
 
   /* Copy Share Link */
   var copyBtn = document.getElementById('copy-share-link');
@@ -2144,6 +4030,121 @@
       createSticky(sx + 645, sy + 120, 'Touchpoint / note…', 'yellow');
       renderConnectors();
       focusNode = s1;
+    } else if (type === 'prototype') {
+      // Mobile App Prototype: three connected phone screens with header + CTA
+      createFrame(sx - 50, sy - 55, 'App Prototype', 900, 470);
+      var scrNames = ['Screen 1 · Home', 'Screen 2 · Detail', 'Screen 3 · Checkout'];
+      var scrColors = ['blue', 'violet', 'mint'];
+      var prevScreen = null;
+      for (var pi = 0; pi < 3; pi++) {
+        var px = sx + pi * 290;
+        var phone = createFrame(px, sy + 35, scrNames[pi], 230, 360);
+        createShape(px + 18, sy + 62, 'Header bar', 'rect', scrColors[pi], 194);
+        createText(px + 18, sy + 150, 'Screen content…');
+        createShape(px + 18, sy + 335, 'CTA Button', 'round', 'mint', 194);
+        if (prevScreen) {
+          connectors.push({ id: nextId('conn'), fromId: prevScreen.dataset.id, toId: phone.dataset.id });
+        }
+        prevScreen = phone;
+      }
+      renderConnectors();
+      focusNode = prevScreen;
+    } else if (type === 'diagram') {
+      // Diagram: Trigger → Process → Automation → Outcome pipeline
+      createFrame(sx - 50, sy - 55, 'Diagram', 900, 380);
+      var d1 = createShape(sx + 10, sy + 105, '<strong>Trigger</strong>', 'round', 'mint', 145);
+      var d2 = createShape(sx + 215, sy + 105, 'Process Step', 'rect', 'blue', 165);
+      var d3 = createShape(sx + 440, sy + 105, 'Automation', 'cylinder', 'violet', 165);
+      var d4 = createShape(sx + 665, sy + 105, '<strong>Outcome</strong>', 'round', 'yellow', 155);
+      connectors.push(
+        { id: nextId('conn'), fromId: d1.dataset.id, toId: d2.dataset.id },
+        { id: nextId('conn'), fromId: d2.dataset.id, toId: d3.dataset.id },
+        { id: nextId('conn'), fromId: d3.dataset.id, toId: d4.dataset.id }
+      );
+      renderConnectors();
+      focusNode = d1;
+    } else if (type === 'table') {
+      // Spreadsheet table (Excel-like grid with A/B/C headers and row numbers)
+      var grid = createTable(sx, sy, null);
+      focusNode = grid;
+    } else if (type === 'timeline') {
+      // Timeline: milestone dots chained along the months with note slots
+      createFrame(sx - 50, sy - 55, 'Timeline', 960, 330);
+      var tlMonths = ['Jan', 'Mar', 'Jun', 'Sep'];
+      var tlColors = ['blue', 'violet', 'mint', 'yellow'];
+      var prevMilestone = null;
+      for (var tmi = 0; tmi < 4; tmi++) {
+        var tmx = sx + tmi * 235;
+        var dot = createShape(tmx + 60, sy + 40, '<strong>' + tlMonths[tmi] + '</strong>', 'circle', tlColors[tmi], 64);
+        createText(tmx + 15, sy + 165, 'Milestone ' + (tmi + 1));
+        if (prevMilestone) {
+          connectors.push({ id: nextId('conn'), fromId: prevMilestone.dataset.id, toId: dot.dataset.id });
+        }
+        prevMilestone = dot;
+      }
+      renderConnectors();
+      focusNode = prevMilestone;
+    } else if (type === 'matrix') {
+      // Prioritization Matrix: Impact × Effort quadrants with starter notes
+      createText(sx + 390, sy - 65, '<strong>IMPACT &uarr;</strong>');
+      createFrame(sx - 55, sy - 20, 'Quick Wins · High Impact, Low Effort', 430, 250);
+      createFrame(sx + 405, sy - 20, 'Big Bets · High Impact, High Effort', 430, 250);
+      createFrame(sx - 55, sy + 260, 'Fill-ins · Low Impact, Low Effort', 430, 250);
+      createFrame(sx + 405, sy + 260, 'Money Pits · Low Impact, High Effort', 430, 250);
+      createSticky(sx - 15, sy + 25, 'Easy win…', 'mint');
+      createSticky(sx + 445, sy + 25, 'Strategic bet…', 'blue');
+      createSticky(sx - 15, sy + 305, 'Nice to have…', 'yellow');
+      createSticky(sx + 445, sy + 305, 'Revisit later…', 'pink');
+      createText(sx + 450, sy + 545, '<strong>EFFORT &rarr;</strong>');
+    } else if (type === 'doc') {
+      // Doc: long-form document panel with headings and paragraph slots
+      createFrame(sx - 50, sy - 55, 'Document', 780, 560);
+      var docTitle = createText(sx + 25, sy + 15, '<strong>Document Title</strong>');
+      if (docTitle) docTitle.style.fontSize = '22px';
+      createText(sx + 25, sy + 90, 'Write the opening summary here. Click to edit…');
+      createText(sx + 25, sy + 180, '<strong>Section 1</strong>');
+      createText(sx + 25, sy + 240, 'Supporting detail, decisions, and links to stickies or frames…');
+      createText(sx + 25, sy + 335, '<strong>Section 2</strong>');
+      createText(sx + 25, sy + 395, 'Supporting detail, owners, and next steps…');
+      focusNode = docTitle;
+    } else if (type === 'slides') {
+      // Slides: two 16:9 deck frames ready to present
+      createFrame(sx - 50, sy - 40, 'Slide 1 · Title &amp; Hook', 500, 300);
+      createText(sx + 55, sy + 70, '<strong>Presentation title</strong>');
+      createText(sx + 55, sy + 150, 'One-line hook that frames the story…');
+      createFrame(sx + 510, sy - 40, 'Slide 2 · Key Points', 500, 300);
+      createSticky(sx + 555, sy + 5, 'Point one…', 'blue');
+      createSticky(sx + 555, sy + 105, 'Point two…', 'violet');
+      createSticky(sx + 555, sy + 205, 'Point three…', 'mint');
+    } else if (type === 'engage') {
+      // Engage Activities: warm-up wall for icebreakers, polls and word clouds
+      createFrame(sx - 50, sy - 55, 'Engagement Activities', 880, 420);
+      createText(sx + 10, sy - 8, '<strong>ICEBREAKER</strong>');
+      createText(sx + 295, sy - 8, '<strong>POLL</strong>');
+      createText(sx + 580, sy - 8, '<strong>WORD CLOUD</strong>');
+      createSticky(sx, sy + 40, 'Two truths and a lie…', 'pink');
+      createSticky(sx, sy + 200, 'My weekend in 3 emojis…', 'pink');
+      createSticky(sx + 285, sy + 40, 'Poll question here?', 'blue');
+      createSticky(sx + 285, sy + 200, 'Option A / Option B…', 'blue');
+      createSticky(sx + 570, sy + 40, 'One word on the topic…', 'violet');
+      createSticky(sx + 570, sy + 200, 'Biggest open question…', 'violet');
+    } else if (type === 'talktrack') {
+      // Talk Track: five guided conversation steps sellers can follow live
+      createFrame(sx - 50, sy - 55, 'Talk Track', 980, 340);
+      var ttSteps = ['1. Opening', '2. Discovery', '3. Value Story', '4. Objections', '5. Next Steps'];
+      var ttColors = ['blue', 'violet', 'mint', 'yellow', 'pink'];
+      var prevStep = null;
+      for (var tsi = 0; tsi < 5; tsi++) {
+        var tsx = sx + tsi * 200;
+        var stepNode = createShape(tsx, sy + 35, '<strong>' + ttSteps[tsi] + '</strong>', 'round', ttColors[tsi], 175);
+        createSticky(tsx + 5, sy + 150, 'Say: …', 'yellow');
+        if (prevStep) {
+          connectors.push({ id: nextId('conn'), fromId: prevStep.dataset.id, toId: stepNode.dataset.id });
+        }
+        prevStep = stepNode;
+      }
+      renderConnectors();
+      focusNode = prevStep;
     }
 
     syncEmptyBoardStarter();
@@ -2208,6 +4209,7 @@
 
     if (e.key === 'Escape') {
       closeAllModals();
+      toggleMoreTools(false);
       selectElement(null);
       if (presentActive) document.getElementById('present-exit')?.click();
       if (pendingConnectorFromId) {
@@ -2265,6 +4267,8 @@
     else if (k === 'f') setTool('frame');
     else if (k === 'p') setTool('pen');
     else if (k === 'c') setTool('comment');
+    else if (k === 'i') setTool('icon');
+    else if (k === 'a') setTool('clipart');
     else if (k === 'm') toggleMinimap();
     else if (k === 'g') document.getElementById('btn-grid')?.click();
     else if (e.key === '?') openModal(document.getElementById('modal-shortcuts'));

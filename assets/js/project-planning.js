@@ -976,29 +976,16 @@
         '<header class="pp-topbar">' +
           '<div class="pp-topbar__title-group">' +
             '<div class="pp-topbar__title" id="pp-header-title">Project Planning</div>' +
+            '<div class="topbar-ws-dropdown" id="pp-ws-dropdown">' +
+              '<button class="topbar-ws-dropdown__btn" id="pp-ws-dropdown-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="Switch or add workspace">' +
+                '<span class="quantalflow-topbar__status-dot"></span>' +
+                '<span class="topbar-ws-dropdown__icon" id="pp-ws-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg></span>' +
+                '<span class="topbar-ws-dropdown__label" id="pp-ws-label">Project Planning</span>' +
+                '<svg class="topbar-ws-dropdown__caret" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
+              '</button>' +
+              '<div class="topbar-ws-dropdown__menu" id="pp-ws-dropdown-menu" role="menu" hidden></div>' +
+            '</div>' +
           '</div>' +
-          '<nav class="workspace-switcher" role="tablist" aria-label="Project Workspace Modules">' +
-            '<button class="ws-tab is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">' +
-              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg></span>' +
-              '<span class="ws-tab__label">Project Planning</span>' +
-            '</button>' +
-            '<button class="ws-tab" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">' +
-              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></span>' +
-              '<span class="ws-tab__label">Mind Map</span>' +
-            '</button>' +
-            '<button class="ws-tab" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">' +
-              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg></span>' +
-              '<span class="ws-tab__label">Kanban Board</span>' +
-            '</button>' +
-            '<button class="ws-tab" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">' +
-              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>' +
-              '<span class="ws-tab__label">Perspective</span>' +
-            '</button>' +
-            '<button class="ws-tab" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">' +
-              '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></span>' +
-              '<span class="ws-tab__label">Brainstorm</span>' +
-            '</button>' +
-          '</nav>' +
           '<div class="pp-topbar__actions">' +
             '<button class="pp-btn pp-btn--sm" id="pp-btn-export-report" type="button">Export Digest</button>' +
             '<button class="pp-btn pp-btn--sm pp-btn--primary" id="pp-btn-top-new-task" type="button">+ Add Deliverable</button>' +
@@ -1066,10 +1053,106 @@
 
     document.getElementById('pp-switch-to-canvas')?.addEventListener('click', function (e) {
       if (e) e.preventDefault();
-      closeWorkspace();
+      flushPendingPlan();
+      var prior = null;
+      try {
+        prior = sessionStorage.getItem('quantalflow_pp_prior_page');
+      } catch (err) {}
+      if (!prior && document.referrer && !document.referrer.includes('/app/')) {
+        prior = document.referrer;
+      }
+      if (prior) {
+        try {
+          var parsed = new URL(prior, window.location.origin);
+          if (parsed.origin === window.location.origin) {
+            window.location.href = parsed.href;
+            return;
+          }
+        } catch (err) {}
+      }
+      window.location.href = '/dashboard/';
     });
 
     document.getElementById('pp-btn-delete-plan')?.addEventListener('click', deletePlan);
+
+    // Workspace dropdown inside Project Planning topbar
+    var ppWsDropdown = document.getElementById('pp-ws-dropdown');
+    var ppWsBtn = document.getElementById('pp-ws-dropdown-btn');
+    var ppWsMenu = document.getElementById('pp-ws-dropdown-menu');
+
+    function closePpWsDropdown() {
+      if (!ppWsDropdown || !ppWsMenu) return;
+      ppWsMenu.hidden = true;
+      ppWsDropdown.classList.remove('is-open');
+      ppWsBtn?.setAttribute('aria-expanded', 'false');
+    }
+
+    ppWsBtn?.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (!ppWsMenu || !ppWsDropdown) return;
+      var willOpen = ppWsMenu.hidden;
+      if (willOpen) {
+        syncWorkspaceTabs();
+        ppWsMenu.hidden = false;
+        ppWsDropdown.classList.add('is-open');
+        ppWsBtn.setAttribute('aria-expanded', 'true');
+      } else {
+        closePpWsDropdown();
+      }
+    });
+
+    ppWsMenu?.addEventListener('click', function (e) {
+      var addBtn = e.target.closest('[data-dropdown-add-ws]');
+      if (addBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        closePpWsDropdown();
+        if (window.QuantalFlowApp && window.QuantalFlowApp.openAddWorkspaceModal) {
+          window.QuantalFlowApp.openAddWorkspaceModal();
+        }
+        return;
+      }
+
+      var removeModBtn = e.target.closest('[data-remove-ws-module]');
+      if (removeModBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        var mod = removeModBtn.getAttribute('data-remove-ws-module');
+        if (window.QuantalFlowApp && window.QuantalFlowApp.removeWorkspaceModule) {
+          window.QuantalFlowApp.removeWorkspaceModule(mod);
+          syncWorkspaceTabs();
+        }
+        return;
+      }
+
+      var deleteWsBtn = e.target.closest('[data-dropdown-delete-ws]');
+      if (deleteWsBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        closePpWsDropdown();
+        if (window.QuantalFlowApp && window.QuantalFlowApp.deleteCurrentWorkspace) {
+          window.QuantalFlowApp.deleteCurrentWorkspace();
+        }
+        return;
+      }
+
+      var wsItem = e.target.closest('[data-ws-module]');
+      if (wsItem) {
+        e.preventDefault();
+        e.stopPropagation();
+        var targetMod = wsItem.getAttribute('data-ws-module');
+        closePpWsDropdown();
+        if (targetMod && window.QuantalFlowApp && window.QuantalFlowApp.switchWorkspaceModule) {
+          window.QuantalFlowApp.switchWorkspaceModule(targetMod, true);
+        }
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (ppWsDropdown && !ppWsDropdown.contains(e.target)) {
+        closePpWsDropdown();
+      }
+    });
 
     document.getElementById('pp-drawer-close')?.addEventListener('click', closeTaskDrawer);
     backdropEl?.addEventListener('click', closeTaskDrawer);
@@ -3241,6 +3324,9 @@
     if (projectTitle) state.projectName = projectTitle;
     if (initialModule) state.activeModule = initialModule;
     shellEl.hidden = false;
+    shellEl.style.display = '';
+    shellEl.classList.add('is-open');
+    syncWorkspaceTabs();
     setActiveModule(state.activeModule || 'gantt');
   }
 
@@ -3253,9 +3339,64 @@
     closeTaskDrawer();
   }
 
+  var PP_WS_META = {
+    'project-planning': { label: 'Project Planning', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg>' },
+    'mindmap': { label: 'Mind Map', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>' },
+    'kanban': { label: 'Kanban Board', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>' },
+    'perspective': { label: 'Perspective', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>' },
+    'brainstorm': { label: 'Brainstorm', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>' }
+  };
+
+  function syncWorkspaceTabs() {
+    var labelEl = document.getElementById('pp-ws-label');
+    var iconEl = document.getElementById('pp-ws-icon');
+    var menuEl = document.getElementById('pp-ws-dropdown-menu');
+
+    var active = (window.QuantalFlowApp && window.QuantalFlowApp.getActiveModule)
+      ? window.QuantalFlowApp.getActiveModule()
+      : 'project-planning';
+    var meta = PP_WS_META[active] || { label: 'Project Planning', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg>' };
+
+    if (labelEl) labelEl.textContent = meta.label;
+    if (iconEl) iconEl.innerHTML = meta.icon || '';
+
+    if (menuEl && window.QuantalFlowApp && window.QuantalFlowApp.buildWsDropdownMenuHtml) {
+      menuEl.innerHTML = window.QuantalFlowApp.buildWsDropdownMenuHtml();
+    }
+
+    var nav = document.getElementById('pp-workspace-switcher');
+    if (nav) {
+      var enabled = (window.QuantalFlowApp && window.QuantalFlowApp.getEnabledModules)
+        ? window.QuantalFlowApp.getEnabledModules()
+        : ['project-planning'];
+      if (enabled.indexOf('project-planning') === -1) enabled.unshift('project-planning');
+      var html = enabled.map(function (mod) {
+        var mMeta = PP_WS_META[mod] || { label: mod, icon: '' };
+        var isAct = mod === active;
+        return '<button class="ws-tab' + (isAct ? ' is-active' : '') + '" data-ws-module="' + mod + '" type="button" role="tab" aria-selected="' + (isAct ? 'true' : 'false') + '" title="' + mMeta.label + '">' +
+          '<span class="ws-tab__icon" aria-hidden="true">' + mMeta.icon + '</span>' +
+          '<span class="ws-tab__label">' + mMeta.label + '</span>' +
+        '</button>';
+      }).join('');
+      html +=
+        '<button class="ws-tab ws-tab--add" id="pp-btn-add-workspace" type="button" title="Add workspace to this project">' +
+          '<span class="ws-tab__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>' +
+          '<span class="ws-tab__label">Add workspace</span>' +
+        '</button>';
+      nav.innerHTML = html;
+      document.getElementById('pp-btn-add-workspace')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (window.QuantalFlowApp && window.QuantalFlowApp.openAddWorkspaceModal) {
+          window.QuantalFlowApp.openAddWorkspaceModal();
+        }
+      });
+    }
+  }
+
   window.ProjectPlanningSuite = {
     open: openWorkspace,
     close: closeWorkspace,
+    syncWorkspaceTabs: syncWorkspaceTabs,
     openTaskDrawer: openTaskDrawer,
     getState: function () { return state; },
     resolveConflicts: autoResolveConflicts
@@ -3296,7 +3437,6 @@
     var wantsSuite =
       canvasModules.indexOf(urlMod) === -1 && (
         urlMod === 'project-planning' ||
-        urlMod === '' ||
         MODULE_NAMES.indexOf(urlMod) !== -1 ||
         path.indexOf('project-planning') !== -1 ||
         isQuantalsRoute ||

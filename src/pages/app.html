@@ -4,7 +4,7 @@ description: Real-time visual canvas for teams and AI agents to think, plan, and
 route: /app/
 layout: standalone
 body_class: quantalflow-app-body
-scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-planning.js
+scripts: /assets/js/workspace-frameworks.js, /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-planning.js
 ---
   <div class="quantalflow-app">
     <!-- QuantalFlow App Header (mirroring https://quantalflow.com/app) -->
@@ -21,10 +21,15 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
           </button>
         </div>
 
-        <span class="quantalflow-topbar__status" id="board-save-status">
-          <span class="quantalflow-topbar__status-dot" id="board-save-dot"></span>
-          <span id="board-save-text">Saved to Cloud</span>
-        </span>
+        <div class="topbar-ws-dropdown" id="topbar-ws-dropdown">
+          <button class="topbar-ws-dropdown__btn" id="topbar-ws-dropdown-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="Switch or add workspace">
+            <span class="quantalflow-topbar__status-dot" id="board-save-dot"></span>
+            <span class="topbar-ws-dropdown__icon" id="topbar-ws-icon" aria-hidden="true"></span>
+            <span class="topbar-ws-dropdown__label" id="topbar-ws-label">Mind Map</span>
+            <svg class="topbar-ws-dropdown__caret" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="topbar-ws-dropdown__menu" id="topbar-ws-dropdown-menu" role="menu" hidden></div>
+        </div>
       </div>
 
       <div class="quantalflow-topbar__center">
@@ -62,52 +67,6 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
 
     <!-- Main Board Viewport -->
     <div class="quantalflow-viewport" id="quantalflow-viewport">
-      <!-- Workspace Side Navigation Bar -->
-      <aside class="quantalflow-sidenav" id="quantalflow-sidenav" aria-label="Workspaces &amp; Pages navigation">
-        <div class="sidenav-brand-header">
-          <span class="sidenav-brand-label">Workspaces</span>
-        </div>
-        <nav class="sidenav-nav">
-          <button class="sidenav-item is-active" data-ws-module="project-planning" type="button" role="tab" aria-selected="true" title="Project Planning Suite">
-            <span class="sidenav-item__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg>
-            </span>
-            <span class="sidenav-item__text">Project Planning</span>
-          </button>
-          <button class="sidenav-item" data-ws-module="mindmap" type="button" role="tab" aria-selected="false" title="Connected Mind Map">
-            <span class="sidenav-item__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>
-            </span>
-            <span class="sidenav-item__text">Mind Map</span>
-          </button>
-          <button class="sidenav-item" data-ws-module="kanban" type="button" role="tab" aria-selected="false" title="Agile Kanban Board">
-            <span class="sidenav-item__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
-            </span>
-            <span class="sidenav-item__text">Kanban Board</span>
-          </button>
-          <button class="sidenav-item" data-ws-module="perspective" type="button" role="tab" aria-selected="false" title="Strategic Perspective Matrix">
-            <span class="sidenav-item__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </span>
-            <span class="sidenav-item__text">Perspective</span>
-          </button>
-          <button class="sidenav-item" data-ws-module="brainstorm" type="button" role="tab" aria-selected="false" title="Brainstorming Workspace">
-            <span class="sidenav-item__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-            </span>
-            <span class="sidenav-item__text">Brainstorm</span>
-          </button>
-          <div class="sidenav-divider"></div>
-          <button class="sidenav-item" id="btn-templates" type="button" title="Browse Templates">
-            <span class="sidenav-item__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
-            </span>
-            <span class="sidenav-item__text">Templates</span>
-          </button>
-        </nav>
-      </aside>
-
       <!-- Floating Creation Toolbar (Left) -->
       <nav class="quantalflow-toolbar" aria-label="Canvas tools">
         <button class="tool-btn is-active" data-tool="select" type="button" title="Select (V)" aria-label="Select tool">
@@ -126,9 +85,9 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
           <span class="tooltip">Shapes (S)</span>
         </button>
-        <button class="tool-btn" data-tool="connector" type="button" title="Connector Line (L)" aria-label="Connector arrow tool">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5"/><polyline points="10 5 19 5 19 14"/></svg>
-          <span class="tooltip">Connector Arrow (L)</span>
+        <button class="tool-btn" data-tool="connector" type="button" title="Connectors (L)" aria-label="Connectors tool">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2" fill="currentColor"/><path d="M7 6h5v12h5"/><circle cx="19" cy="18" r="2" fill="currentColor"/></svg>
+          <span class="tooltip">Connectors (L)</span>
         </button>
         <button class="tool-btn" data-tool="text" type="button" title="Text Box (T)" aria-label="Text tool">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
@@ -146,8 +105,26 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
           <span class="tooltip">Comment Pin (C)</span>
         </button>
+        <button class="tool-btn" data-tool="icon" type="button" title="Icons (I)" aria-label="Icons tool">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.267 2.08a10 10 0 1 0 8.653 8.653"/><path d="M15 10V9"/><path d="M16 5h6"/><path d="M16.472 15a6 6 0 0 1-8.943 0"/><path d="M19 2v6"/><path d="M9 10V9"/></svg>
+          <span class="tooltip">Icons (I)</span>
+        </button>
+        <button class="tool-btn" data-tool="clipart" type="button" title="Clipart (A)" aria-label="Clipart tool">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          <span class="tooltip">Clipart (A)</span>
+        </button>
 
         <div class="tool-divider"></div>
+
+        <button class="tool-btn tool-btn--add-ws" id="btn-add-workspace" type="button" title="Add Workspace &amp; Templates (+)" aria-label="Add workspace">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="tooltip">Add Workspace (+)</span>
+        </button>
+
+        <button class="tool-btn" id="btn-more-tools" type="button" title="More tools" aria-label="More tools" aria-haspopup="menu" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg>
+          <span class="tooltip">More tools</span>
+        </button>
 
         <button class="tool-btn" id="btn-clear" type="button" title="Clear board" aria-label="Clear board">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
@@ -184,6 +161,49 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
         </button>
       </div>
 
+      <!-- Connectors Popover Menu -->
+      <div class="connector-picker-popover" id="connector-popover" role="menu" aria-label="Connectors menu" hidden>
+        <button class="connector-menu__item is-selected" data-connector-type="orthogonal" type="button" role="menuitemradio" aria-checked="true">
+          <span class="connector-menu__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2" fill="currentColor"/><path d="M7 6h5v12h5"/><circle cx="19" cy="18" r="2" fill="currentColor"/></svg>
+          </span>
+          <span>Connector</span>
+        </button>
+        <button class="connector-menu__item" data-connector-type="curved" type="button" role="menuitemradio" aria-checked="false">
+          <span class="connector-menu__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2" fill="currentColor"/><path d="M7 6h7a3 3 0 0 1 0 6h-4a3 3 0 0 0 0 6h7"/><circle cx="19" cy="18" r="2" fill="currentColor"/></svg>
+          </span>
+          <span>Curved Connector</span>
+        </button>
+        <button class="connector-menu__item" data-connector-type="straight" type="button" role="menuitemradio" aria-checked="false">
+          <span class="connector-menu__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2" fill="currentColor"/><path d="M7 7l10 10"/><circle cx="19" cy="19" r="2" fill="currentColor"/></svg>
+          </span>
+          <span>Straight Connector</span>
+        </button>
+        <button class="connector-menu__item" data-connector-type="freeform" type="button" role="menuitemradio" aria-checked="false">
+          <span class="connector-menu__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4 9 20"/><path d="M6 15c-2.5-1.5-2.5-5 1-6 4.5-1.2 11-.5 12 2.5.8 2.4-1.5 4.5-4 4.5"/><circle cx="15" cy="17" r="2" fill="currentColor"/></svg>
+          </span>
+          <span>Freeform Connector</span>
+        </button>
+        <button class="connector-menu__item" data-connector-type="points" type="button" role="menuitemradio" aria-checked="false">
+          <span class="connector-menu__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 4 4m4 4 4 4m0-12-4 4m-4 4-4 4"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+          </span>
+          <span>Connection Points Tool</span>
+        </button>
+        <div class="connector-menu__divider"></div>
+        <label class="connector-menu__check">
+          <input type="checkbox" id="conn-current-tool-only" />
+          <span>Current Tool Only</span>
+        </label>
+        <label class="connector-menu__check">
+          <input type="checkbox" id="conn-auto-routing" checked />
+          <span>Auto-routing</span>
+        </label>
+      </div>
+
       <!-- Pen Settings Popover -->
       <div class="pen-picker-popover" id="pen-popover" hidden>
         <span class="pen-swatch is-selected" data-pen-color="#1a1a2e" style="background:#1a1a2e;" title="Ink"></span>
@@ -196,6 +216,70 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
           <option value="5" selected>Medium (5px)</option>
           <option value="9">Marker (9px)</option>
         </select>
+      </div>
+
+      <!-- More Tools Popover (Miro-style extended tool library) -->
+      <div class="more-tools-popover" id="more-tools-popover" role="menu" aria-label="More tools" hidden>
+        <button class="connector-menu__item" data-more-tool="prototype" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#eef2ff; --mt-ink:#4262ff;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+          </span>
+          <span>Prototype</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="diagram" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#fff4ed; --mt-ink:#ea580c;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+          </span>
+          <span>Diagram</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="table" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#ecfdf5; --mt-ink:#059669;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 3v18"/></svg>
+          </span>
+          <span>Table</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="timeline" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#ecfdf5; --mt-ink:#059669;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          </span>
+          <span>Timeline</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="kanban" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#ecfdf5; --mt-ink:#059669;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v11"/><path d="M12 5v6"/><path d="M18 5v14"/></svg>
+          </span>
+          <span>Kanban</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="matrix" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#ecfdf5; --mt-ink:#059669;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </span>
+          <span>Matrix</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="doc" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#eff6ff; --mt-ink:#2563eb;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+          </span>
+          <span>Doc</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="slides" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#fef2f2; --mt-ink:#dc2626;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20"/><path d="M4 3v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3"/><path d="m9 21 3-3 3 3"/></svg>
+          </span>
+          <span>Slides</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="engage" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#fef2f2; --mt-ink:#dc2626;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          </span>
+          <span>Engage activities</span>
+        </button>
+        <button class="connector-menu__item" data-more-tool="talktrack" type="button" role="menuitem">
+          <span class="more-tools__icon" style="--mt-tint:#ecfdf5; --mt-ink:#059669;" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>
+          </span>
+          <span>Talktrack</span>
+        </button>
       </div>
 
       <!-- Floating Selection Context Bar (appears above selected element) -->
@@ -298,7 +382,7 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
       </div>
 
       <!-- Empty Collaborative Board Starter Hub (shown when board has 0 items) -->
-      <section class="empty-board-starter" id="empty-board-starter" aria-label="Start your collaborative board">
+      <section class="empty-board-starter" id="empty-board-starter" hidden style="display: none;" aria-label="Start your collaborative board">
         <div class="empty-board-starter__card">
           <div class="empty-board-starter__header">
             <span class="empty-board-starter__badge">
@@ -493,6 +577,23 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
     </div>
   </div>
 
+  <!-- Add Workspace & Templates Modal -->
+  <div class="quantalflow-modal-backdrop" id="modal-add-workspace" hidden style="display: none;">
+    <div class="quantalflow-modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-ws-heading" style="max-width: 640px;">
+      <button class="quantalflow-modal__close" id="modal-add-ws-close" type="button" aria-label="Close modal">&times;</button>
+      <h3 id="modal-add-ws-heading">Add Workspace &amp; Templates</h3>
+      <p>Add or switch to a workspace module in this project, or insert a starter template:</p>
+      <div class="template-modal-grid" id="add-workspace-grid"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line-soft); padding-top:14px;">
+        <button class="btn btn--ghost" id="btn-templates" type="button" style="display:inline-flex; align-items:center; gap:7px;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
+          <span>Browse All Canvas Templates&hellip;</span>
+        </button>
+        <button class="btn btn--ghost" id="modal-add-ws-cancel" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Templates Modal -->
   <div class="quantalflow-modal-backdrop" id="modal-templates" hidden style="display: none;">
     <div class="quantalflow-modal" style="max-width: 720px;">
@@ -595,6 +696,63 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
     </div>
   </div>
 
+  <!-- Icon Picker Modal (Lucide icon library, lazy-loaded) -->
+  <div class="quantalflow-modal-backdrop" id="modal-icons" hidden style="display: none;" data-icons-src="/assets/js/canvas-icons.js">
+    <div class="quantalflow-modal icon-picker-modal" style="max-width: 820px;">
+      <button class="quantalflow-modal__close" id="modal-icons-close" type="button" aria-label="Close modal">&times;</button>
+      <h3>Icons</h3>
+      <p id="icon-picker-hint">Select one or more icons below, then click <strong>Insert Selected</strong> (or click the canvas) to place them. Double-click an icon to drop it right away.</p>
+
+      <div class="icon-picker-search">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="search" id="icon-search" placeholder="Search 2,000+ free icons…" aria-label="Search icons" autocomplete="off" />
+      </div>
+
+      <div class="icon-picker-colors" id="icon-colors" role="radiogroup" aria-label="Icon colour">
+        <button class="icon-swatch is-selected" data-icon-color="ink" type="button" title="Ink" aria-label="Ink colour"></button>
+        <button class="icon-swatch" data-icon-color="blue" type="button" title="Blue" aria-label="Blue colour"></button>
+        <button class="icon-swatch" data-icon-color="mint" type="button" title="Mint" aria-label="Mint colour"></button>
+        <button class="icon-swatch" data-icon-color="violet" type="button" title="Violet" aria-label="Violet colour"></button>
+        <button class="icon-swatch" data-icon-color="pink" type="button" title="Pink" aria-label="Pink colour"></button>
+        <button class="icon-swatch" data-icon-color="orange" type="button" title="Orange" aria-label="Orange colour"></button>
+      </div>
+
+      <div class="icon-picker-grid" id="icon-grid" role="listbox" aria-multiselectable="true" aria-label="Icon library"></div>
+      <div class="icon-picker-footer">
+        <span id="icon-grid-count">&mdash;</span>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn btn--ghost" id="modal-icons-clear" type="button" hidden>Clear selection</button>
+          <button class="btn btn--ghost" id="modal-icons-done" type="button">Close</button>
+          <button class="btn btn--blue" id="modal-icons-insert" type="button" disabled>Insert Selected (0)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clipart Picker Modal (Twemoji library, lazy-loaded) -->
+  <div class="quantalflow-modal-backdrop" id="modal-clipart" hidden style="display: none;" data-clipart-src="/assets/js/canvas-clipart.js">
+    <div class="quantalflow-modal icon-picker-modal" style="max-width: 820px;">
+      <button class="quantalflow-modal__close" id="modal-clipart-close" type="button" aria-label="Close modal">&times;</button>
+      <h3>Clipart</h3>
+      <p id="clipart-picker-hint">Select one or more cliparts below, then click <strong>Insert Selected</strong> (or click the canvas) to place them. Double-click a clipart to drop it right away.</p>
+
+      <div class="icon-picker-search">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="search" id="clipart-search" placeholder="Search 4,000+ free cliparts…" aria-label="Search cliparts" autocomplete="off" />
+      </div>
+
+      <div class="icon-picker-grid" id="clipart-grid" role="listbox" aria-multiselectable="true" aria-label="Clipart library"></div>
+      <div class="icon-picker-footer">
+        <span id="clipart-grid-count">&mdash;</span>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn btn--ghost" id="modal-clipart-clear" type="button" hidden>Clear selection</button>
+          <button class="btn btn--ghost" id="modal-clipart-done" type="button">Close</button>
+          <button class="btn btn--blue" id="modal-clipart-insert" type="button" disabled>Insert Selected (0)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- AI Modal (Powered by DeepSeek) -->
   <div class="quantalflow-modal-backdrop" id="modal-ai" hidden style="display: none;">
     <div class="quantalflow-modal" style="max-width: 580px;">
@@ -647,11 +805,13 @@ scripts: /assets/js/wbs-tree-diagram.js, /assets/js/app.js, /assets/js/project-p
         <div class="shortcut-row"><span>Hand / Pan tool</span><kbd>H</kbd> or <kbd>Space</kbd></div>
         <div class="shortcut-row"><span>Sticky Note</span><kbd>N</kbd></div>
         <div class="shortcut-row"><span>Shape block</span><kbd>S</kbd></div>
-        <div class="shortcut-row"><span>Connector Arrow</span><kbd>L</kbd></div>
+        <div class="shortcut-row"><span>Connectors</span><kbd>L</kbd></div>
         <div class="shortcut-row"><span>Text label</span><kbd>T</kbd></div>
         <div class="shortcut-row"><span>Section Frame</span><kbd>F</kbd></div>
         <div class="shortcut-row"><span>Pen / Draw</span><kbd>P</kbd></div>
         <div class="shortcut-row"><span>Comment Pin</span><kbd>C</kbd></div>
+        <div class="shortcut-row"><span>Icon picker</span><kbd>I</kbd></div>
+        <div class="shortcut-row"><span>Clipart picker</span><kbd>A</kbd></div>
         <div class="shortcut-row"><span>Duplicate Selected</span><kbd>Ctrl + D</kbd></div>
         <div class="shortcut-row"><span>Delete Selected</span><kbd>Del / Backspace</kbd></div>
         <div class="shortcut-row"><span>Undo / Redo</span><kbd>Ctrl + Z</kbd> / <kbd>Ctrl + Y</kbd></div>

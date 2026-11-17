@@ -31,6 +31,14 @@ import {
   removeProjectPlan,
   listUsers,
   getSystemStats,
+  listUserFolders,
+  saveUserFolder,
+  deleteUserFolder,
+  listUserFiles,
+  createUserFile,
+  getUserFile,
+  moveUserFile,
+  deleteUserFile,
   db
 } from './db.js';
 import {
@@ -584,6 +592,9 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let board = getBoardById(boardId, user.id);
       if (!board) {
+        board = findBoardBySlug(boardId, user.id);
+      }
+      if (!board) {
         board = await hydrateBoardFromConvex(boardId, user.id);
       }
       if (!board) return sendJson(res, 404, { error: 'Board not found.' });
@@ -847,6 +858,231 @@ export function createApi(limiter) {
         console.warn('[ai] generate failed:', err && err.message);
         return sendJson(res, 500, { error: AI_UNAVAILABLE_MESSAGE });
       }
+    },
+
+    /** GET /api/files - list the signed-in user's files and folders */
+    async listFilesApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const files = listUserFiles(user.id);
+      const folders = listUserFolders(user.id);
+      const totalBytes = files.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+      return sendJson(res, 200, { success: true, files, folders, totalBytes, canWrite: true });
+    },
+
+    /** POST /api/files/signature - Cloudinary signed upload ticket */
+    async fileSignatureApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const creds = parseCloudinaryUrl(config.cloudinary.url);
+      if (!creds) return sendJson(res, 500, { error: 'Cloudinary not configured.' });
+      const timestamp = Math.floor(Date.now() / 1000);
+      const folder = config.cloudinary.folder;
+      const signature = signCloudinary({ folder, timestamp }, creds.apiSecret);
+      return sendJson(res, 200, {
+        success: true,
+        cloudName: creds.cloudName,
+        apiKey: creds.apiKey,
+        timestamp,
+        folder,
+        maxFileSize: 10 * 1024 * 1024,
+        resourceType: 'auto',
+        signature,
+        uploadUrl: `https://api.cloudinary.com/v1_1/${creds.cloudName}/auto/upload`
+      });
+    },
+
+    /** POST /api/files/save (and POST /api/files) - record metadata after Cloudinary upload */
+    async saveFileApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, DOCUMENT_MAX_BYTES);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      const name = String(body.name || '').trim();
+      const url = String(body.url || '').trim();
+      if (!name || !url) return sendJson(res, 400, { error: 'name and url are required.' });
+      const ext = name.includes('.') ? name.split('.').pop().toLowerCase().slice(0, 12) : '';
+      const id = 'file-' + crypto.randomUUID();
+      const row = createUserFile(user.id, {
+        id,
+        folderId: body.folderId || null,
+        name,
+        size: Number(body.size) || 0,
+        mimeType: String(body.type || body.mime || 'application/octet-stream'),
+        extension: ext,
+        url,
+        publicId: String(body.publicId || ''),
+        resourceType: String(body.resourceType || 'image'),
+        visibility: String(body.visibility || 'coordinators'),
+        uploadedBy: user.name || user.email
+      });
+      return sendJson(res, 201, { success: true, file: row });
+    },
+
+    /** POST /api/files/upload - JSON base64 upload for PDF/ZIP stored locally */
+    async uploadFileApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 16 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      const name = String(body.name || '').trim();
+      const dataBase64 = String(body.dataBase64 || '');
+      if (!name || !dataBase64) return sendJson(res, 400, { error: 'name and file data are required.' });
+      const ext = name.includes('.') ? name.split('.').pop().toLowerCase().slice(0, 12) : '';
+      const id = 'file-' + crypto.randomUUID();
+      const row = createUserFile(user.id, {
+        id,
+        folderId: body.folderId || null,
+        name,
+        size: Number(body.size) || Buffer.from(dataBase64, 'base64').length,
+        mimeType: String(body.mimeType || 'application/octet-stream'),
+        extension: ext,
+        url: '',
+        publicId: '',
+        resourceType: 'raw',
+        visibility: String(body.visibility || 'coordinators'),
+        uploadedBy: user.name || user.email,
+        dataBase64
+      });
+      return sendJson(res, 201, { success: true, file: row });
+    },
+
+    /** GET /api/files/:id/content - stream file bytes from DB or Cloudinary */
+    async getFileContentApi(req, res, fileId) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const file = getUserFile(user.id, fileId);
+      if (!file) return sendJson(res, 404, { error: 'File not found.' });
+
+      if (file.data_base64) {
+        const buf = Buffer.from(file.data_base64, 'base64');
+        res.writeHead(200, {
+          'Content-Type': file.mime_type || 'application/octet-stream',
+          'Content-Length': String(buf.length),
+          'Content-Disposition': `inline; filename="${encodeURIComponent(file.name)}"`,
+          'Cache-Control': 'private, no-store'
+        });
+        return res.end(buf);
+      }
+
+      if (!file.url) return sendJson(res, 404, { error: 'File content not available.' });
+      try {
+        const upstream = await fetch(file.url);
+        if (!upstream.ok) {
+          return sendJson(res, upstream.status === 401 || upstream.status === 403 ? 503 : 404, {
+            error: 'Could not retrieve file from Cloudinary.'
+          });
+        }
+        const arrBuf = await upstream.arrayBuffer();
+        const buf = Buffer.from(arrBuf);
+        res.writeHead(200, {
+          'Content-Type': file.mime_type || upstream.headers.get('content-type') || 'application/octet-stream',
+          'Content-Length': String(buf.length),
+          'Content-Disposition': `inline; filename="${encodeURIComponent(file.name)}"`,
+          'Cache-Control': 'private, no-store'
+        });
+        return res.end(buf);
+      } catch (err) {
+        return sendJson(res, 502, { error: 'Upstream storage unavailable.' });
+      }
+    },
+
+    /** POST /api/files/:id/move */
+    async moveFileApi(req, res, fileId) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      const result = moveUserFile(user.id, fileId, body.folderId || null);
+      return sendJson(res, 200, { success: true, ...result });
+    },
+
+    /** DELETE /api/files/:id or POST /api/files/:id/delete */
+    async deleteFileApi(req, res, fileIdArg) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const id = fileIdArg || (req.params && req.params.id) || (req.url.match(/\/api\/files\/([^/?]+)/) || [])[1];
+      const row = deleteUserFile(user.id, id);
+      if (!row) return sendJson(res, 404, { error: 'File not found.' });
+      try {
+        const creds = parseCloudinaryUrl(config.cloudinary.url);
+        if (creds && row.publicId) {
+          const timestamp = Math.floor(Date.now() / 1000);
+          const rt = ['image', 'video', 'raw'].includes(row.resourceType) ? row.resourceType : 'image';
+          const signature = signCloudinary({ public_id: row.publicId, timestamp }, creds.apiSecret);
+          const form = new URLSearchParams();
+          form.set('public_id', row.publicId);
+          form.set('timestamp', String(timestamp));
+          form.set('api_key', creds.apiKey);
+          form.set('signature', signature);
+          await fetch(`https://api.cloudinary.com/v1_1/${creds.cloudName}/${rt}/destroy`, {
+            method: 'POST',
+            body: form
+          });
+        }
+      } catch {}
+      return sendJson(res, 200, { success: true, ok: true, id: row.id, name: row.name });
+    },
+
+    /** GET /api/folders */
+    async listFoldersApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      return sendJson(res, 200, { success: true, folders: listUserFolders(user.id) });
+    },
+
+    /** POST /api/folders */
+    async saveFolderApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const folder = saveUserFolder(user.id, {
+          key: body.key,
+          name: body.name,
+          parentId: body.parentId || null
+        });
+        return sendJson(res, 200, { success: true, folder });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** POST /api/folders/:key/delete */
+    async deleteFolderApi(req, res, key) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const result = deleteUserFolder(user.id, key);
+      return sendJson(res, 200, { success: true, ...result });
     }
   };
+}
+
+function parseCloudinaryUrl(url) {
+  const m = String(url || '').match(/^cloudinary:\/\/([^:]+):([^@]+)@(.+)$/);
+  if (!m) return null;
+  return { apiKey: m[1], apiSecret: m[2], cloudName: m[3] };
+}
+
+function signCloudinary(params, secret) {
+  const keys = Object.keys(params).sort();
+  const str = keys.map((k) => `${k}=${params[k]}`).join('&') + (secret || '');
+  return crypto.createHash('sha1').update(str).digest('hex');
 }

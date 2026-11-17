@@ -21,6 +21,7 @@
   var SPACE_ROUTE_MAP = {
     'all': '/dashboard/',
     'starred': '/dashboard/starred/',
+    'files': '/dashboard/files/',
     'AI & Product Strategy': '/dashboard/space/ai-strategy/',
     'Engineering & Delivery': '/dashboard/space/engineering/',
     'UX & Discovery': '/dashboard/space/ux-discovery/'
@@ -29,6 +30,7 @@
   function parseDashboardRoute(pathname) {
     var clean = String(pathname || '/dashboard/').replace(/\/+$/, '');
     if (clean === '/dashboard/starred') return 'starred';
+    if (clean === '/dashboard/files') return 'files';
     if (clean === '/dashboard/space/ai-strategy') return 'AI & Product Strategy';
     if (clean === '/dashboard/space/engineering') return 'Engineering & Delivery';
     if (clean === '/dashboard/space/ux-discovery') return 'UX & Discovery';
@@ -47,8 +49,11 @@
 
   function buildBoardPath(id, template, title) {
     var cleanId = String(id || 'q4-intelligent-canvas').trim();
-    var targetModule = template || 'project-planning';
-    var querySuffix = '?module=' + encodeURIComponent(targetModule);
+    // Only append ?module= when the caller asks for a specific module. A bare
+    // link lets app.js open the board's own saved activeModule — defaulting to
+    // 'project-planning' here is what made canvas boards (mind maps etc.) jump
+    // into the planning suite, and the next save then persisted that flip.
+    var querySuffix = template ? '?module=' + encodeURIComponent(template) : '';
 
     // Readable URLs win: /app/data-quantals-plan rather than /app/<slug>/<code>.
     var slug = slugify(title);
@@ -94,6 +99,15 @@
     return Math.abs(h);
   }
 
+  function escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function buildTintMap(boards) {
     var map = {};
     var taken = {};
@@ -112,8 +126,20 @@
   function applyFilterState(filterName, pushHistoryEntry) {
     activeFilter = filterName || 'all';
     document.querySelectorAll('.dash-nav__item[data-filter]').forEach(function (btn) {
-      btn.classList.toggle('is-active', btn.dataset.filter === activeFilter);
+      var isActive = btn.dataset.filter === activeFilter;
+      btn.classList.toggle('is-active', isActive);
+      if (isActive) {
+        btn.setAttribute('aria-current', 'page');
+      } else {
+        btn.removeAttribute('aria-current');
+      }
     });
+
+    var boardsView = document.getElementById('dash-boards-view');
+    var filesView = document.getElementById('dash-files-view');
+    var isFiles = activeFilter === 'files';
+    if (boardsView) boardsView.hidden = isFiles;
+    if (filesView) filesView.hidden = !isFiles;
 
     var heading = document.getElementById('dash-boards-heading');
     if (heading) {
@@ -124,14 +150,20 @@
           : activeFilter;
     }
 
-    document.title = (activeFilter === 'all' ? 'Dashboard' : activeFilter) + ' | QuantalFlow';
+    document.title = (activeFilter === 'all' ? 'Dashboard' : activeFilter === 'files' ? 'Files' : activeFilter) + ' | QuantalFlow';
 
     var targetUrl = SPACE_ROUTE_MAP[activeFilter] || '/dashboard/';
     if (pushHistoryEntry && window.history && window.history.pushState && window.location.pathname !== targetUrl) {
       window.history.pushState({ filter: activeFilter }, '', targetUrl);
     }
 
-    renderBoards();
+    if (isFiles) {
+      if (window.DashboardFiles && typeof window.DashboardFiles.onShow === 'function') {
+        window.DashboardFiles.onShow();
+      }
+    } else {
+      renderBoards();
+    }
   }
 
   function renderBoards() {
@@ -154,21 +186,6 @@
     if (countEl) countEl.textContent = String(allBoards.length);
     if (starCountEl) starCountEl.textContent = String(allBoards.filter(function (b) { return b.starred; }).length);
 
-    /* The sidebar shortcut always opens the dedicated blank Project Planning
-       workspace (`project-planning-workspace`), never whichever demo-filled
-       board happens to be newest. The static href already points at that route
-       so it still resolves if the board row is missing; preferring the exact id
-       keeps the shortcut deterministic once the row exists. */
-    var ppNav = document.getElementById('nav-project-planning');
-    if (ppNav) {
-      var BLANK_PP_ID = 'project-planning-workspace';
-      var ppBoard = null;
-      for (var pp = 0; pp < allBoards.length; pp++) {
-        if (String(allBoards[pp].id || '') === BLANK_PP_ID) { ppBoard = allBoards[pp]; break; }
-      }
-      ppNav.setAttribute('href', ppBoard ? buildBoardPath(ppBoard.id, '') : '/app/' + BLANK_PP_ID);
-    }
-
     var html =
       '<a class="dash-card dash-card--new" href="/app/" id="card-new-blank">' +
         '<span class="dash-card__plus" aria-hidden="true">+</span>' +
@@ -178,19 +195,32 @@
 
     filtered.forEach(function (b) {
       var starClass = b.starred ? 'is-starred' : '';
-      var boardHref = buildBoardPath(b.id, '', b.title);
+      var safeTitle = escapeHtml(b.title || 'Untitled Board');
+      var safeId = escapeHtml(b.id || '');
+      var starLabel = (b.starred ? 'Unstar ' : 'Star ') + safeTitle;
+      var delLabel = 'Delete ' + safeTitle;
+      var boardHref = buildBoardPath(b.id, b.activeModule || '', b.title);
       html +=
-        '<div class="dash-card dash-card--interactive dash-card--tinted" data-board-id="' + b.id + '" style="--dash-tint:' + (tintMap[b.id] || CARD_HUES[0]) + '">' +
+        '<div class="dash-card dash-card--interactive dash-card--tinted" data-board-id="' + safeId + '" style="--dash-tint:' + (tintMap[b.id] || CARD_HUES[0]) + '">' +
           '<div class="dash-card__actions">' +
-            '<button class="dash-icon-btn ' + starClass + '" data-star-id="' + b.id + '" type="button" title="Star board" aria-label="Star board">&#9733;</button>' +
-            '<button class="dash-icon-btn dash-icon-btn--del" data-del-id="' + b.id + '" type="button" title="Delete board" aria-label="Delete board">&times;</button>' +
+            '<button class="dash-icon-btn ' + starClass + '" data-star-id="' + safeId + '" type="button" aria-pressed="' + (b.starred ? 'true' : 'false') + '" title="' + starLabel + '" aria-label="' + starLabel + '">&#9733;</button>' +
+            '<button class="dash-icon-btn dash-icon-btn--del" data-del-id="' + safeId + '" type="button" title="' + delLabel + '" aria-label="' + delLabel + '">&times;</button>' +
           '</div>' +
           '<a class="dash-card__link" href="' + boardHref + '">' +
-            '<p>' + b.title + '</p>' +
+            '<p>' + safeTitle + '</p>' +
             '<span class="dash-card__meta">' + timeAgo(b.updatedAt) + ' &bull; Open in App &rarr;</span>' +
           '</a>' +
         '</div>';
     });
+
+    if (filtered.length === 0 && (searchQuery || activeFilter !== 'all')) {
+      var emptyMsg = searchQuery
+        ? 'No boards match “' + escapeHtml(searchQuery) + '”. Try a different search term or start a new board.'
+        : activeFilter === 'starred'
+          ? 'No starred boards yet. Star any board card to pin it here for quick access.'
+          : 'No boards in this space yet. Start a new collaborative board to begin.';
+      html += '<div class="dash-empty-state" role="status">' + emptyMsg + '</div>';
+    }
 
     grid.innerHTML = html;
 
@@ -254,12 +284,24 @@
   }
 
   var createModal = document.getElementById('modal-create-board');
+  var modalHeadingEl = document.getElementById('modal-create-heading');
+  var modalSubtitleEl = document.getElementById('modal-create-subtitle');
+  var modalServicePillEl = document.getElementById('modal-service-pill');
+  var modalTemplatesHeadingEl = document.getElementById('modal-templates-heading');
+  var modalSubmitBtnEl = document.getElementById('modal-create-submit');
+  var newBoardTitleLabelEl = document.getElementById('new-board-title-label');
+  var newBoardDescLabelEl = document.getElementById('new-board-desc-label');
   var newBoardTitleInput = document.getElementById('new-board-title');
+  var newBoardCategorySelect = document.getElementById('new-board-category');
+  var newBoardDescInput = document.getElementById('new-board-description');
   var frameworkGrid = document.getElementById('create-board-frameworks');
+  var templatesGrid = document.getElementById('create-board-templates');
   var createSpaceEl = document.getElementById('create-board-space');
   var frameworkList = Array.isArray(window.WorkspaceFrameworks) ? window.WorkspaceFrameworks : [];
   var selectedFrameworkId = frameworkList.length ? frameworkList[0].id : '';
+  var selectedTemplateId = '';
   var boardNameTouched = false;
+  var boardCategoryTouched = false;
 
   function selectedFramework() {
     if (window.WorkspaceFrameworks && window.WorkspaceFrameworks.byId) {
@@ -268,16 +310,99 @@
     return frameworkList[0] || null;
   }
 
+  function selectedSuggestedTemplate() {
+    var f = selectedFramework();
+    if (!f || !Array.isArray(f.templates) || !f.templates.length) return null;
+    for (var i = 0; i < f.templates.length; i++) {
+      if (f.templates[i].id === selectedTemplateId) return f.templates[i];
+    }
+    return f.templates[0];
+  }
+
   function renderFrameworkCards() {
     if (!frameworkGrid) return;
     frameworkGrid.innerHTML = frameworkList.map(function (f) {
       var selected = f.id === selectedFrameworkId;
-      return '<button class="template-pick-card' + (selected ? ' is-selected' : '') + '"' +
+      return '<button class="service-tab-chip' + (selected ? ' is-selected' : '') + '"' +
         ' data-framework="' + f.id + '" type="button" role="radio" aria-checked="' + (selected ? 'true' : 'false') + '">' +
-        '<span class="template-pick-card__icon" style="background:' + f.tint + '; color:' + f.ink + ';" aria-hidden="true">' + f.icon + '</span>' +
-        '<span><strong>' + f.label + '</strong><small>' + f.blurb + '</small></span>' +
+        '<span class="service-tab-chip__icon" style="background:' + f.tint + '; color:' + f.ink + ';" aria-hidden="true">' + f.icon + '</span>' +
+        '<span class="service-tab-chip__label">' + escapeHtml(f.label) + '</span>' +
+        (f.badge ? '<span class="service-tab-chip__badge" style="background:' + (f.badgeBg || f.tint) + '; color:' + (f.badgeColor || f.ink) + ';">' + escapeHtml(f.badge) + '</span>' : '') +
       '</button>';
     }).join('');
+  }
+
+  function renderSuggestedTemplates() {
+    if (!templatesGrid) return;
+    var f = selectedFramework();
+    var list = (f && Array.isArray(f.templates)) ? f.templates : [];
+    if (!list.length) {
+      templatesGrid.innerHTML = '';
+      return;
+    }
+    var currentTpl = selectedSuggestedTemplate();
+    var activeId = currentTpl ? currentTpl.id : list[0].id;
+    templatesGrid.innerHTML = list.map(function (tpl) {
+      var selected = tpl.id === activeId;
+      var previewHtml = tpl.previewSvg ||
+        '<div style="width:100%;height:100%;display:grid;place-items:center;background:' + (f.tint || '#eef2ff') + ';color:' + (f.ink || '#4262ff') + ';">' + (f.icon || '') + '</div>';
+
+      return '<button class="template-pick-card template-pick-card--visual' + (selected ? ' is-selected' : '') + '"' +
+        ' data-suggested-template="' + escapeHtml(tpl.id) + '" type="button" role="radio" aria-checked="' + (selected ? 'true' : 'false') + '" aria-label="' + escapeHtml(tpl.label) + '" title="' + escapeHtml(tpl.label) + '">' +
+        '<div class="template-pick-card__preview">' + previewHtml + '</div>' +
+      '</button>';
+    }).join('');
+  }
+
+  function updateModalCopyForService(f) {
+    if (!f) return;
+    if (modalServicePillEl) {
+      modalServicePillEl.textContent = f.label + (f.badge ? ' \u2022 ' + f.badge : '');
+      modalServicePillEl.style.background = f.badgeBg || f.tint || '#eef2ff';
+      modalServicePillEl.style.color = f.badgeColor || f.ink || '#4262ff';
+    }
+    if (modalHeadingEl) {
+      modalHeadingEl.textContent = f.heading || ('Create ' + f.label + ' Workspace');
+    }
+    if (modalSubtitleEl) {
+      modalSubtitleEl.textContent = f.subtitle || ('Enter your ' + f.label + ' details and choose a suggested template to get started.');
+    }
+    if (newBoardTitleLabelEl) {
+      newBoardTitleLabelEl.textContent = f.label + ' project name';
+    }
+    if (newBoardTitleInput && f.namePlaceholder) {
+      newBoardTitleInput.placeholder = f.namePlaceholder;
+    }
+    if (newBoardDescLabelEl) {
+      newBoardDescLabelEl.textContent = f.label + ' description / goal';
+    }
+    if (newBoardDescInput && f.descPlaceholder) {
+      newBoardDescInput.placeholder = f.descPlaceholder;
+    }
+    if (modalTemplatesHeadingEl) {
+      modalTemplatesHeadingEl.textContent = 'Suggested ' + f.label + ' Templates';
+    }
+    if (modalSubmitBtnEl) {
+      modalSubmitBtnEl.textContent = f.submitLabel || ('Create ' + f.label + ' \u2192');
+    }
+  }
+
+  function selectSuggestedTemplate(templateId) {
+    var f = selectedFramework();
+    if (!f || !Array.isArray(f.templates)) return;
+    var found = null;
+    for (var i = 0; i < f.templates.length; i++) {
+      if (f.templates[i].id === templateId) {
+        found = f.templates[i];
+        break;
+      }
+    }
+    if (!found) return;
+    selectedTemplateId = found.id;
+    if (newBoardTitleInput && !boardNameTouched) {
+      newBoardTitleInput.value = found.defaultTitle || f.defaultTitle;
+    }
+    renderSuggestedTemplates();
   }
 
   function selectFramework(id) {
@@ -286,9 +411,19 @@
       : null;
     if (!f) return;
     selectedFrameworkId = f.id;
-    if (createSpaceEl) createSpaceEl.textContent = f.category;
-    if (newBoardTitleInput && !boardNameTouched) newBoardTitleInput.value = f.defaultTitle;
+    var firstTpl = (Array.isArray(f.templates) && f.templates[0]) ? f.templates[0] : null;
+    selectedTemplateId = firstTpl ? firstTpl.id : '';
+    if (newBoardCategorySelect && !boardCategoryTouched) {
+      newBoardCategorySelect.value = f.category;
+    }
+    var activeSpace = (newBoardCategorySelect && newBoardCategorySelect.value) || f.category;
+    if (createSpaceEl) createSpaceEl.textContent = activeSpace;
+    if (newBoardTitleInput && !boardNameTouched) {
+      newBoardTitleInput.value = (firstTpl && firstTpl.defaultTitle) || f.defaultTitle;
+    }
+    updateModalCopyForService(f);
     renderFrameworkCards();
+    renderSuggestedTemplates();
   }
 
   function closeCreateBoardModal() {
@@ -309,13 +444,25 @@
       return;
     }
 
-    selectedFrameworkId = framework ? framework.id : frameworkList[0].id;
+    var activeFw = framework || frameworkList[0];
+    selectedFrameworkId = activeFw.id;
+    var firstTpl = (Array.isArray(activeFw.templates) && activeFw.templates[0]) ? activeFw.templates[0] : null;
+    selectedTemplateId = firstTpl ? firstTpl.id : '';
     boardNameTouched = false;
+    boardCategoryTouched = false;
     if (newBoardTitleInput) {
-      newBoardTitleInput.value = framework ? framework.defaultTitle : 'New Collaborative Board';
+      newBoardTitleInput.value = (firstTpl && firstTpl.defaultTitle) || activeFw.defaultTitle || 'New Collaborative Board';
     }
-    if (createSpaceEl && framework) createSpaceEl.textContent = framework.category;
+    if (newBoardCategorySelect) {
+      newBoardCategorySelect.value = activeFw.category;
+    }
+    if (newBoardDescInput) {
+      newBoardDescInput.value = '';
+    }
+    if (createSpaceEl) createSpaceEl.textContent = activeFw.category;
+    updateModalCopyForService(activeFw);
     renderFrameworkCards();
+    renderSuggestedTemplates();
 
     createModal.hidden = false;
     createModal.classList.add('is-open');
@@ -328,25 +475,49 @@
     }
   }
 
-  async function createNewBoard(framework, titleText) {
+  async function createNewBoard(framework, titleText, categoryText, descriptionText, templateId) {
     var f = framework || {
+      id: 'project-planning',
       module: 'project-planning',
       category: 'Strategy & Planning',
       defaultTitle: 'New Collaborative Board'
     };
     var mod = f.module || 'project-planning';
     var title = String(titleText || f.defaultTitle || 'New Collaborative Board').trim() || 'New Collaborative Board';
+    var category = String(categoryText || f.category || 'AI & Product Strategy').trim();
+    var description = String(descriptionText || '').trim();
+    var built = (window.WorkspaceFrameworks && window.WorkspaceFrameworks.buildInitialWorkspace)
+      ? window.WorkspaceFrameworks.buildInitialWorkspace(f.id || mod, templateId, title, description)
+      : { items: [], connectors: [], plan: null };
+
+    var initialItems = Array.isArray(built.items) ? built.items : [];
+    var initialConnectors = Array.isArray(built.connectors) ? built.connectors : [];
+    var modulesMap = {};
+    if (mod !== 'project-planning' && initialItems.length) {
+      modulesMap[mod] = {
+        version: 2,
+        items: initialItems,
+        connectors: initialConnectors,
+        paths: []
+      };
+    }
+
     try {
       var res = await fetch('/api/boards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title,
-          category: f.category || 'AI & Product Strategy',
+          category: category,
           state: {
             version: 2,
-            items: [],
+            items: initialItems,
+            connectors: initialConnectors,
             paths: [],
+            modules: modulesMap,
+            enabledModules: [mod],
+            description: description,
+            selectedTemplate: templateId || '',
             workspaceMode: mod === 'project-planning' ? 'project-planning' : 'canvas',
             activeModule: mod
           }
@@ -356,6 +527,18 @@
         var data = await res.json();
         var id = data.board && data.board.id;
         if (id) {
+          if (mod === 'project-planning' && built.plan) {
+            try {
+              localStorage.setItem('quantalflow_pp_state_v2_' + id, JSON.stringify(built.plan));
+            } catch (e) {}
+            try {
+              await fetch('/api/projects/' + encodeURIComponent(id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan: built.plan, stateVersion: 2 })
+              });
+            } catch (e) {}
+          }
           window.location.href = '/app/?board=' + encodeURIComponent(id) +
             '&template=' + encodeURIComponent(mod) +
             '&module=' + encodeURIComponent(mod);
@@ -371,6 +554,11 @@
   createModal?.addEventListener('click', function (e) {
     if (e.target === createModal) closeCreateBoardModal();
   });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && createModal && !createModal.hidden) {
+      closeCreateBoardModal();
+    }
+  });
 
   frameworkGrid?.addEventListener('click', function (e) {
     var card = e.target.closest('[data-framework]');
@@ -378,24 +566,41 @@
     selectFramework(card.dataset.framework);
   });
 
-  frameworkGrid?.addEventListener('dblclick', function (e) {
-    var card = e.target.closest('[data-framework]');
+  templatesGrid?.addEventListener('click', function (e) {
+    var card = e.target.closest('[data-suggested-template]');
     if (!card) return;
-    selectFramework(card.dataset.framework);
+    selectSuggestedTemplate(card.dataset.suggestedTemplate);
+  });
+
+  templatesGrid?.addEventListener('dblclick', function (e) {
+    var card = e.target.closest('[data-suggested-template]');
+    if (!card) return;
+    selectSuggestedTemplate(card.dataset.suggestedTemplate);
     document.getElementById('modal-create-submit')?.click();
   });
 
   document.getElementById('modal-create-submit')?.addEventListener('click', function () {
     var framework = selectedFramework();
+    var tpl = selectedSuggestedTemplate();
     var title = (newBoardTitleInput && newBoardTitleInput.value.trim()) ||
+      (tpl && tpl.defaultTitle) ||
       (framework && framework.defaultTitle) ||
       'New Collaborative Board';
+    var category = (newBoardCategorySelect && newBoardCategorySelect.value) ||
+      (framework && framework.category) ||
+      'Strategy & Planning';
+    var description = (newBoardDescInput && newBoardDescInput.value.trim()) || '';
     closeCreateBoardModal();
-    createNewBoard(framework, title);
+    createNewBoard(framework, title, category, description, tpl ? tpl.id : '');
   });
 
   newBoardTitleInput?.addEventListener('input', function () {
     boardNameTouched = true;
+  });
+
+  newBoardCategorySelect?.addEventListener('change', function () {
+    boardCategoryTouched = true;
+    if (createSpaceEl) createSpaceEl.textContent = newBoardCategorySelect.value;
   });
 
   newBoardTitleInput?.addEventListener('keydown', function (e) {
@@ -403,6 +608,25 @@
       e.preventDefault();
       document.getElementById('modal-create-submit')?.click();
     }
+  });
+
+  newBoardDescInput?.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('modal-create-submit')?.click();
+    }
+  });
+
+  /* Intercept sidebar "Workspaces & Pages" clicks (Project Planning WBS,
+     Mind Map Ideas, Kanban Board Agile, Perspective Matrix, Brainstorm Canvas)
+     so they open the service-specific project details & template dialog
+     rather than navigating straight to the canvas. */
+  document.querySelectorAll('[data-create-framework]').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      var fwId = link.getAttribute('data-create-framework') || 'project-planning';
+      openCreateBoardModal(fwId);
+    });
   });
 
   /* The "Start New Collaborative Board" card exists twice: as static markup for
@@ -445,6 +669,19 @@
       openCreateBoardModal('project-planning');
     });
   }
+
+  document.getElementById('nav-service-ai')?.addEventListener('click', function () {
+    openCreateBoardModal('brainstorm');
+  });
+  document.getElementById('nav-service-workshop')?.addEventListener('click', function () {
+    openCreateBoardModal('kanban');
+  });
+  document.getElementById('nav-service-assets')?.addEventListener('click', function () {
+    applyFilterState('files', true);
+  });
+
+  // Immediately sync active tab and panel based on URL pathname
+  applyFilterState(parseDashboardRoute(window.location.pathname), false);
 
   /* Auth Check */
   fetch('/api/auth/me', { credentials: 'same-origin' })

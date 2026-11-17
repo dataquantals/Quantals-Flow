@@ -25,8 +25,8 @@ const dashboardShellPage = path.join(config.root, 'dashboard', 'index.html');
 // Hierarchical SPA sub-route patterns:
 // 1) /app/<boardSlug>/<boardCode>[/<template>] or /app/<boardId>[/<template>]
 const APP_NESTED_ROUTE_RE = /^\/app\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+){0,2}\/?$/;
-// 2) /dashboard/starred, /dashboard/recent, /dashboard/space/<spaceSlug>
-const DASHBOARD_NESTED_ROUTE_RE = /^\/dashboard\/(?:starred|recent|space\/[a-zA-Z0-9_-]+)\/?$/;
+// 2) /dashboard/starred, /dashboard/recent, /dashboard/files, /dashboard/space/<spaceSlug>
+const DASHBOARD_NESTED_ROUTE_RE = /^\/dashboard\/(?:starred|recent|files|space\/[a-zA-Z0-9_-]+)\/?$/;
 
 // Sweep expired sessions hourly so the table does not grow without bound.
 if (!process.env.VERCEL) {
@@ -158,12 +158,41 @@ export async function handleApi(req, res) {
     if (req.method === 'DELETE') return api.deleteProjectPlanApi(req, res, boardId);
   }
 
+  if (pathname === '/api/files' && req.method === 'GET') return api.listFilesApi(req, res);
+  if (pathname === '/api/files' && req.method === 'POST') return api.saveFileApi(req, res);
+  if (pathname === '/api/files/save' && req.method === 'POST') return api.saveFileApi(req, res);
+  if (pathname === '/api/files/upload' && req.method === 'POST') return api.uploadFileApi(req, res);
+  if (pathname === '/api/files/signature' && req.method === 'POST') return api.fileSignatureApi(req, res);
+
+  const fileActionMatch = pathname.match(/^\/api\/files\/([^/]+)\/(content|move|delete)$/);
+  if (fileActionMatch) {
+    const fileId = decodeURIComponent(fileActionMatch[1]);
+    const action = fileActionMatch[2];
+    if (action === 'content' && req.method === 'GET') return api.getFileContentApi(req, res, fileId);
+    if (action === 'move' && req.method === 'POST') return api.moveFileApi(req, res, fileId);
+    if (action === 'delete' && req.method === 'POST') return api.deleteFileApi(req, res, fileId);
+  }
+
+  const fileMatch = pathname.match(/^\/api\/files\/([^/]+)$/);
+  if (fileMatch) {
+    const fileId = decodeURIComponent(fileMatch[1]);
+    if (req.method === 'DELETE') return api.deleteFileApi(req, res, fileId);
+  }
+
+  if (pathname === '/api/folders' && req.method === 'GET') return api.listFoldersApi(req, res);
+  if (pathname === '/api/folders' && req.method === 'POST') return api.saveFolderApi(req, res);
+
+  const folderDeleteMatch = pathname.match(/^\/api\/folders\/([^/]+)\/delete$/);
+  if (folderDeleteMatch && req.method === 'POST') {
+    return api.deleteFolderApi(req, res, decodeURIComponent(folderDeleteMatch[1]));
+  }
+
   return sendJson(res, 404, { error: 'Not found.' });
 }
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
 // session, so gate it here rather than letting the page flash and bounce.
-const protectedRoutes = ['/dashboard', '/profile'];
+const protectedRoutes = ['/dashboard', '/profile', '/files'];
 
 function isProtected(pathname) {
   return protectedRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));

@@ -4,7 +4,7 @@ description: Your QuantalFlow workspace hub. Create, search, and collaborate on 
 route: /dashboard/
 layout: standalone
 body_class: dash-body
-scripts: /assets/js/workspace-frameworks.js, /assets/js/dashboard.js
+scripts: /assets/js/workspace-frameworks.js, /assets/js/folder.js, /assets/js/new-folder.js, /assets/js/dashboard-files.js, /assets/js/dashboard.js
 ---
   <header class="dash-top">
     <a class="logo" href="/" aria-label="QuantalFlow home">
@@ -35,68 +35,69 @@ scripts: /assets/js/workspace-frameworks.js, /assets/js/dashboard.js
       </button>
 
       <nav class="dash-nav">
-        <button class="dash-nav__item is-active" data-filter="all" type="button">
+        <button class="dash-nav__item is-active" data-filter="all" aria-current="page" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
           <span>All Boards</span>
         </button>
 
+        <button class="dash-nav__item" data-filter="starred" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred Boards</span>
+        </button>
+
+        <button class="dash-nav__item" id="nav-files" data-filter="files" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+                  </button>
+
         <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
 
-        <a class="dash-nav__item" id="nav-project-planning" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+        <a class="dash-nav__item" id="nav-project-planning" data-create-framework="project-planning" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
           <span>Project Planning</span>
-          <span class="dash-nav__badge" style="background:#ecfdf5; color:#059669;">WBS</span>
-        </a>
+                  </a>
 
-        <a class="dash-nav__item" id="nav-mindmap" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+        <a class="dash-nav__item" id="nav-mindmap" data-create-framework="mindmap" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
           <span>Mind Map</span>
-          <span class="dash-nav__badge" style="background:#fef3c7; color:#d97706;">Ideas</span>
-        </a>
+                  </a>
 
-        <a class="dash-nav__item" id="nav-kanban" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+        <a class="dash-nav__item" id="nav-kanban" data-create-framework="kanban" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
           <span>Kanban Board</span>
-          <span class="dash-nav__badge" style="background:#eff6ff; color:#2563eb;">Agile</span>
-        </a>
+                  </a>
 
-        <a class="dash-nav__item" id="nav-perspective" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+        <a class="dash-nav__item" id="nav-perspective" data-create-framework="perspective" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
           <span>Perspective</span>
-          <span class="dash-nav__badge" style="background:#faf5ff; color:#7c3aed;">Matrix</span>
-        </a>
+                  </a>
 
-        <a class="dash-nav__item" id="nav-brainstorm" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+        <a class="dash-nav__item" id="nav-brainstorm" data-create-framework="brainstorm" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
           <span>Brainstorm</span>
-          <span class="dash-nav__badge" style="background:#fff7ed; color:#ea580c;">Canvas</span>
-        </a>
+                  </a>
 
         <a class="dash-nav__item" id="nav-templates" href="/resources/templates/" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           <span>Templates</span>
-          <span class="dash-nav__badge" style="background:#f1f5f9; color:#475569;">Library</span>
-        </a>
+                  </a>
 
         <div class="dash-sidebar__section-label">Team Services</div>
 
         <button class="dash-nav__item" id="nav-service-ai" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>
           <span>AI Ideation Studio</span>
-          <span class="dash-nav__badge" style="background:#eef2ff; color:#4f46e5;">✦ AI</span>
-        </button>
+                  </button>
 
         <button class="dash-nav__item" id="nav-service-workshop" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M10 2h4"/></svg>
           <span>Interactive Workshop Hub</span>
-          <span class="dash-nav__badge" style="background:#fff7ed; color:#ea580c;">Live</span>
-        </button>
+                  </button>
 
         <button class="dash-nav__item" id="nav-service-assets" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M12 11v6m-3-3 3-3 3 3"/></svg>
           <span>Cloud Asset Library</span>
-          <span class="dash-nav__badge" style="background:#f1f5f9; color:#475569;">Vault</span>
-        </button>
+                  </button>
 
 
         <div class="dash-sidebar__section-label">Account</div>
@@ -109,6 +110,7 @@ scripts: /assets/js/workspace-frameworks.js, /assets/js/dashboard.js
 
     <!-- Main Workspace Area -->
     <main class="dash">
+      <div id="dash-boards-view">
       <section class="dash__hero">
         <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
           <div>
@@ -143,28 +145,234 @@ scripts: /assets/js/workspace-frameworks.js, /assets/js/dashboard.js
         <div class="dash-stat"><p class="dash-stat__num">3</p><p>Team Spaces</p></div>
         <div class="dash-stat"><p class="dash-stat__num" id="dash-role-stat">&mdash;</p><p>Your role</p></div>
       </section>
-    </main>
-  </div>
-
-  <!-- Starter Frameworks & Templates Modal -->
-  <div class="quantalflow-modal-backdrop" id="modal-create-board" hidden style="display: none;">
-    <div class="quantalflow-modal" style="max-width: 720px;">
-      <button class="quantalflow-modal__close" id="modal-create-close" type="button" aria-label="Close modal">&times;</button>
-      <h3>Starter Frameworks &amp; Templates</h3>
-      <p>Pick a workspace to start from. It opens with a clean structure you can build on.</p>
-
-      <div class="create-board-name">
-        <label for="new-board-title">Board name</label>
-        <input type="text" id="new-board-title" value="New Collaborative Board" placeholder="e.g. Q4 Product Launch" autocomplete="off" />
       </div>
 
-      <div class="template-modal-grid" id="create-board-frameworks" role="radiogroup" aria-label="Starter framework"></div>
+      <!-- FILES VIEW (Cloudinary signed uploads + 3D Folders, mirrored from Circuit-Overseer-s-visit) -->
+      <section id="dash-files-view" hidden>
+        <div class="section-card files-page-card">
+          <div class="files-page-header">
+            <div class="files-title-group">
+              <h2 class="section-title" style="text-transform: uppercase; font-size: 13.5px; font-weight: 700; letter-spacing: 0.06em; color: #1e3a5f;">FILES</h2>
+            </div>
+          </div>
+
+          <div id="files-alert" class="alert-box" role="status" aria-live="polite"></div>
+
+          <div id="files-dropzone" class="files-dropzone" tabindex="0" role="button" aria-label="Choose or drop files to upload">
+            <input type="file" id="files-input" class="files-input-hidden" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.md,.png,.jpg,.jpeg,.webp,.gif,.ppt,.pptx,.odt,.ods,.zip" />
+            <div class="files-dropzone-title">Tap to choose files from this device</div>
+            <div class="files-dropzone-sub">
+              or drag &amp; drop here &mdash; up to 10 files per upload, max 10.0 MB each
+            </div>
+            <button type="button" class="files-pick-btn" id="btn-files-pick">
+              <span>CHOOSE FILES</span>
+            </button>
+          </div>
+
+          <div class="files-progress" id="files-progress" hidden>
+            <div class="files-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="files-progress-track">
+              <div class="files-progress-bar" id="files-progress-bar"></div>
+            </div>
+            <div class="files-progress-text" id="files-progress-text">Uploading&hellip;</div>
+          </div>
+
+          <div class="files-toolbar">
+            <h4 class="export-group-title" style="text-transform: uppercase; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: #475569;">
+              Stored Files <span id="files-count-pill" class="badge-purple-accent">0</span>
+            </h4>
+            <div class="files-toolbar-actions">
+              <div class="segmented-control" role="group" aria-label="View mode">
+                <button type="button" class="segmented-btn is-active" id="btn-files-view-grid" title="Grid View" aria-pressed="true">
+                  <span>Grid</span>
+                </button>
+                <button type="button" class="segmented-btn" id="btn-files-view-list" title="List View" aria-pressed="false">
+                  <span>List</span>
+                </button>
+              </div>
+
+              <select id="files-sort-select" class="files-sort-select" aria-label="Sort files">
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="size-desc">Largest First</option>
+                <option value="size-asc">Smallest First</option>
+              </select>
+
+              <span class="files-visibility-label" style="font-size: 12px; color: #64748b; font-weight: 500;">Admins only</span>
+              <button type="button" class="files-newfolder-btn" id="btn-files-new-folder" title="Create a folder" aria-haspopup="dialog" aria-expanded="false" aria-controls="files-newfolder">
+                <span>New Folder</span>
+              </button>
+              <button type="button" class="files-refresh-btn" id="btn-files-refresh" title="Refresh file list">
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          <nav id="files-breadcrumb" class="files-breadcrumb" aria-label="Folder path" hidden></nav>
+          <div id="files-folders" class="files-folders" hidden></div>
+
+          <div id="files-table-container" class="files-table-container" hidden>
+            <table class="files-table" id="files-table">
+              <thead>
+                <tr>
+                  <th data-sort-col="name">Name</th>
+                  <th data-sort-col="kind">Kind</th>
+                  <th data-sort-col="size">Size / Items</th>
+                  <th data-sort-col="date">Date Modified</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="files-table-body"></tbody>
+            </table>
+          </div>
+
+          <div id="files-newfolder-scrim" class="files-newfolder-scrim" hidden></div>
+          <form id="files-newfolder" class="files-newfolder" hidden role="dialog" aria-modal="false" aria-labelledby="files-newfolder-title">
+            <div class="files-newfolder-grab" id="files-newfolder-grab" aria-hidden="true"><span></span></div>
+            <div class="files-newfolder-head">
+              <span class="files-newfolder-glyph" aria-hidden="true">
+                <svg class="windows-folder-glyph" width="22" height="18" viewBox="0 0 24 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 4C1 2.89 1.89 2 3 2H9.2C9.8 2 10.4 2.3 10.8 2.8L12.2 4.2C12.6 4.7 13.2 5 13.8 5H21C22.1 5 23 5.89 23 7V17C23 18.1 22.1 19 21 19H3C1.89 19 1 18.1 1 17V4Z" fill="#E29505"/>
+                  <path d="M1 7.2C1 6.1 1.89 5.2 3 5.2H21C22.1 5.2 23 6.1 23 7.2V17C23 18.1 22.1 19 21 19H3C1.89 19 1 18.1 1 17V7.2Z" fill="#F8C630" stroke="#C47800" stroke-width="0.8"/>
+                  <path d="M2 6.2H22" stroke="white" stroke-opacity="0.65" stroke-width="0.9"/>
+                </svg>
+              </span>
+              <div>
+                <h3 class="files-newfolder-title" id="files-newfolder-title">New Folder</h3>
+                <p class="files-newfolder-hint">Inside <strong id="files-newfolder-parent">Stored Files</strong></p>
+              </div>
+            </div>
+            <label class="files-newfolder-label" for="files-newfolder-input">Name</label>
+            <input id="files-newfolder-input" class="files-newfolder-input" type="text" maxlength="80" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="e.g. Project Documents" />
+            <p class="files-newfolder-error" id="files-newfolder-error" role="alert" hidden></p>
+            <div class="files-newfolder-actions">
+              <button type="button" class="files-newfolder-cancel" id="files-newfolder-cancel">Cancel</button>
+              <button type="submit" class="files-newfolder-create" id="files-newfolder-create" disabled>Create Folder</button>
+            </div>
+          </form>
+
+          <div id="files-empty" class="files-empty-state">
+            <div class="files-empty-icon" aria-hidden="true">
+              <svg class="windows-folder-glyph" width="40" height="34" viewBox="0 0 24 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 4C1 2.89 1.89 2 3 2H9.2C9.8 2 10.4 2.3 10.8 2.8L12.2 4.2C12.6 4.7 13.2 5 13.8 5H21C22.1 5 23 5.89 23 7V17C23 18.1 22.1 19 21 19H3C1.89 19 1 18.1 1 17V4Z" fill="#E29505"/>
+                <path d="M1 7.2C1 6.1 1.89 5.2 3 5.2H21C22.1 5.2 23 6.1 23 7.2V17C23 18.1 22.1 19 21 19H3C1.89 19 1 18.1 1 17V7.2Z" fill="#F8C630" stroke="#C47800" stroke-width="0.8"/>
+                <path d="M2 6.2H22" stroke="white" stroke-opacity="0.65" stroke-width="0.9"/>
+              </svg>
+            </div>
+            <div class="files-empty-title">No files yet</div>
+            <div class="files-empty-sub">Uploaded files appear here with their size, type, and 3D folder organization.</div>
+          </div>
+
+          <ul id="files-list" class="files-list" aria-live="polite"></ul>
+
+          <div class="files-storage-footer">
+            <span>Storage used <strong id="files-total-size">0 B</strong></span>
+            <span id="files-sync-status">Ready</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- In-App File Reader Modal -->
+    <div id="file-reader-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="file-reader-title">
+      <div class="modal-card file-reader-card">
+        <div class="modal-header">
+          <h3 class="modal-title" id="file-reader-title">File</h3>
+          <div class="file-reader-header-actions">
+            <button type="button" class="files-row-btn" id="btn-file-reader-download">Download</button>
+            <button type="button" class="modal-close-btn" id="btn-file-reader-close" aria-label="Close file reader">Close</button>
+          </div>
+        </div>
+        <div class="file-reader-body" id="file-reader-body"></div>
+      </div>
+    </div>
+
+    <!-- Apple Floating Context Menu -->
+    <div id="files-context-menu" class="apple-context-menu" role="menu" aria-hidden="true" hidden>
+      <button type="button" class="apple-menu-item" data-menu-action="open">
+        <span class="apple-menu-item-content">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+          <span>Open</span>
+        </span>
+        <kbd class="apple-menu-item-kbd">&crarr;</kbd>
+      </button>
+      <button type="button" class="apple-menu-item" data-menu-action="quicklook">
+        <span class="apple-menu-item-content">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Quick Look</span>
+        </span>
+        <kbd class="apple-menu-item-kbd">Space</kbd>
+      </button>
+      <div class="apple-menu-divider"></div>
+      <button type="button" class="apple-menu-item" data-menu-action="rename">
+        <span class="apple-menu-item-content">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+          <span>Rename</span>
+        </span>
+      </button>
+      <button type="button" class="apple-menu-item" data-menu-action="download">
+        <span class="apple-menu-item-content">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Download</span>
+        </span>
+      </button>
+      <div class="apple-menu-divider"></div>
+      <button type="button" class="apple-menu-item apple-menu-item-danger" data-menu-action="delete">
+        <span class="apple-menu-item-content">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Delete</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Starter Frameworks & Project Details Modal -->
+  <div class="quantalflow-modal-backdrop" id="modal-create-board" hidden style="display: none;">
+    <div class="quantalflow-modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-heading" aria-describedby="modal-create-subtitle" style="max-width: 760px;">
+      <button class="quantalflow-modal__close" id="modal-create-close" type="button" aria-label="Close modal">&times;</button>
+      <div class="modal-service-header" id="modal-service-header">
+        <span class="modal-service-pill" id="modal-service-pill">Project Planning &bull; WBS</span>
+      </div>
+      <h3 id="modal-create-heading">Create New Project Workspace</h3>
+      <p id="modal-create-subtitle">Enter your project details and pick a suggested template for this service to get started.</p>
+
+      <div class="create-board-service-tabs" id="create-board-frameworks" role="radiogroup" aria-label="Workspace service"></div>
+
+      <div class="create-board-details-row">
+        <div class="create-board-name">
+          <label for="new-board-title" id="new-board-title-label">Project name</label>
+          <input type="text" id="new-board-title" value="New Collaborative Board" placeholder="e.g. Q4 Product Launch" autocomplete="off" />
+        </div>
+        <div class="create-board-name">
+          <label for="new-board-category">Team Space</label>
+          <select id="new-board-category">
+            <option value="Strategy &amp; Planning">Strategy &amp; Planning</option>
+            <option value="AI &amp; Product Strategy">AI &amp; Product Strategy</option>
+            <option value="Engineering &amp; Delivery">Engineering &amp; Delivery</option>
+            <option value="UX &amp; Discovery">UX &amp; Discovery</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="create-board-name">
+        <label for="new-board-description" id="new-board-desc-label">Project description / goal</label>
+        <input type="text" id="new-board-description" placeholder="Optional brief description or project goal…" autocomplete="off" />
+      </div>
+
+      <div class="create-board-templates-section">
+        <div class="create-board-templates-header">
+          <span class="create-board-templates-title" id="modal-templates-heading">Suggested Templates</span>
+          <span class="create-board-templates-hint" id="modal-templates-hint">Choose a starter structure tailored to this service</span>
+        </div>
+        <div class="template-modal-grid" id="create-board-templates" role="radiogroup" aria-label="Suggested service templates"></div>
+      </div>
 
       <div class="create-board-footer">
         <span class="create-board-space" id="create-board-space">Strategy &amp; Planning</span>
         <div style="display:flex; gap:10px;">
           <button class="btn btn--ghost" id="modal-create-cancel" type="button">Cancel</button>
-          <button class="btn btn--blue" id="modal-create-submit" type="button">Create board &rarr;</button>
+          <button class="btn btn--blue" id="modal-create-submit" type="button">Create Project &rarr;</button>
         </div>
       </div>
     </div>
