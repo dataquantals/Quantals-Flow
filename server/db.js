@@ -7,7 +7,14 @@ import {
   fetchBoardFromConvex,
   deleteBoardFromConvex,
   syncProjectPlanToConvex,
-  deleteProjectPlanFromConvex
+  deleteProjectPlanFromConvex,
+  syncFolderToConvex,
+  deleteFolderFromConvex,
+  syncFileToConvex,
+  moveFileInConvex,
+  deleteFileFromConvex,
+  syncFileOrderToConvex,
+  syncPreferencesToConvex
 } from './convex.js';
 
 try {
@@ -98,6 +105,7 @@ db.exec(`
 `);
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_boards_updated ON boards(updated_at DESC)');
+try { db.exec('ALTER TABLE boards ADD COLUMN version INTEGER NOT NULL DEFAULT 1'); } catch {}
 
 /**
  * Project Planning plans.
@@ -117,6 +125,7 @@ db.exec(`
 `);
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_project_plans_updated ON project_plans(updated_at DESC)');
+try { db.exec('ALTER TABLE project_plans ADD COLUMN version INTEGER NOT NULL DEFAULT 1'); } catch {}
 
 /**
  * Uploaded files. Bytes live in Cloudinary; this table holds metadata + the
@@ -422,6 +431,7 @@ export function getBoardById(id, userId) {
     title: row.title,
     category: row.category,
     starred: Boolean(row.starred),
+    version: row.version || 1,
     state,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -487,7 +497,7 @@ function parseStateJson(raw) {
  * comes from the authenticated session, never from request input. Touching a
  * board that belongs to someone else is a 403, not a silent overwrite.
  */
-export function upsertBoard({ id, userId, title, category, starred, state }) {
+export function upsertBoard({ id, userId, title, category, starred, state, expectedVersion }) {
   if (userId == null) throw forbidden();
   const now = Date.now();
   const internalId = scopeBoardId(id, userId);
@@ -496,8 +506,8 @@ export function upsertBoard({ id, userId, title, category, starred, state }) {
   if (!existing) {
     const stateStr = stateJsonFor(internalId, state);
     db.prepare(`
-      INSERT INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO boards (id, user_id, title, category, starred, state_json, version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
     `).run(
       internalId,
       userId,
@@ -509,6 +519,13 @@ export function upsertBoard({ id, userId, title, category, starred, state }) {
       now
     );
   } else {
+    const currentVersion = existing.version || 1;
+    if (expectedVersion != null && Number(expectedVersion) !== currentVersion) {
+      const err = new Error('Board has been modified on another device.');
+      err.status = 409;
+      err.serverBoard = getBoardById(id, userId);
+      throw err;
+    }
     const nextTitle = title !== undefined ? title : existing.title;
     const nextCategory = category !== undefined ? category : existing.category;
     const nextStarred = starred !== undefined ? (starred ? 1 : 0) : existing.starred;
@@ -517,9 +534,9 @@ export function upsertBoard({ id, userId, title, category, starred, state }) {
       : stateJsonFor(internalId, parseStateJson(existing.state_json));
     db.prepare(`
       UPDATE boards
-      SET title = ?, category = ?, starred = ?, state_json = ?, updated_at = ?
+      SET title = ?, category = ?, starred = ?, state_json = ?, version = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
-    `).run(nextTitle, nextCategory, nextStarred, nextStateStr, now, internalId, userId);
+    `).run(nextTitle, nextCategory, nextStarred, nextStateStr, currentVersion + 1, now, internalId, userId);
   }
   const saved = getBoardById(id, userId);
   const syncPromise = syncBoardToConvex(saved, userId, internalId);
@@ -552,14 +569,24 @@ export async function removeBoard(id, userId) {
 const PLAN_MAX_BYTES = 4 * 1024 * 1024;
 
 export function getProjectPlan(boardId, userId) {
+  const meta = getProjectPlanMeta(boardId, userId);
+  return meta ? meta.plan : null;
+}
+
+export function getProjectPlanMeta(boardId, userId) {
   if (userId == null) return null;
   const row = db
-    .prepare('SELECT plan_json FROM project_plans WHERE board_id = ? AND user_id = ?')
+    .prepare('SELECT plan_json, version, updated_at FROM project_plans WHERE board_id = ? AND user_id = ?')
     .get(scopeBoardId(boardId, userId), userId);
   if (!row || !row.plan_json) return null;
   try {
     const plan = JSON.parse(row.plan_json);
-    return plan && typeof plan === 'object' ? plan : null;
+    if (!plan || typeof plan !== 'object') return null;
+    return {
+      plan,
+      version: row.version || 1,
+      updatedAt: row.updated_at || 0
+    };
   } catch {
     return null;
   }
@@ -578,7 +605,7 @@ export function hasProjectPlan(boardId) {
  * disappearing). A Convex hiccup never blocks the save: the local write already
  * happened and the next save retries.
  */
-export async function saveProjectPlan(boardId, plan, userId) {
+export async function saveProjectPlan(boardId, plan, userId, options = {}) {
   if (userId == null) throw forbidden();
   if (!boardId || !plan || typeof plan !== 'object') {
     const err = new Error('A plan object is required.');
@@ -589,10 +616,25 @@ export async function saveProjectPlan(boardId, plan, userId) {
   const internalId = scopeBoardId(boardId, userId);
 
   // Never write over a plan or board that belongs to someone else.
-  const existingPlan = db.prepare('SELECT user_id FROM project_plans WHERE board_id = ?').get(internalId);
+  const existingPlan = db.prepare('SELECT user_id, version, updated_at, plan_json FROM project_plans WHERE board_id = ?').get(internalId);
   if (existingPlan && !ownsRow(existingPlan, userId)) throw forbidden();
   const existingBoard = db.prepare('SELECT user_id FROM boards WHERE id = ?').get(internalId);
   if (existingBoard && !ownsRow(existingBoard, userId)) throw forbidden();
+
+  // Optimistic concurrency check if expectedVersion is provided by the client
+  const currentVersion = existingPlan ? (existingPlan.version || 1) : 0;
+  if (options.expectedVersion != null && existingPlan && Number(options.expectedVersion) !== currentVersion) {
+    const err = new Error('Project plan has been updated on another device.');
+    err.status = 409;
+    try {
+      err.serverPlan = JSON.parse(existingPlan.plan_json);
+    } catch {
+      err.serverPlan = null;
+    }
+    err.serverVersion = currentVersion;
+    err.serverUpdatedAt = existingPlan.updated_at;
+    throw err;
+  }
 
   // The canonical blank workspace must stay blank: an older client (or a tab
   // opened before the demo purge) can replay a sample snapshot here, which then
@@ -611,11 +653,12 @@ export async function saveProjectPlan(boardId, plan, userId) {
   }
 
   const now = Date.now();
+  const nextVersion = currentVersion + 1;
   db.prepare(`
-    INSERT INTO project_plans (board_id, user_id, plan_json, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(board_id) DO UPDATE SET plan_json = excluded.plan_json, updated_at = excluded.updated_at
-  `).run(internalId, userId, planJson, now, now);
+    INSERT INTO project_plans (board_id, user_id, plan_json, version, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(board_id) DO UPDATE SET plan_json = excluded.plan_json, version = excluded.version, updated_at = excluded.updated_at
+  `).run(internalId, userId, planJson, nextVersion, now, now);
 
   // Saving a plan is activity on the board: keep it at the top of the dashboard.
   db.prepare('UPDATE boards SET updated_at = ? WHERE id = ? AND user_id = ?').run(now, internalId, userId);
@@ -633,7 +676,7 @@ export async function saveProjectPlan(boardId, plan, userId) {
   }
 
   const convex = await syncProjectPlanToConvex(internalId, plan, userId);
-  return { savedAt: now, bytes: planJson.length, convex };
+  return { savedAt: now, version: nextVersion, bytes: planJson.length, convex };
 }
 
 export async function removeProjectPlan(boardId, userId) {
@@ -920,7 +963,7 @@ export function saveUserFolder(userId, { key, name, parentId = null }) {
       .run(cleanKey, userId, cleanName, cleanParent, now, now);
   }
   const row = db.prepare('SELECT id, name, parent_id, created_at, updated_at FROM user_folders WHERE id = ? AND user_id = ?').get(cleanKey, userId);
-  return {
+  const folderObj = {
     id: row.id,
     key: row.id,
     name: row.name,
@@ -929,6 +972,8 @@ export function saveUserFolder(userId, { key, name, parentId = null }) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+  syncFolderToConvex(folderObj, userId).catch(() => {});
+  return folderObj;
 }
 
 export function deleteUserFolder(userId, key) {
@@ -943,6 +988,7 @@ export function deleteUserFolder(userId, key) {
   db.prepare('UPDATE user_files SET folder_id = ? WHERE folder_id = ? AND user_id = ?')
     .run(parentId, cleanKey, userId);
   db.prepare('DELETE FROM user_folders WHERE id = ? AND user_id = ?').run(cleanKey, userId);
+  deleteFolderFromConvex(cleanKey, userId).catch(() => {});
   return { deleted: true };
 }
 
@@ -992,7 +1038,17 @@ export function createUserFile(userId, file) {
     now
   );
   const row = db.prepare('SELECT id, folder_id, name, mime_type, size, visibility, uploaded_by, url, created_at FROM user_files WHERE id = ? AND user_id = ?').get(id, userId);
-  return row ? toPublicUserFile(row) : null;
+  const publicFile = row ? toPublicUserFile(row) : null;
+  if (publicFile) {
+    syncFileToConvex({
+      ...publicFile,
+      extension: file.extension || '',
+      publicId: file.publicId || '',
+      resourceType: file.resourceType || 'image',
+      updatedAt: now
+    }, userId).catch(() => {});
+  }
+  return publicFile;
 }
 
 export function getUserFile(userId, fileId) {
@@ -1005,6 +1061,9 @@ export function moveUserFile(userId, fileId, folderId) {
   const dest = folderId ? String(folderId).trim() : null;
   const changes = db.prepare('UPDATE user_files SET folder_id = ? WHERE id = ? AND user_id = ?')
     .run(dest, String(fileId || ''), userId).changes;
+  if (changes > 0) {
+    moveFileInConvex(fileId, dest, userId).catch(() => {});
+  }
   return { moved: changes > 0, fileId, folderId: dest };
 }
 
@@ -1014,11 +1073,87 @@ export function deleteUserFile(userId, fileId) {
     .get(String(fileId || ''), userId);
   if (!existing) return null;
   db.prepare('DELETE FROM user_files WHERE id = ? AND user_id = ?').run(existing.id, userId);
+  deleteFileFromConvex(existing.id, userId).catch(() => {});
   return {
     id: existing.id,
     name: existing.name,
     publicId: existing.public_id || '',
     resourceType: existing.resource_type || 'image'
   };
+}
+
+/* ---------- Custom File Ordering & User Preferences ---------- */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_file_orders (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    folder_id  TEXT    NOT NULL DEFAULT 'root',
+    order_json TEXT    NOT NULL DEFAULT '{}',
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, folder_id)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id         INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    files_view_mode TEXT    NOT NULL DEFAULT 'grid',
+    files_sort_by   TEXT    NOT NULL DEFAULT 'date-desc',
+    updated_at      INTEGER NOT NULL
+  );
+`);
+
+export function getUserFileOrder(userId, folderId = 'root') {
+  if (userId == null) return {};
+  const fid = String(folderId || 'root').trim() || 'root';
+  const row = db.prepare('SELECT order_json FROM user_file_orders WHERE user_id = ? AND folder_id = ?').get(userId, fid);
+  if (!row || !row.order_json) return {};
+  try {
+    const parsed = JSON.parse(row.order_json);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveUserFileOrder(userId, folderId = 'root', orderObj = {}) {
+  if (userId == null) throw forbidden();
+  const fid = String(folderId || 'root').trim() || 'root';
+  const clean = orderObj && typeof orderObj === 'object' && !Array.isArray(orderObj) ? orderObj : {};
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO user_file_orders (user_id, folder_id, order_json, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id, folder_id) DO UPDATE SET order_json = excluded.order_json, updated_at = excluded.updated_at
+  `).run(userId, fid, JSON.stringify(clean), now);
+  syncFileOrderToConvex(userId, fid, clean).catch(() => {});
+  return clean;
+}
+
+export function getUserPreferences(userId) {
+  if (userId == null) return { filesViewMode: 'grid', filesSortBy: 'date-desc' };
+  const row = db.prepare('SELECT files_view_mode, files_sort_by FROM user_preferences WHERE user_id = ?').get(userId);
+  if (!row) return { filesViewMode: 'grid', filesSortBy: 'date-desc' };
+  return {
+    filesViewMode: row.files_view_mode === 'list' ? 'list' : 'grid',
+    filesSortBy: row.files_sort_by || 'date-desc'
+  };
+}
+
+export function saveUserPreferences(userId, prefs = {}) {
+  if (userId == null) throw forbidden();
+  const current = getUserPreferences(userId);
+  const filesViewMode = prefs.filesViewMode === 'list' ? 'list' : (prefs.filesViewMode === 'grid' ? 'grid' : current.filesViewMode);
+  const ALLOWED_SORTS = new Set(['date-desc', 'date-asc', 'name-asc', 'name-desc', 'size-desc', 'size-asc']);
+  const filesSortBy = ALLOWED_SORTS.has(prefs.filesSortBy) ? prefs.filesSortBy : current.filesSortBy;
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO user_preferences (user_id, files_view_mode, files_sort_by, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET files_view_mode = excluded.files_view_mode, files_sort_by = excluded.files_sort_by, updated_at = excluded.updated_at
+  `).run(userId, filesViewMode, filesSortBy, now);
+  const next = { filesViewMode, filesSortBy };
+  syncPreferencesToConvex(userId, next).catch(() => {});
+  return next;
 }
 

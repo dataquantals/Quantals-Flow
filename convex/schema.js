@@ -73,6 +73,7 @@ export default defineSchema({
     title: v.string(),
     category: v.string(),
     starred: v.boolean(),
+    stateVersion: v.optional(v.number()),
     stateJson: v.string(),
     createdAt: v.number(),
     updatedAt: v.number()
@@ -120,5 +121,56 @@ export default defineSchema({
   projectWikiPages: planningIndexes(defineTable(planningEntity)),
   projectFiles: planningIndexes(defineTable(planningEntity)),
   projectRaidItems: planningIndexes(defineTable(planningEntity)),
-  projectChangeRequests: planningIndexes(defineTable(planningEntity))
+  projectChangeRequests: planningIndexes(defineTable(planningEntity)),
+
+  /* ------------------------------------------------------------------ *
+   * Files Manager, 3D Manila Folders, Custom Ordering & Preferences
+   * ------------------------------------------------------------------ */
+  userFolders: defineTable({
+    folderId: v.string(),
+    userId: v.string(),
+    name: v.string(),
+    parentId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_folder', ['userId', 'folderId'])
+    .index('by_user_parent', ['userId', 'parentId']),
+
+  userFiles: defineTable({
+    fileId: v.string(),
+    userId: v.string(),
+    folderId: v.optional(v.string()),
+    name: v.string(),
+    mimeType: v.string(),
+    size: v.number(),
+    extension: v.string(),
+    url: v.string(),
+    publicId: v.optional(v.string()),
+    resourceType: v.optional(v.string()),
+    visibility: v.string(),
+    uploadedBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_file', ['userId', 'fileId'])
+    .index('by_user_folder', ['userId', 'folderId']),
+
+  userFileOrders: defineTable({
+    userId: v.string(),
+    folderId: v.string(),
+    orderJson: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user_folder', ['userId', 'folderId']),
+
+  userPreferences: defineTable({
+    userId: v.string(),
+    filesViewMode: v.string(),
+    filesSortBy: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
 });

@@ -163,6 +163,12 @@ export async function handleApi(req, res) {
   if (pathname === '/api/files/save' && req.method === 'POST') return api.saveFileApi(req, res);
   if (pathname === '/api/files/upload' && req.method === 'POST') return api.uploadFileApi(req, res);
   if (pathname === '/api/files/signature' && req.method === 'POST') return api.fileSignatureApi(req, res);
+  if (pathname === '/api/files/order' && req.method === 'GET') return api.getFileOrderApi(req, res);
+  if (pathname === '/api/files/order' && req.method === 'PUT') return api.saveFileOrderApi(req, res);
+  if (pathname === '/api/preferences' && req.method === 'GET') return api.getPreferencesApi(req, res);
+  if (pathname === '/api/preferences' && (req.method === 'PATCH' || req.method === 'PUT')) {
+    return api.savePreferencesApi(req, res);
+  }
 
   const fileActionMatch = pathname.match(/^\/api\/files\/([^/]+)\/(content|move|delete)$/);
   if (fileActionMatch) {

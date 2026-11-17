@@ -27,6 +27,7 @@ import {
   updateUserAvatar,
   updateUserPassword,
   getProjectPlan,
+  getProjectPlanMeta,
   saveProjectPlan,
   removeProjectPlan,
   listUsers,
@@ -39,6 +40,10 @@ import {
   getUserFile,
   moveUserFile,
   deleteUserFile,
+  getUserFileOrder,
+  saveUserFileOrder,
+  getUserPreferences,
+  saveUserPreferences,
   db
 } from './db.js';
 import {
@@ -618,11 +623,15 @@ export function createApi(limiter) {
           title: body.title !== undefined ? String(body.title).trim().slice(0, 120) || 'Untitled Board' : undefined,
           category: body.category !== undefined ? String(body.category).trim().slice(0, 60) : undefined,
           starred: body.starred !== undefined ? Boolean(body.starred) : undefined,
-          state: body.state !== undefined && typeof body.state === 'object' ? body.state : undefined
+          state: body.state !== undefined && typeof body.state === 'object' ? body.state : undefined,
+          expectedVersion: body.expectedVersion !== undefined ? Number(body.expectedVersion) : undefined
         });
         if (board?._convexSyncPromise) await board._convexSyncPromise;
         return sendJson(res, 200, { board });
       } catch (err) {
+        if (err.status === 409) {
+          return sendJson(res, 409, { error: err.message, serverBoard: err.serverBoard });
+        }
         return sendJson(res, err.status || 500, { error: err.message });
       }
     },
@@ -648,7 +657,10 @@ export function createApi(limiter) {
     async getProjectPlanApi(req, res, boardId) {
       const user = await auth(req);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
-      let plan = getProjectPlan(boardId, user.id);
+      let meta = getProjectPlanMeta(boardId, user.id);
+      let plan = meta ? meta.plan : null;
+      let version = meta ? meta.version : 0;
+      let updatedAt = meta ? meta.updatedAt : null;
       let source = plan ? 'sqlite' : null;
       if (!plan) {
         plan = await fetchProjectPlanFromConvex(boardId, user.id);
@@ -656,7 +668,9 @@ export function createApi(limiter) {
           source = 'convex';
           // Backfill the local store so the next read is instant.
           try {
-            await saveProjectPlan(boardId, plan, user.id);
+            const saved = await saveProjectPlan(boardId, plan, user.id);
+            version = saved.version || 1;
+            updatedAt = saved.savedAt || Date.now();
           } catch (err) {
             console.warn('[projects] backfill failed:', err.message);
           }
@@ -666,7 +680,8 @@ export function createApi(limiter) {
         boardId,
         source,
         plan: plan || null,
-        updatedAt: null
+        version,
+        updatedAt
       });
     },
 
@@ -685,15 +700,26 @@ export function createApi(limiter) {
         return sendJson(res, 400, { error: 'A plan object is required.' });
       }
       try {
-        const result = await saveProjectPlan(boardId, plan, user.id);
+        const result = await saveProjectPlan(boardId, plan, user.id, {
+          expectedVersion: body.expectedVersion !== undefined ? Number(body.expectedVersion) : undefined
+        });
         return sendJson(res, 200, {
           ok: true,
           boardId,
           savedAt: result.savedAt,
+          version: result.version,
           bytes: result.bytes,
           convexSynced: Boolean(result.convex)
         });
       } catch (err) {
+        if (err.status === 409 && err.serverPlan) {
+          return sendJson(res, 409, {
+            error: err.message,
+            serverPlan: err.serverPlan,
+            serverVersion: err.serverVersion,
+            serverUpdatedAt: err.serverUpdatedAt
+          });
+        }
         return sendJson(res, err.status || 500, { error: err.message });
       }
     },
@@ -866,8 +892,10 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const files = listUserFiles(user.id);
       const folders = listUserFolders(user.id);
+      const preferences = getUserPreferences(user.id);
+      const fileOrder = getUserFileOrder(user.id, 'root');
       const totalBytes = files.reduce((sum, f) => sum + (Number(f.size) || 0), 0);
-      return sendJson(res, 200, { success: true, files, folders, totalBytes, canWrite: true });
+      return sendJson(res, 200, { success: true, files, folders, preferences, fileOrder, totalBytes, canWrite: true });
     },
 
     /** POST /api/files/signature - Cloudinary signed upload ticket */
@@ -1071,6 +1099,53 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const result = deleteUserFolder(user.id, key);
       return sendJson(res, 200, { success: true, ...result });
+    },
+
+    /** GET /api/files/order?folderId=... */
+    async getFileOrderApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const urlObj = new URL(req.url, 'http://localhost');
+      const folderId = urlObj.searchParams.get('folderId') || 'root';
+      const order = getUserFileOrder(user.id, folderId);
+      return sendJson(res, 200, { success: true, folderId, order });
+    },
+
+    /** PUT /api/files/order */
+    async saveFileOrderApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      const folderId = String(body.folderId || 'root').trim() || 'root';
+      const order = saveUserFileOrder(user.id, folderId, body.order || {});
+      return sendJson(res, 200, { success: true, folderId, order });
+    },
+
+    /** GET /api/preferences */
+    async getPreferencesApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const preferences = getUserPreferences(user.id);
+      return sendJson(res, 200, { success: true, preferences });
+    },
+
+    /** PATCH /api/preferences (and PUT /api/preferences) */
+    async savePreferencesApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      const preferences = saveUserPreferences(user.id, body);
+      return sendJson(res, 200, { success: true, preferences });
     }
   };
 }

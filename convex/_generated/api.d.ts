@@ -15,6 +15,7 @@ import type * as files from "../files.js";
 import type * as migrations from "../migrations.js";
 import type * as projectPlanning from "../projectPlanning.js";
 import type * as sessions from "../sessions.js";
+import type * as userFiles from "../userFiles.js";
 import type * as users from "../users.js";
 
 import type {
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   projectPlanning: typeof projectPlanning;
   sessions: typeof sessions;
+  userFiles: typeof userFiles;
   users: typeof users;
 }>;
 

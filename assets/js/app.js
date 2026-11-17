@@ -2763,12 +2763,16 @@
   var saveText = document.getElementById('board-save-text');
   var saveDot = document.getElementById('board-save-dot');
   var saveTimer = null;
+  var serverBoardVersion = null;
 
   function setSaveStatus(status) {
     if (!saveDot) return;
     if (status === 'saving') {
       if (saveText) saveText.textContent = 'Saving changes…';
       saveDot.style.background = '#f59e0b';
+    } else if (status === 'error') {
+      if (saveText) saveText.textContent = 'Sync error — retrying';
+      saveDot.style.background = '#ef4444';
     } else {
       if (saveText) saveText.textContent = 'Saved to Cloud';
       saveDot.style.background = '#10b981';
@@ -2787,18 +2791,40 @@
       starred: starBtn ? starBtn.classList.contains('is-starred') : false,
       state: serializeBoardState()
     };
-    try {
-      localStorage.setItem('quantalflow_board_' + boardId, JSON.stringify(payload));
-    } catch (e) {}
+    if (serverBoardVersion != null) {
+      payload.expectedVersion = serverBoardVersion;
+    }
 
     try {
-      await fetch('/api/boards/' + encodeURIComponent(boardId), {
+      var res = await fetch('/api/boards/' + encodeURIComponent(boardId), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify(payload)
       });
-    } catch (e) {}
-    setSaveStatus('saved');
+      if (res.status === 409) {
+        var conflict = await res.json().catch(function () { return null; });
+        if (conflict && conflict.serverBoard) {
+          serverBoardVersion = conflict.serverBoard.version || serverBoardVersion;
+          if (conflict.serverBoard.state) {
+            restoreBoardState(conflict.serverBoard.state);
+          }
+        }
+        setSaveStatus('saved');
+        return;
+      }
+      if (!res.ok) {
+        setSaveStatus('error');
+        return;
+      }
+      var data = await res.json().catch(function () { return null; });
+      if (data && data.board && data.board.version != null) {
+        serverBoardVersion = data.board.version;
+      }
+      setSaveStatus('saved');
+    } catch (e) {
+      setSaveStatus('error');
+    }
   }
 
   /* A board may be requested by id (/app/assap/002c5f) or by its pretty slug
@@ -3196,6 +3222,7 @@
         var board = await fetchBoardByAnyId(boardId);
         if (board) {
           boardId = board.id || boardId;
+          serverBoardVersion = board.version || 1;
           loadedStateRef = (board.state && board.state.version === 2) ? board.state : null;
           if (titleInput && board.title) {
             titleInput.value = board.title;
@@ -3289,22 +3316,7 @@
         }
       } catch (e) {}
 
-      // Fallback to localStorage if server had no saved items yet
-      try {
-        var cached = localStorage.getItem('quantalflow_board_' + boardId);
-        if (cached) {
-          var parsed = JSON.parse(cached);
-          if (parsed.title && titleInput) {
-            titleInput.value = parsed.title;
-            document.title = parsed.title + ' | QuantalFlow App';
-          }
-          if (parsed.state && parsed.state.version === 2) loadedStateRef = parsed.state;
-          if (parsed.state && parsed.state.modules && typeof parsed.state.modules === 'object') {
-            boardModules = parsed.state.modules;
-          }
-        }
-      } catch (e) {}
-
+      serverBoardVersion = null;
       var fallbackMod = explicitMod || DEFAULT_WORKSPACE_MODULE;
       currentActiveModule = fallbackMod;
       savedActiveModule = fallbackMod;

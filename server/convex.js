@@ -348,6 +348,88 @@ export function deleteProjectPlanFromConvex(boardId, userId) {
     });
 }
 
+/* ------------------------------------------------------------------ *
+ * Files, Folders, Custom Ordering & Preferences
+ * ------------------------------------------------------------------ */
+
+export function syncFolderToConvex(folder, userId) {
+  if (!folder || !userId || config.isTest) return Promise.resolve(null);
+  return convexMutation('userFiles:upsertFolder', {
+    userId: String(userId),
+    folderId: String(folder.id || folder.key),
+    name: String(folder.name || ''),
+    parentId: folder.parentId ? String(folder.parentId) : undefined,
+    createdAt: Number(folder.createdAt || Date.now()),
+    updatedAt: Number(folder.updatedAt || Date.now())
+  });
+}
+
+export function deleteFolderFromConvex(folderId, userId) {
+  if (!folderId || !userId || config.isTest) return Promise.resolve(false);
+  return convexMutation('userFiles:deleteFolder', {
+    userId: String(userId),
+    folderId: String(folderId)
+  }).then(() => true).catch(() => false);
+}
+
+export function syncFileToConvex(file, userId) {
+  if (!file || !userId || config.isTest) return Promise.resolve(null);
+  return convexMutation('userFiles:upsertFile', {
+    userId: String(userId),
+    fileId: String(file.id),
+    folderId: file.folderId ? String(file.folderId) : undefined,
+    name: String(file.name || ''),
+    mimeType: String(file.mimeType || 'application/octet-stream'),
+    size: Number(file.size || 0),
+    extension: String(file.extension || ''),
+    url: String(file.url || ''),
+    publicId: file.publicId ? String(file.publicId) : undefined,
+    resourceType: file.resourceType ? String(file.resourceType) : undefined,
+    visibility: String(file.visibility || 'coordinators'),
+    uploadedBy: String(file.uploadedBy || ''),
+    createdAt: Number(file.createdAt || Date.now()),
+    updatedAt: Number(file.updatedAt || Date.now())
+  });
+}
+
+export function moveFileInConvex(fileId, folderId, userId) {
+  if (!fileId || !userId || config.isTest) return Promise.resolve(null);
+  return convexMutation('userFiles:moveFile', {
+    userId: String(userId),
+    fileId: String(fileId),
+    folderId: folderId ? String(folderId) : undefined,
+    updatedAt: Date.now()
+  });
+}
+
+export function deleteFileFromConvex(fileId, userId) {
+  if (!fileId || !userId || config.isTest) return Promise.resolve(false);
+  return convexMutation('userFiles:deleteFile', {
+    userId: String(userId),
+    fileId: String(fileId)
+  }).then(() => true).catch(() => false);
+}
+
+export function syncFileOrderToConvex(userId, folderId, orderObj) {
+  if (!userId || config.isTest) return Promise.resolve(null);
+  return convexMutation('userFiles:upsertFileOrder', {
+    userId: String(userId),
+    folderId: String(folderId || 'root'),
+    orderJson: JSON.stringify(orderObj || {}),
+    updatedAt: Date.now()
+  });
+}
+
+export function syncPreferencesToConvex(userId, prefs) {
+  if (!userId || !prefs || config.isTest) return Promise.resolve(null);
+  return convexMutation('userFiles:upsertPreferences', {
+    userId: String(userId),
+    filesViewMode: String(prefs.filesViewMode || 'grid'),
+    filesSortBy: String(prefs.filesSortBy || 'date-desc'),
+    updatedAt: Date.now()
+  });
+}
+
 export async function checkConvexConnection() {
   const info = {
     configured: Boolean(config.convex.cloudUrl),

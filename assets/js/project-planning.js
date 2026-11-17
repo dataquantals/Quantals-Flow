@@ -490,6 +490,8 @@
   var planSyncInFlight = false;
   var planSyncQueued = false;
   var planSyncStatus = 'idle'; // idle | saving | saved | local-only | error
+  var serverPlanVersion = null;
+  var hasUnsavedLocalEdits = false;
 
   function planApiUrl() {
     return '/api/projects/' + encodeURIComponent(currentBoardId);
@@ -532,16 +534,35 @@
     planSyncStatus = 'saving';
     var boardIdAtSend = currentBoardId;
 
+    var payloadBody = { plan: state, stateVersion: STATE_VERSION };
+    if (serverPlanVersion != null) payloadBody.expectedVersion = serverPlanVersion;
+
     fetch(planApiUrl(), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: state, stateVersion: STATE_VERSION })
+      body: JSON.stringify(payloadBody)
     })
       .then(function (res) {
+        if (res.status === 409) {
+          return res.json().then(function (conflictData) {
+            if (conflictData && conflictData.serverPlan) {
+              state = normalizeState(conflictData.serverPlan, state.projectName);
+              serverPlanVersion = conflictData.serverVersion || serverPlanVersion;
+              hasUnsavedLocalEdits = false;
+              writeLocalState();
+              renderAll();
+              notify('Newer edits found from another device — synced latest plan');
+            }
+            return null;
+          });
+        }
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
       })
       .then(function (data) {
+        if (!data) return;
+        if (data.version != null) serverPlanVersion = data.version;
+        hasUnsavedLocalEdits = false;
         planSyncStatus = data && data.convexSynced ? 'saved' : 'local-only';
       })
       .catch(function (err) {
@@ -585,40 +606,47 @@
     } catch (e) {}
   }
 
-  /* Cold browser: adopt the durable plan instead of starting empty. Skipped when
-     the user already has real work locally (or the plan is empty everywhere). */
+  /* Always reconcile with the authoritative server plan unless the user has
+     unsaved local edits in flight for the exact same version. */
   function hydratePlanFromServer(projectTitle) {
     if (!currentBoardId || typeof fetch !== 'function') return;
     var boardIdAtRequest = currentBoardId;
 
-    fetch(planApiUrl(), { headers: { Accept: 'application/json' } })
+    fetch(planApiUrl(), { headers: { Accept: 'application/json' }, cache: 'no-store' })
       .then(function (res) {
         return res.ok ? res.json() : null;
       })
       .then(function (data) {
         if (!data || !data.plan) return;
         if (currentBoardId !== boardIdAtRequest) return;
-        if (hasPlanContent(state)) return;
         /* An older client may have left the demo snapshot on the server under
            the blank id; restoring it would just re-seed the sample plan. */
         if (boardIdAtRequest === BLANK_WORKSPACE_ID && isDemoFingerprint(data.plan)) return;
         if (!hasPlanContent(data.plan) && !Array.isArray(data.plan.wbsPhases)) return;
 
+        var incomingVersion = data.version != null ? Number(data.version) : 1;
+        if (hasUnsavedLocalEdits && serverPlanVersion != null && incomingVersion <= serverPlanVersion) {
+          return;
+        }
+
         state = normalizeState(data.plan, projectTitle);
+        serverPlanVersion = incomingVersion;
+        hasUnsavedLocalEdits = false;
         if (projectTitle) state.projectName = projectTitle;
         if (state.wikiPages.length && !state.wikiPages.some(function (w) { return w.id === state.activeWikiId; })) {
           state.activeWikiId = state.wikiPages[0].id;
         }
         writeLocalState();
         renderAll();
-        notify('Plan restored from the cloud');
       })
-      .catch(function () { /* offline: the local cache stays authoritative */ });
+      .catch(function () { /* offline: the local cache stays temporarily */ });
   }
 
   function loadState(boardId, projectTitle) {
     currentBoardId = boardId || 'default-project-workspace';
     state = null;
+    serverPlanVersion = null;
+    hasUnsavedLocalEdits = false;
     var isQuantals = (currentBoardId === 'data-quantals-plan');
     try {
       var raw = localStorage.getItem(STORAGE_PREFIX + currentBoardId);
@@ -642,8 +670,11 @@
         state = createEmptyState(projectTitle);
       }
       writeLocalState();
-      hydratePlanFromServer(projectTitle);
     }
+
+    // Always hydrate from the server so edits made on other devices are never
+    // masked or overwritten by a stale browser cache.
+    hydratePlanFromServer(projectTitle);
 
     if (state.wikiPages.length && !state.wikiPages.some(function (w) { return w.id === state.activeWikiId; })) {
       state.activeWikiId = state.wikiPages[0].id;
@@ -655,6 +686,7 @@
   function persistState() {
     if (!state) return;
     state.updatedAt = Date.now();
+    hasUnsavedLocalEdits = true;
     writeLocalState();
     schedulePlanSync();
   }

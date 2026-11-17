@@ -27,37 +27,13 @@
     { mode: 'flap', variant: 'solid', layout: 'spread', tabPosition: 'left', theme: 'light', size: 1 }
   ];
 
-  var CACHE_KEYS = {
-    FILES: 'qf_files_data',
-    FOLDERS: 'qf_folders_data',
-    ORDER: 'qf_files_order'
-  };
-
-  function readJsonStorage(key, fallback) {
-    try {
-      var raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch (e) {
-      return fallback;
-    }
-  }
-
-  function writeJsonStorage(key, val) {
-    try {
-      localStorage.setItem(key, JSON.stringify(val));
-    } catch (e) {}
-  }
-
   var state = {
-    files: readJsonStorage(CACHE_KEYS.FILES, []),
-    folders: readJsonStorage(CACHE_KEYS.FOLDERS, []),
+    files: [],
+    folders: [],
+    fileOrder: {},
     pending: [],
-    viewMode: (function () {
-      try { return localStorage.getItem('qf_files_view_mode') || 'grid'; } catch (e) { return 'grid'; }
-    })(),
-    sortBy: (function () {
-      try { return localStorage.getItem('qf_files_sort_by') || 'date-desc'; } catch (e) { return 'date-desc'; }
-    })(),
+    viewMode: 'grid',
+    sortBy: 'date-desc',
     viewFolderId: null,
     selectedFileId: null,
     uploading: false,
@@ -67,12 +43,28 @@
 
   function persistFilesCache(list) {
     state.files = Array.isArray(list) ? list : [];
-    writeJsonStorage(CACHE_KEYS.FILES, state.files);
   }
 
   function persistFoldersCache(list) {
     state.folders = Array.isArray(list) ? list : [];
-    writeJsonStorage(CACHE_KEYS.FOLDERS, state.folders);
+  }
+
+  function savePreferencesToServer(patch) {
+    fetch('/api/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(patch)
+    }).catch(function () {});
+  }
+
+  function saveFileOrderToServer(folderId, orderObj) {
+    fetch('/api/files/order', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ folderId: folderId || 'root', order: orderObj || {} })
+    }).catch(function () {});
   }
 
   var draggedFileId = null;
@@ -221,7 +213,7 @@
   function sortFiles(list) {
     var mode = state.sortBy || 'date-desc';
     if (mode === 'order') {
-      var order = readJsonStorage(CACHE_KEYS.ORDER, {});
+      var order = state.fileOrder || {};
       return list.slice().sort(function (a, b) {
         var ra = Number(order[a.id]);
         var rb = Number(order[b.id]);
@@ -250,10 +242,11 @@
     if (from < 0 || to < 0) return;
     ids.splice(from, 1);
     ids.splice(to, 0, movingId);
-    var order = readJsonStorage(CACHE_KEYS.ORDER, {});
+    var order = Object.assign({}, state.fileOrder || {});
     ids.forEach(function (id, idx) { order[id] = idx; });
-    writeJsonStorage(CACHE_KEYS.ORDER, order);
+    state.fileOrder = order;
     state.sortBy = 'order';
+    saveFileOrderToServer(state.viewFolderId || 'root', order);
     renderFilesList();
   }
 
@@ -551,6 +544,17 @@
       }
       persistFilesCache(Array.isArray(data.files) ? data.files : []);
       persistFoldersCache(Array.isArray(data.folders) ? data.folders : []);
+      if (data.fileOrder && typeof data.fileOrder === 'object') {
+        state.fileOrder = data.fileOrder;
+      }
+      if (data.preferences && typeof data.preferences === 'object') {
+        if (data.preferences.filesViewMode === 'grid' || data.preferences.filesViewMode === 'list') {
+          state.viewMode = data.preferences.filesViewMode;
+        }
+        if (data.preferences.filesSortBy) {
+          state.sortBy = data.preferences.filesSortBy;
+        }
+      }
       state.loaded = true;
       state.lastSyncAt = Date.now();
       renderFilesList();
@@ -1080,21 +1084,21 @@
     if (viewGridBtn) {
       viewGridBtn.addEventListener('click', function () {
         state.viewMode = 'grid';
-        try { localStorage.setItem('qf_files_view_mode', 'grid'); } catch (e) {}
+        savePreferencesToServer({ filesViewMode: 'grid' });
         renderFilesList();
       });
     }
     if (viewListBtn) {
       viewListBtn.addEventListener('click', function () {
         state.viewMode = 'list';
-        try { localStorage.setItem('qf_files_view_mode', 'list'); } catch (e) {}
+        savePreferencesToServer({ filesViewMode: 'list' });
         renderFilesList();
       });
     }
     if (sortSelect) {
       sortSelect.addEventListener('change', function () {
         state.sortBy = sortSelect.value;
-        try { localStorage.setItem('qf_files_sort_by', state.sortBy); } catch (e) {}
+        savePreferencesToServer({ filesSortBy: state.sortBy });
         renderFilesList();
       });
     }
@@ -1362,7 +1366,7 @@
         if (col === 'name') state.sortBy = state.sortBy === 'name-asc' ? 'name-desc' : 'name-asc';
         else if (col === 'size') state.sortBy = state.sortBy === 'size-desc' ? 'size-asc' : 'size-desc';
         else if (col === 'date') state.sortBy = state.sortBy === 'date-desc' ? 'date-asc' : 'date-desc';
-        try { localStorage.setItem('qf_files_sort_by', state.sortBy); } catch (err) {}
+        savePreferencesToServer({ filesSortBy: state.sortBy });
         renderFilesList();
       });
     }
