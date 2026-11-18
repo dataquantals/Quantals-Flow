@@ -1,117 +1,312 @@
-(function(){
-  var KEY='quantals-quotation-v1';
-  var CUR='ZMK ';
-  function sample(){return {
-    coName:'Quantals Solution',tagline:'delivering the Best',coAddr1:'PHI off Great East Road',coAddr2:'Lusaka Zambia',coPhone:'Phone +260977445615',
-    date:'2026-08-20',qno:'000072',cid:'',valid:'2026-12-01',prep:'Richard Mumba',
-    toName:'Purchasing Officer',toOrg:'ZESCO',toAddr1:'Great East Road',toAddr2:'Lusaka Zambia',toPhone:'',
-    comments:'None',sales:'Richard Mumba',po:'Non',shipDate:'N/A',shipVia:'N/A',fob:'',terms:'Due on receipt',
-    notes:'',rate:8.6,other:0,
-    footer:'If you have any questions concerning this quotation contact Richard Mumba at 0977445615 or Email: dataquantals@gmail.com',
-    items:[{q:13,d:'Empty Carton Boxes',p:150,t:''}].concat(Array.from({length:8},function(){return {q:'',d:'',p:'',t:''}}))
-  }}
-  var S;
-  try{var raw=localStorage.getItem(KEY);S=raw?JSON.parse(raw):sample()}catch(e){S=sample()}
-  if(!S||!S.items)S=sample();
+/* Quotation page.
+   The document lives on the server (GET/PUT /api/quotation), not in the
+   browser, so it follows the signed-in user across devices. The shell around
+   it (profile avatar, log out) behaves like the dashboard's. */
+(function () {
+  'use strict';
 
-  var $=function(id){return document.getElementById(id)};
-  var rowsEl=$('rows');
-  function money(n){return CUR+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
-  function num(v){var n=parseFloat(v);return isNaN(n)?0:n}
-  function save(){try{localStorage.setItem(KEY,JSON.stringify(S));$('status').textContent='Saved in this browser.'}catch(e){$('status').textContent='Not saved (browser storage blocked).'}}
+  var CUR = 'ZMK ';
+  var SAVE_DELAY_MS = 700;
+  var RETRY_DELAY_MS = 4000;
 
-  function buildRows(){
-    rowsEl.innerHTML='';
-    S.items.forEach(function(it,i){
-      var tr=document.createElement('tr');tr.dataset.i=i;
-      tr.innerHTML='<td><input type="number" min="0" step="any" data-f="q" aria-label="Quantity"></td>'+
-        '<td><input data-f="d" aria-label="Description"></td>'+
-        '<td class="n"><input type="number" min="0" step="any" data-f="p" aria-label="Unit price"></td>'+
-        '<td class="c"><select data-f="t" aria-label="Taxable"><option value="">No</option><option value="T">T</option></select></td>'+
-        '<td class="amt" data-a></td>'+
-        '<td class="x"><button class="rm" type="button" data-rm aria-label="Remove line">&times;</button></td>';
-      tr.querySelectorAll('[data-f]').forEach(function(el){el.value=it[el.dataset.f]});
+  function blankItem() { return { q: '', d: '', p: '', t: '' }; }
+  function blankItems(n) { return Array.from({ length: n }, blankItem); }
+
+  function sample() {
+    return {
+      coName: 'Quantals Solution', tagline: 'delivering the Best',
+      coAddr1: 'PHI off Great East Road', coAddr2: 'Lusaka Zambia', coPhone: 'Phone +260977445615',
+      date: '2026-08-20', qno: '000072', cid: '', valid: '2026-12-01', prep: 'Richard Mumba',
+      toName: 'Purchasing Officer', toOrg: 'ZESCO', toAddr1: 'Great East Road', toAddr2: 'Lusaka Zambia', toPhone: '',
+      comments: 'None', sales: 'Richard Mumba', po: 'Non', shipDate: 'N/A', shipVia: 'N/A', fob: '', terms: 'Due on receipt',
+      notes: '', rate: 8.6, other: 0,
+      footer: 'If you have any questions concerning this quotation contact Richard Mumba at 0977445615 or Email: dataquantals@gmail.com',
+      items: [{ q: 13, d: 'Empty Carton Boxes', p: 150, t: '' }].concat(blankItems(8))
+    };
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var rowsEl = $('rows');
+  var statusEl = $('status');
+  var sheet = $('sheet');
+  var S = null;
+
+  /* ---------------------------------------------------------------- status */
+  function setStatus(state, text) {
+    statusEl.dataset.state = state;
+    statusEl.textContent = text;
+  }
+
+  /* --------------------------------------------------------------- numbers */
+  function num(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function money(n) {
+    return CUR + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function isBlank(it) { return it.q === '' && it.d === '' && it.p === ''; }
+
+  /* ---------------------------------------------------------------- render */
+  function buildRows() {
+    rowsEl.innerHTML = '';
+    S.items.forEach(function (it, i) {
+      var tr = document.createElement('tr');
+      tr.dataset.i = i;
+      tr.innerHTML =
+        '<td><input type="number" min="0" step="any" inputmode="decimal" data-f="q" aria-label="Quantity, line ' + (i + 1) + '"></td>' +
+        '<td><input data-f="d" aria-label="Description, line ' + (i + 1) + '"></td>' +
+        '<td class="n"><input type="number" min="0" step="any" inputmode="decimal" data-f="p" aria-label="Unit price, line ' + (i + 1) + '"></td>' +
+        '<td class="c"><select data-f="t" aria-label="Taxable, line ' + (i + 1) + '"><option value="">No</option><option value="T">Yes</option></select></td>' +
+        '<td class="amt" data-a></td>' +
+        '<td class="x"><button class="quote-rm" type="button" data-rm aria-label="Remove line ' + (i + 1) + '">&times;</button></td>';
+      tr.querySelectorAll('[data-f]').forEach(function (el) {
+        var v = it[el.dataset.f];
+        el.value = v == null ? '' : v;
+      });
       rowsEl.appendChild(tr);
     });
     calc();
   }
-  function calc(){
-    var sub=0,taxable=0;
-    S.items.forEach(function(it,i){
-      var a=num(it.q)*num(it.p); // AMOUNT = QUANTITY x UNIT PRICE
-      sub+=a; if(it.t==='T')taxable+=a;
-      var c=rowsEl.children[i]&&rowsEl.children[i].querySelector('[data-a]');
-      if(c)c.textContent=(it.q===''&&it.p==='')?'':money(a);
-    });
-    var tax=num(S.rate)/100*taxable; // SALES TAX = rate x sum of taxable lines
-    var total=sub+tax+num(S.other);   // TOTAL = subtotal + tax + other
-    $('sub').textContent=money(sub);$('tax').textContent=money(tax);$('total').textContent=money(total);
-    return {sub:sub,tax:tax,total:total};
-  }
-  function fillFields(){
-    document.querySelectorAll('[data-k]').forEach(function(el){el.value=S[el.dataset.k]==null?'':S[el.dataset.k]});
-    $('rate').value=S.rate;$('other').value=S.other;
-  }
-  document.addEventListener('input',function(e){
-    var el=e.target;
-    if(el.dataset.k){S[el.dataset.k]=el.value}
-    else if(el.id==='rate'){S.rate=el.value}
-    else if(el.id==='other'){S.other=el.value}
-    else if(el.dataset.f){var i=el.closest('tr').dataset.i;S.items[i][el.dataset.f]=el.value}
-    else return;
-    calc();save();
-  });
-  rowsEl.addEventListener('click',function(e){
-    var b=e.target.closest('[data-rm]');if(!b)return;
-    S.items.splice(+b.closest('tr').dataset.i,1);
-    if(!S.items.length)S.items.push({q:'',d:'',p:'',t:''});
-    buildRows();save();
-  });
-  $('addRow').onclick=function(){S.items.push({q:'',d:'',p:'',t:''});buildRows();save();
-    var r=rowsEl.lastElementChild;if(r)r.querySelector('input').focus()};
-  $('newQ').onclick=function(){
-    var n=String((parseInt(S.qno,10)||0)+1).padStart(String(S.qno||'000000').length,'0');
-    var d=new Date(),iso=d.toISOString().slice(0,10);
-    var v=new Date(d.getTime()+14*864e5).toISOString().slice(0,10);
-    S.qno=n;S.date=iso;S.valid=v;S.items=Array.from({length:9},function(){return {q:'',d:'',p:'',t:''}});S.other=0;
-    fillFields();buildRows();save();
-  };
-  $('reset').onclick=function(){S=sample();fillFields();buildRows();save()};
-  $('copy').onclick=function(){
-    var t=calc(),lines=['Quotation #'+S.qno+' | '+S.date,'For: '+S.toOrg+' ('+S.toName+')',''];
-    S.items.forEach(function(it){if(num(it.q)||num(it.p))lines.push(it.q+' x '+it.d+' @ '+money(it.p)+' = '+money(num(it.q)*num(it.p)))});
-    lines.push('','Subtotal: '+money(t.sub),'Sales tax ('+S.rate+'%): '+money(t.tax),'Other: '+money(S.other),'Total: '+money(t.total));
-    var txt=lines.join('\n'),st=$('status');
-    (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){st.textContent='Summary copied.'},function(){
-      var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();
-      try{document.execCommand('copy');st.textContent='Summary copied.'}catch(e){st.textContent='Copy blocked by this browser.'}
-      ta.remove()});
-  };
-  /* Download the sheet as a PDF (html2pdf), falling back to the browser
-     print dialog — which also offers "Save as PDF". */
-  var dlBtn = $('downloadPdf');
-  if (dlBtn) dlBtn.onclick = function () {
-    var st = $('status');
-    var sheet = document.querySelector('.sheet');
-    if (!sheet) return;
-    try {
-      if (typeof html2pdf === 'function') {
-        st.textContent = 'Preparing PDF…';
-        html2pdf().set({
-          margin: [8, 8, 8, 8],
-          filename: 'Quotation-' + (S.qno || '000000') + '.pdf',
-          image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(sheet).save().then(
-          function () { st.textContent = 'PDF downloaded.'; },
-          function () { st.textContent = 'Could not build the PDF.'; }
-        );
-      } else {
-        window.print();
-      }
-    } catch (e) { window.print(); }
-  };
 
-  fillFields();buildRows();
+  function calc() {
+    var sub = 0, taxable = 0;
+    S.items.forEach(function (it, i) {
+      var a = num(it.q) * num(it.p);               // amount = quantity x unit price
+      sub += a;
+      if (it.t === 'T') taxable += a;
+      var tr = rowsEl.children[i];
+      if (!tr) return;
+      tr.classList.toggle('is-blank', isBlank(it));
+      tr.querySelector('[data-a]').textContent = (it.q === '' && it.p === '') ? '' : money(a);
+    });
+    var tax = num(S.rate) / 100 * taxable;         // sales tax = rate x taxable lines
+    var total = sub + tax + num(S.other);          // total = subtotal + tax + other
+    $('sub').textContent = money(sub);
+    $('tax').textContent = money(tax);
+    $('total').textContent = money(total);
+    return { sub: sub, tax: tax, total: total };
+  }
+
+  function fillFields() {
+    document.querySelectorAll('[data-k]').forEach(function (el) {
+      var v = S[el.dataset.k];
+      el.value = v == null ? '' : v;
+    });
+    $('rate').value = S.rate == null ? '' : S.rate;
+    $('other').value = S.other == null ? '' : S.other;
+  }
+
+  /* ------------------------------------------------------------------ save */
+  var saveTimer = null;
+  var inFlight = false;
+  var dirty = false;
+
+  function scheduleSave() {
+    if (!S) return;
+    dirty = true;
+    setStatus('saving', 'Saving\u2026');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, SAVE_DELAY_MS);
+  }
+
+  function save() {
+    clearTimeout(saveTimer);
+    if (!dirty) return Promise.resolve();
+    if (inFlight) { saveTimer = setTimeout(save, SAVE_DELAY_MS); return Promise.resolve(); }
+    inFlight = true;
+    dirty = false;
+    return fetch('/api/quotation', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quotation: S })
+    }).then(function (res) {
+      if (res.status === 401) { goToLogin(); return; }
+      if (!res.ok) {
+        return res.json().catch(function () { return {}; }).then(function (d) {
+          throw new Error(d.error || ('HTTP ' + res.status));
+        });
+      }
+      if (!dirty) setStatus('saved', 'All changes saved');
+    }).catch(function (err) {
+      dirty = true;
+      setStatus('error', 'Could not save (' + err.message + '). Retrying\u2026');
+      saveTimer = setTimeout(save, RETRY_DELAY_MS);
+    }).then(function () { inFlight = false; });
+  }
+
+  // Last chance to hand unsent edits to the server when the tab closes.
+  function flushOnLeave() {
+    if (!dirty || !S) return;
+    try {
+      fetch('/api/quotation', {
+        method: 'PUT',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quotation: S })
+      });
+    } catch (e) { /* nothing more to do */ }
+  }
+  window.addEventListener('pagehide', flushOnLeave);
+
+  /* ------------------------------------------------------------- navigation */
+  function goToLogin() {
+    window.location.replace('/login/?next=' + encodeURIComponent('/quotation/'));
+  }
+
+  /* ---------------------------------------------------------------- events */
+  document.addEventListener('input', function (e) {
+    if (!S) return;
+    var el = e.target;
+    if (el.dataset.k) S[el.dataset.k] = el.value;
+    else if (el.id === 'rate') S.rate = el.value;
+    else if (el.id === 'other') S.other = el.value;
+    else if (el.dataset.f) S.items[el.closest('tr').dataset.i][el.dataset.f] = el.value;
+    else return;
+    calc();
+    scheduleSave();
+  });
+
+  rowsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rm]');
+    if (!b || !S) return;
+    var i = +b.closest('tr').dataset.i;
+    S.items.splice(i, 1);
+    if (!S.items.length) S.items.push(blankItem());
+    buildRows();
+    scheduleSave();
+    var next = rowsEl.children[Math.min(i, rowsEl.children.length - 1)];
+    if (next) next.querySelector('input').focus();
+  });
+
+  $('addRow').addEventListener('click', function () {
+    if (!S) return;
+    S.items.push(blankItem());
+    buildRows();
+    scheduleSave();
+    var r = rowsEl.lastElementChild;
+    if (r) r.querySelector('input').focus();
+  });
+
+  $('newQ').addEventListener('click', function () {
+    if (!S) return;
+    if (!window.confirm('Start a new quotation? The current line items will be cleared and the number will go up by one.')) return;
+    var width = String(S.qno || '000000').length;
+    S.qno = String((parseInt(S.qno, 10) || 0) + 1).padStart(width, '0');
+    var d = new Date();
+    S.date = d.toISOString().slice(0, 10);
+    S.valid = new Date(d.getTime() + 14 * 864e5).toISOString().slice(0, 10);
+    S.items = blankItems(9);
+    S.other = 0;
+    fillFields();
+    buildRows();
+    scheduleSave();
+  });
+
+  $('reset').addEventListener('click', function () {
+    if (!S) return;
+    if (!window.confirm('Replace everything on this quotation with the sample? This cannot be undone.')) return;
+    S = sample();
+    fillFields();
+    buildRows();
+    scheduleSave();
+  });
+
+  $('print').addEventListener('click', function () { window.print(); });
+
+  $('copy').addEventListener('click', function () {
+    if (!S) return;
+    var t = calc();
+    var lines = ['Quotation #' + S.qno + ' | ' + S.date, 'For: ' + S.toOrg + ' (' + S.toName + ')', ''];
+    S.items.forEach(function (it) {
+      if (num(it.q) || num(it.p)) lines.push(it.q + ' x ' + it.d + ' @ ' + money(it.p) + ' = ' + money(num(it.q) * num(it.p)));
+    });
+    lines.push('', 'Subtotal: ' + money(t.sub), 'Sales tax (' + S.rate + '%): ' + money(t.tax), 'Other: ' + money(S.other), 'Total: ' + money(t.total));
+    var txt = lines.join('\n');
+    var note = function (msg) {
+      var prev = { s: statusEl.dataset.state, t: statusEl.textContent };
+      setStatus('saved', msg);
+      setTimeout(function () { if (statusEl.textContent === msg) setStatus(prev.s || 'saved', prev.t); }, 2400);
+    };
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
+      function () { note('Summary copied'); },
+      function () { setStatus('error', 'Your browser blocked copying. Use Print or Save PDF instead.'); }
+    );
+  });
+
+  /* ------------------------------------------------------------ header chrome */
+  function wireChrome(user) {
+    var name = user.name || user.email || '';
+    var initialEl = $('dash-initial');
+    if (initialEl) {
+      var img = user.avatar_url || user.avatarUrl || user.imageUrl || user.avatar;
+      if (img) {
+        var el = document.createElement('img');
+        el.src = img; el.alt = '';
+        el.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;';
+        initialEl.textContent = '';
+        initialEl.appendChild(el);
+      } else {
+        initialEl.textContent = (name.charAt(0) || '?').toUpperCase();
+      }
+    }
+  }
+
+  var logout = $('logout');
+  logout.addEventListener('click', function () {
+    logout.disabled = true;
+    logout.textContent = 'Logging out\u2026';
+    var done = function () {
+      try {
+        Object.keys(localStorage).forEach(function (k) {
+          if (k.indexOf('quantalflow_') === 0) localStorage.removeItem(k);
+        });
+        sessionStorage.clear();
+      } catch (e) { /* storage may be blocked */ }
+      goToLogin();
+    };
+    save().then(function () {
+      return fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    }).then(done, done);
+  });
+
+  /* ------------------------------------------------------------------ boot */
+  function boot() {
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(function (res) {
+        if (res.status === 401) { goToLogin(); return null; }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data || !data.user) return null;
+        wireChrome(data.user);
+        return fetch('/api/quotation', { credentials: 'same-origin' });
+      })
+      .then(function (res) {
+        if (!res) return null;
+        if (res.status === 401) { goToLogin(); return null; }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data) return;
+        var saved = data.quotation;
+        var fresh = !saved || !Array.isArray(saved.items) || !saved.items.length;
+        S = fresh ? sample() : saved;
+        fillFields();
+        buildRows();
+        sheet.removeAttribute('aria-busy');
+        if (fresh) {
+          // First visit: store the sample so the number sequence starts server-side.
+          scheduleSave();
+        } else {
+          setStatus('saved', 'All changes saved');
+        }
+      })
+      .catch(function (err) {
+        setStatus('error', 'We could not load your quotation (' + err.message + '). Refresh to try again.');
+      });
+  }
+
+  boot();
 })();

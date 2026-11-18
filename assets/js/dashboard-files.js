@@ -464,7 +464,7 @@
               (file.uploadedBy ? '<div class="files-row-sub">Uploaded by ' + escapeHtml(file.uploadedBy) + '</div>' : '') +
             '</div>' +
             '<div class="files-row-actions">' +
-              '<button type="button" class="files-row-btn" data-files-action="quicklook" data-file-id="' + escapeHtml(file.id) + '" title="Quick Look (Space)">Quick Look</button>' +
+              '<button type="button" class="files-row-btn" data-files-action="share" data-file-id="' + escapeHtml(file.id) + '" title="Share">Share</button>' +
               '<button type="button" class="files-row-btn" data-files-action="read" data-file-id="' + escapeHtml(file.id) + '">Read</button>' +
               '<button type="button" class="files-row-btn" data-files-action="download" data-file-id="' + escapeHtml(file.id) + '">Download</button>' +
               '<button type="button" class="files-row-btn files-row-btn-danger" data-files-action="delete" data-file-id="' + escapeHtml(file.id) + '">Delete</button>' +
@@ -511,7 +511,7 @@
             '<td>' + escapeHtml(formatFileBytes(file.size)) + '</td>' +
             '<td>' + escapeHtml(whenText) + '</td>' +
             '<td class="files-table-actions-cell">' +
-              '<button type="button" class="files-row-btn" data-files-action="quicklook" data-file-id="' + escapeHtml(file.id) + '">Quick Look</button>' +
+              '<button type="button" class="files-row-btn" data-files-action="share" data-file-id="' + escapeHtml(file.id) + '">Share</button>' +
               '<button type="button" class="files-row-btn" data-files-action="read" data-file-id="' + escapeHtml(file.id) + '">Read</button>' +
               '<button type="button" class="files-row-btn" data-files-action="download" data-file-id="' + escapeHtml(file.id) + '">Download</button>' +
               '<button type="button" class="files-row-btn files-row-btn-danger" data-files-action="delete" data-file-id="' + escapeHtml(file.id) + '">Delete</button>' +
@@ -1126,14 +1126,18 @@
     }
 
     var contextTarget = null;
+    var shareTarget = null;
+    var shareMenu = $('files-share-menu');
+
     function showContextMenu(x, y, target) {
       if (!contextMenu) return;
+      hideShareMenu();
       contextTarget = target;
       var dlBtn = contextMenu.querySelector('[data-menu-action="download"]');
-      var qlBtn = contextMenu.querySelector('[data-menu-action="quicklook"]');
+      var shareBtn = contextMenu.querySelector('[data-menu-action="share"]');
       var rnBtn = contextMenu.querySelector('[data-menu-action="rename"]');
       if (dlBtn) dlBtn.hidden = target.type === 'folder';
-      if (qlBtn) qlBtn.hidden = target.type === 'folder';
+      if (shareBtn) shareBtn.hidden = target.type === 'folder';
       if (rnBtn) rnBtn.hidden = target.type === 'file';
 
       contextMenu.hidden = false;
@@ -1146,6 +1150,105 @@
       contextTarget = null;
     }
 
+    function fileShareUrl(file) {
+      if (!file) return '';
+      return file.url || file.secureUrl || file.secure_url || file.downloadUrl || file.download_url || '';
+    }
+
+    function showShareMenu(x, y, fileId) {
+      if (!shareMenu) return;
+      var file = state.files.find(function (f) { return f.id === fileId; });
+      if (!file) return;
+      var url = fileShareUrl(file);
+      if (!url) {
+        showAlert('This file does not have a shareable link yet.', 'error');
+        return;
+      }
+      shareTarget = { id: fileId, name: file.name || 'File', url: url };
+      hideContextMenu();
+
+      var nativeBtn = shareMenu.querySelector('[data-share-action="native"]');
+      var nativeDivider = shareMenu.querySelector('[data-share-native-divider]');
+      var canNative = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+      if (nativeBtn) nativeBtn.hidden = !canNative;
+      if (nativeDivider) nativeDivider.hidden = !canNative;
+
+      shareMenu.hidden = false;
+      shareMenu.setAttribute('aria-hidden', 'false');
+      // Position after unhide so offsetWidth/Height are available
+      var menuW = shareMenu.offsetWidth || 200;
+      var menuH = shareMenu.offsetHeight || 220;
+      var left = Math.max(10, Math.min(x, window.innerWidth - menuW - 10));
+      var top = Math.max(10, Math.min(y, window.innerHeight - menuH - 10));
+      shareMenu.style.left = left + 'px';
+      shareMenu.style.top = top + 'px';
+    }
+
+    function hideShareMenu() {
+      if (!shareMenu) return;
+      shareMenu.hidden = true;
+      shareMenu.setAttribute('aria-hidden', 'true');
+      shareTarget = null;
+    }
+
+    function shareFile(fileId, anchorEl) {
+      var rect = null;
+      if (anchorEl && anchorEl.getBoundingClientRect) {
+        rect = anchorEl.getBoundingClientRect();
+      }
+      var x = rect ? rect.left : (window.innerWidth / 2 - 100);
+      var y = rect ? (rect.bottom + 6) : (window.innerHeight / 2 - 80);
+      showShareMenu(x, y, fileId);
+    }
+
+    async function openShare(action) {
+      var target = shareTarget;
+      if (!target || !target.url) { hideShareMenu(); return; }
+      var name = target.name || 'File';
+      var url = target.url;
+      var text = 'Shared file: ' + name;
+      hideShareMenu();
+
+      if (action === 'whatsapp') {
+        var wa = 'https://wa.me/?text=' + encodeURIComponent(text + '\n' + url);
+        window.open(wa, '_blank', 'noopener');
+      } else if (action === 'email') {
+        var mail = 'mailto:?subject=' + encodeURIComponent('Shared file: ' + name) +
+          '&body=' + encodeURIComponent('Hi,\n\nHere is the file "' + name + '":\n' + url + '\n');
+        window.location.href = mail;
+      } else if (action === 'copy') {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(url);
+          } else {
+            var ta = document.createElement('textarea');
+            ta.value = url;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          showAlert('Link copied to clipboard.', 'success');
+        } catch (err) {
+          showAlert('Could not copy link.', 'error');
+        }
+      } else if (action === 'native') {
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: name, text: text, url: url });
+          }
+        } catch (err) {
+          // User cancelled or share failed — ignore aborts
+          if (err && err.name !== 'AbortError') {
+            showAlert('Could not open share sheet.', 'error');
+          }
+        }
+      }
+    }
+
     if (contextMenu) {
       contextMenu.addEventListener('click', function (e) {
         var item = e.target.closest('[data-menu-action]');
@@ -1156,8 +1259,8 @@
         if (action === 'open') {
           if (target.type === 'folder') setFilesView(target.id);
           else readFile(target.id);
-        } else if (action === 'quicklook') {
-          if (target.type === 'file') readFile(target.id);
+        } else if (action === 'share') {
+          if (target.type === 'file') shareFile(target.id);
         } else if (action === 'rename') {
           if (target.type === 'folder') {
             var folder = folderById(target.id);
@@ -1172,12 +1275,22 @@
         }
       });
     }
+
+    if (shareMenu) {
+      shareMenu.addEventListener('click', function (e) {
+        var item = e.target.closest('[data-share-action]');
+        if (!item) return;
+        var action = item.getAttribute('data-share-action');
+        openShare(action);
+      });
+    }
     document.addEventListener('click', function (e) {
       if (contextMenu && !contextMenu.contains(e.target)) hideContextMenu();
+      if (shareMenu && !shareMenu.contains(e.target)) hideShareMenu();
     });
 
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') hideContextMenu();
+      if (e.key === 'Escape') { hideContextMenu(); hideShareMenu(); }
       if (e.key === ' ' || e.code === 'Space') {
         var filesView = $('dash-files-view');
         if (!filesView || filesView.hidden) return;
@@ -1289,7 +1402,8 @@
         if (btn) {
           var fileId = btn.getAttribute('data-file-id');
           var action = btn.getAttribute('data-files-action');
-          if (action === 'read' || action === 'quicklook') readFile(fileId);
+          if (action === 'share') shareFile(fileId, btn);
+          else if (action === 'read') readFile(fileId);
           else if (action === 'download') downloadFile(fileId);
           else if (action === 'delete') deleteFile(fileId);
           else if (action === 'context') {
@@ -1389,7 +1503,8 @@
           var act = btn.getAttribute('data-files-action');
           if (act) {
             var id = btn.getAttribute('data-file-id');
-            if (act === 'read' || act === 'quicklook') readFile(id);
+            if (act === 'share') shareFile(id, btn);
+            else if (act === 'read') readFile(id);
             else if (act === 'download') downloadFile(id);
             else if (act === 'delete') deleteFile(id);
             return;
