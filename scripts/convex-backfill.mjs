@@ -24,6 +24,18 @@ const plans = db
   .prepare('SELECT board_id, user_id, plan_json FROM project_plans WHERE user_id IS NOT NULL')
   .all();
 const users = db.prepare('SELECT id, email, name, role, password_hash FROM users').all();
+const folders = db
+  .prepare('SELECT id, user_id, name, parent_id, created_at, updated_at FROM user_folders WHERE user_id IS NOT NULL')
+  .all();
+const files = db
+  .prepare('SELECT id, user_id, folder_id, name, mime_type, size, extension, url, public_id, resource_type, visibility, uploaded_by, created_at FROM user_files WHERE user_id IS NOT NULL')
+  .all();
+const fileOrders = db
+  .prepare('SELECT user_id, folder_id, order_json, updated_at FROM user_file_orders WHERE user_id IS NOT NULL')
+  .all();
+const preferences = db
+  .prepare('SELECT user_id, files_view_mode, files_sort_by, updated_at FROM user_preferences WHERE user_id IS NOT NULL')
+  .all();
 
 const parse = (raw) => {
   try {
@@ -81,6 +93,66 @@ for (const p of plans) {
       'projectPlanning:save',
       buildProjectPlanPayload(p.board_id, plan, String(p.user_id))
     )
+  );
+}
+
+console.log('user folders');
+for (const f of folders) {
+  await step(`${f.id} (${f.name}, user ${f.user_id})`, () =>
+    convexMutation('userFiles:upsertFolder', {
+      userId: String(f.user_id),
+      folderId: String(f.id),
+      name: String(f.name || ''),
+      parentId: f.parent_id ? String(f.parent_id) : undefined,
+      createdAt: Number(f.created_at || Date.now()),
+      updatedAt: Number(f.updated_at || Date.now())
+    })
+  );
+}
+
+console.log('user files');
+for (const f of files) {
+  await step(`${f.id} (${f.name}, user ${f.user_id})`, () =>
+    convexMutation('userFiles:upsertFile', {
+      userId: String(f.user_id),
+      fileId: String(f.id),
+      folderId: f.folder_id ? String(f.folder_id) : undefined,
+      name: String(f.name || ''),
+      mimeType: String(f.mime_type || 'application/octet-stream'),
+      size: Number(f.size || 0),
+      extension: String(f.extension || ''),
+      url: String(f.url || ''),
+      publicId: f.public_id ? String(f.public_id) : undefined,
+      resourceType: f.resource_type ? String(f.resource_type) : undefined,
+      visibility: String(f.visibility || 'coordinators'),
+      uploadedBy: String(f.uploaded_by || ''),
+      createdAt: Number(f.created_at || Date.now()),
+      updatedAt: Number(f.created_at || Date.now())
+    })
+  );
+}
+
+console.log('file orders');
+for (const fo of fileOrders) {
+  await step(`folder ${fo.folder_id} (user ${fo.user_id})`, () =>
+    convexMutation('userFiles:upsertFileOrder', {
+      userId: String(fo.user_id),
+      folderId: String(fo.folder_id || 'root'),
+      orderJson: String(fo.order_json || '{}'),
+      updatedAt: Number(fo.updated_at || Date.now())
+    })
+  );
+}
+
+console.log('user preferences');
+for (const pr of preferences) {
+  await step(`user ${pr.user_id}`, () =>
+    convexMutation('userFiles:upsertPreferences', {
+      userId: String(pr.user_id),
+      filesViewMode: String(pr.files_view_mode || 'grid'),
+      filesSortBy: String(pr.files_sort_by || 'date-desc'),
+      updatedAt: Number(pr.updated_at || Date.now())
+    })
   );
 }
 
