@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+﻿import crypto from 'node:crypto';
 import {
   hashPassword,
   verifyPassword,
@@ -44,6 +44,8 @@ import {
   saveUserFileOrder,
   getUserPreferences,
   saveUserPreferences,
+  getUserQuotation,
+  saveUserQuotation,
   db
 } from './db.js';
 import {
@@ -865,7 +867,7 @@ export function createApi(limiter) {
             ideas = JSON.parse(arrMatch[0]);
           }
         } catch {
-          ideas = content.split(/\r?\n/).map(l => l.replace(/^[-*•\d.]+\s*/, '').trim()).filter(Boolean);
+          ideas = content.split(/\r?\n/).map(l => l.replace(/^[-*â€¢\d.]+\s*/, '').trim()).filter(Boolean);
         }
 
         if (!Array.isArray(ideas) || !ideas.length) {
@@ -1146,6 +1148,31 @@ export function createApi(limiter) {
       }
       const preferences = saveUserPreferences(user.id, body);
       return sendJson(res, 200, { success: true, preferences });
+    },
+    /** GET /api/quotation */
+    async getQuotationApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const saved = getUserQuotation(user.id);
+      return sendJson(res, 200, { success: true, quotation: saved ? saved.data : null, updatedAt: saved ? saved.updatedAt : null });
+    },
+
+    /** PUT /api/quotation */
+    async saveQuotationApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 512 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = saveUserQuotation(user.id, body && body.quotation);
+        return sendJson(res, 200, { success: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
     }
   };
 }

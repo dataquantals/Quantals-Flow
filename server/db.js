@@ -1157,3 +1157,47 @@ export function saveUserPreferences(userId, prefs = {}) {
   return next;
 }
 
+
+/* ---------- Quotation (one working document per user) ---------- */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_quotations (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    data_json  TEXT    NOT NULL DEFAULT '{}',
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+/** Returns the saved quotation object, or null when the user has none yet. */
+export function getUserQuotation(userId) {
+  if (userId == null) return null;
+  const row = db.prepare('SELECT data_json, updated_at FROM user_quotations WHERE user_id = ?').get(userId);
+  if (!row) return null;
+  try {
+    const parsed = JSON.parse(row.data_json);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return { data: parsed, updatedAt: row.updated_at };
+  } catch {
+    return null;
+  }
+}
+
+export function saveUserQuotation(userId, data) {
+  if (userId == null) throw forbidden();
+  if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.items)) {
+    const err = new Error('A quotation needs a list of line items.');
+    err.status = 400;
+    throw err;
+  }
+  if (data.items.length > 500) {
+    const err = new Error('A quotation can hold at most 500 line items.');
+    err.status = 400;
+    throw err;
+  }
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO user_quotations (user_id, data_json, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+  `).run(userId, JSON.stringify(data), now);
+  return { updatedAt: now };
+}

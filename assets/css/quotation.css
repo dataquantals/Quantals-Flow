@@ -1,0 +1,215 @@
+/* ==========================================================================
+   Quotation page. Lives inside the dashboard shell (header, sidebar, hero),
+   so only the document sheet and its toolbar are styled here. Colour, type and
+   radius all come from the shared tokens in styles.css; the one accent that is
+   the quotation's own is the orange on the "Quotation" title and the total.
+   ========================================================================== */
+.quote-body {
+  --quote-accent: #d9480f;      /* 4.6:1 on white, passes for text of any size */
+  --quote-head: var(--blue-deep);
+  --quote-field: var(--bg-warm);
+  --quote-muted: #5b6682;       /* 5.9:1 on white */
+}
+
+.quote-main { max-width: 100%; min-width: 0; }
+
+/* ---- Hero + toolbar ---------------------------------------------------- */
+.quote-hero { margin-bottom: 20px; padding-bottom: 18px; }
+.quote-hero__row {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 16px;
+}
+.quote-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.quote-actions .btn { gap: 8px; white-space: nowrap; }
+.quote-danger { color: #b42318; }
+.quote-danger:hover { background: #fef3f2; color: #912018; }
+
+.quote-status {
+  margin: 14px 0 0; font-size: 13px; color: var(--ink-soft);
+  display: flex; align-items: center; gap: 8px; min-height: 20px;
+}
+.quote-status::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted); flex: none;
+}
+.quote-status[data-state="saved"]::before { background: #12b76a; }
+.quote-status[data-state="saving"]::before { background: var(--blue); }
+.quote-status[data-state="error"] { color: #b42318; }
+.quote-status[data-state="error"]::before { background: #d92d20; }
+
+/* ---- The sheet --------------------------------------------------------- */
+.quote-sheet {
+  background: #fff; color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: clamp(18px, 3.4vw, 44px);
+  display: grid; gap: 24px; min-width: 0;
+  max-width: 940px;
+  transition: opacity .2s var(--ease);
+}
+.quote-sheet[aria-busy="true"] { opacity: .5; pointer-events: none; }
+
+/* Fields read as text on paper until you point at them. The resting
+   underline is the affordance; hover and focus fill the field. */
+.quote-sheet input,
+.quote-sheet select,
+.quote-sheet textarea {
+  font: inherit; color: inherit; background: transparent;
+  border: 1px solid transparent; border-bottom-color: var(--line);
+  border-radius: 6px; padding: 6px 8px; min-height: 32px;
+  width: 100%; min-width: 0;
+  transition: background-color .15s var(--ease), border-color .15s var(--ease);
+}
+.quote-sheet textarea { resize: vertical; line-height: 1.45; }
+.quote-sheet input::placeholder { color: #8a8f9c; }
+.quote-sheet input:hover,
+.quote-sheet select:hover,
+.quote-sheet textarea:hover { background: var(--quote-field); }
+.quote-sheet input:focus-visible,
+.quote-sheet select:focus-visible,
+.quote-sheet textarea:focus-visible {
+  background: #fff; border-color: var(--ring);
+  outline: 2px solid var(--ring); outline-offset: 0;
+}
+
+.quote-lbl {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--quote-muted);
+}
+
+/* Header block */
+.quote-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 22px; }
+.quote-brand { display: flex; gap: 16px; align-items: flex-start; min-width: 0; flex: 1 1 340px; }
+.quote-brand img { width: 84px; height: auto; flex: none; border-radius: 6px; }
+.quote-co { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; color: var(--quote-head); }
+.quote-co input { font-weight: 700; letter-spacing: -.02em; padding-inline: 4px; }
+.quote-tag { margin: 2px 0 8px; }
+.quote-tag input { color: var(--quote-accent); font-weight: 600; padding-inline: 4px; }
+.quote-addr { display: grid; font-size: 13px; color: var(--quote-muted); }
+.quote-addr input { font-size: 13px; }
+
+.quote-doc { display: grid; gap: 10px; justify-items: end; min-width: min(100%, 300px); flex: 0 1 320px; }
+.quote-title {
+  margin: 0; font-size: 28px; line-height: 1; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--quote-accent);
+}
+
+.quote-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; width: 100%; }
+.quote-kv label {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--quote-muted); text-align: right;
+}
+.quote-kv--top { align-content: start; }
+
+.quote-two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.quote-block { display: grid; gap: 2px; align-content: start; min-width: 0; }
+.quote-block .quote-lbl { margin-bottom: 4px; }
+
+/* Order details strip: label cells share the table's header colour. */
+.quote-strip {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden;
+}
+.quote-strip > div { padding: 0 8px 8px; border-right: 1px solid var(--line); min-width: 0; }
+.quote-strip > div:last-child { border-right: 0; }
+.quote-strip .quote-lbl {
+  background: var(--quote-head); color: #fff;
+  margin: 0 -8px 6px; padding: 7px 8px;
+}
+
+/* Line items */
+.quote-table-wrap { overflow-x: auto; border-radius: var(--radius-sm); }
+.quote-table { width: 100%; border-collapse: collapse; min-width: 640px; font-variant-numeric: tabular-nums; }
+.quote-table th {
+  background: var(--quote-head); color: #fff; font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; padding: 9px 8px; text-align: left;
+}
+.quote-table th.n, .quote-table td.n { text-align: right; }
+.quote-table th.c, .quote-table td.c { text-align: center; }
+.quote-table td { border-bottom: 1px solid var(--line-soft); padding: 2px 4px; }
+.quote-table td.n input { text-align: right; }
+.quote-table td input, .quote-table td select { border-bottom-color: transparent; }
+.quote-table td.amt { text-align: right; padding-right: 12px; white-space: nowrap; font-weight: 500; }
+.quote-table td.x { width: 40px; text-align: center; }
+
+.quote-rm {
+  width: 28px; height: 28px; display: inline-grid; place-items: center;
+  border: 0; border-radius: 6px; background: transparent; color: var(--muted);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 0;
+  transition: background-color .15s var(--ease), color .15s var(--ease);
+}
+.quote-rm:hover { background: #fef3f2; color: #b42318; }
+.quote-rm:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+
+/* Totals */
+.quote-bottom { display: grid; grid-template-columns: 1fr minmax(260px, 330px); gap: 24px; align-items: start; }
+.quote-tot {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.quote-tot .quote-lbl { text-align: right; }
+.quote-tot label { font: inherit; letter-spacing: inherit; text-transform: inherit; }
+.quote-tot .v { text-align: right; min-width: 124px; font-weight: 500; }
+.quote-tot input { text-align: right; }
+.quote-grand {
+  border-top: 2px solid var(--quote-head); padding-top: 10px;
+  font-size: 18px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--ink);
+}
+.quote-grand.v { color: var(--quote-accent); }
+
+.quote-foot {
+  text-align: center; color: var(--quote-muted); font-size: 13px;
+  border-top: 1px solid var(--line); padding-top: 16px;
+}
+.quote-foot input { text-align: center; }
+
+/* Visually hidden, still announced */
+.quote-sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---- Narrow screens ---------------------------------------------------- */
+@media (max-width: 960px) {
+  .quote-main { max-width: none; }
+}
+@media (max-width: 640px) {
+  .quote-two, .quote-bottom { grid-template-columns: 1fr; }
+  .quote-doc { justify-items: stretch; }
+  .quote-kv label { text-align: left; }
+  .quote-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quote-strip > div { border-bottom: 1px solid var(--line); }
+  .quote-actions { width: 100%; }
+  .quote-actions .btn { flex: 1 1 auto; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote-sheet, .quote-sheet input, .quote-sheet select, .quote-sheet textarea, .quote-rm { transition: none; }
+}
+
+@media (prefers-contrast: more) {
+  .quote-sheet input, .quote-sheet select, .quote-sheet textarea { border-bottom-color: #6b7280; }
+  .quote-sheet { border-color: #6b7280; }
+}
+
+/* ---- Print: the sheet alone, as a document ------------------------------ */
+@media print {
+  @page { margin: 14mm; }
+  .quote-body { background: #fff; }
+  .dash-top, .dash-sidebar, .quote-hero { display: none !important; }
+  .dash-layout { display: block; min-height: 0; }
+  .quote-main { padding: 0; max-width: none; }
+  .quote-sheet {
+    border: 0; box-shadow: none; border-radius: 0; padding: 0; max-width: none;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .quote-sheet input, .quote-sheet select, .quote-sheet textarea { border-color: transparent; background: transparent !important; }
+  .quote-sheet input::placeholder { color: transparent; }
+  .quote-table th, .quote-strip .quote-lbl { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .quote-table td.x, .quote-table th:last-child { display: none; }
+  .quote-table { min-width: 0; }
+  .quote-table-wrap { overflow: visible; }
+  /* A line with nothing in it is a spare row on screen, not part of the document */
+  .quote-table tr.is-blank { display: none; }
+  .quote-table select { appearance: none; -webkit-appearance: none; }
+}

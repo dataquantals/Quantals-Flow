@@ -933,3 +933,71 @@ test('Workspace navigation retains project ID, defaults to project-planning, and
   assert.equal(reloaded.state.modules.perspective.items[0].text, 'Strategic Vision');
 });
 
+test('Quotation route is gated, /api/quotation saves and retrieves user quotations with RLS isolation', async () => {
+  // 1. Unauthenticated /quotation/ redirects to login
+  const unauthPage = await fetch(`${base}/quotation/`, { redirect: 'manual' });
+  assert.equal(unauthPage.status, 302);
+  assert.equal(unauthPage.headers.get('location'), '/login/?next=%2Fquotation%2F');
+
+  // 2. Unauthenticated API access is rejected
+  const unauthApi = await fetch(`${base}/api/quotation`);
+  assert.equal(unauthApi.status, 401);
+
+  // 3. User A can save their quotation
+  const userAReg = await post('/api/auth/register', {
+    name: 'Quote Creator',
+    email: 'quote-creator@example.com',
+    password: 'Password123!'
+  });
+  assert.equal(userAReg.status, 201);
+  const cookieA = sidFrom(userAReg);
+
+  const quoteData = {
+    clientName: 'Acme International',
+    clientEmail: 'billing@acme.org',
+    items: [
+      { description: 'Cloud Migration Architecture', qty: 2, rate: 1500, amount: 3000 },
+      { description: 'Security Hardening Review', qty: 1, rate: 2500, amount: 2500 }
+    ],
+    taxRate: 15,
+    notes: 'Payment terms: 30 days.'
+  };
+
+  const putRes = await fetch(`${base}/api/quotation`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie: cookieA },
+    body: JSON.stringify({ quotation: quoteData })
+  });
+  assert.equal(putRes.status, 200);
+  const putJson = await putRes.json();
+  assert.equal(putJson.success, true);
+
+  // 4. User A can retrieve their saved quotation
+  const getResA = await fetch(`${base}/api/quotation`, {
+    headers: { cookie: cookieA }
+  });
+  assert.equal(getResA.status, 200);
+  const getJsonA = await getResA.json();
+  assert.ok(getJsonA.quotation);
+  assert.equal(getJsonA.quotation.clientName, 'Acme International');
+  assert.equal(getJsonA.quotation.items.length, 2);
+  assert.equal(getJsonA.quotation.items[0].amount, 3000);
+
+  // 5. User B receives an empty/null quotation, ensuring data isolation
+  const userBReg = await post('/api/auth/register', {
+    name: 'Different User',
+    email: 'different-user-quote@example.com',
+    password: 'Password123!'
+  });
+  assert.equal(userBReg.status, 201);
+  const cookieB = sidFrom(userBReg);
+
+  const getResB = await fetch(`${base}/api/quotation`, {
+    headers: { cookie: cookieB }
+  });
+  assert.equal(getResB.status, 200);
+  const getJsonB = await getResB.json();
+  assert.equal(getJsonB.quotation, null, 'User B must not see User A quotation data');
+});
+
+

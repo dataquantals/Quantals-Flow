@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * Static site builder.
  *
@@ -44,6 +44,7 @@ const ASSETS = [
   '/assets/css/styles.css',
   '/assets/css/pages.css',
   '/assets/css/project-planning.css',
+  '/assets/css/quotation.css',
   '/assets/js/save-state.js',
   '/assets/js/main.js',
   '/assets/js/login.js',
@@ -56,7 +57,9 @@ const ASSETS = [
   '/assets/js/project-planning.js',
   '/assets/js/profile.js',
   '/assets/js/files.js',
+  '/assets/js/quotation.js',
   '/assets/img/logo.png',
+  '/assets/img/quotation-logo.jpg',
   '/assets/img/favicon.ico',
   '/assets/img/favicon.png',
   '/assets/img/favicon-192.png',
@@ -173,7 +176,7 @@ for (const page of pages) {
   written.push({ route, out: path.relative(root, out), bytes: Buffer.byteLength(html) });
 }
 
-// sitemap.xml — the 404 route is served on demand, so it stays out of the index.
+// sitemap.xml â€” the 404 route is served on demand, so it stays out of the index.
 const urls = written
   .filter((w) => w.route !== '/404/')
   .map((w) => `  <url><loc>${SITE}${w.route}</loc><changefreq>weekly</changefreq></url>`)

@@ -1,4 +1,4 @@
-import http from 'node:http';
+﻿import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.js';
@@ -165,6 +165,8 @@ export async function handleApi(req, res) {
   if (pathname === '/api/files/signature' && req.method === 'POST') return api.fileSignatureApi(req, res);
   if (pathname === '/api/files/order' && req.method === 'GET') return api.getFileOrderApi(req, res);
   if (pathname === '/api/files/order' && req.method === 'PUT') return api.saveFileOrderApi(req, res);
+  if (pathname === '/api/quotation' && req.method === 'GET') return api.getQuotationApi(req, res);
+  if (pathname === '/api/quotation' && req.method === 'PUT') return api.saveQuotationApi(req, res);
   if (pathname === '/api/preferences' && req.method === 'GET') return api.getPreferencesApi(req, res);
   if (pathname === '/api/preferences' && (req.method === 'PATCH' || req.method === 'PUT')) {
     return api.savePreferencesApi(req, res);
@@ -198,7 +200,7 @@ export async function handleApi(req, res) {
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
 // session, so gate it here rather than letting the page flash and bounce.
-const protectedRoutes = ['/dashboard', '/profile', '/files'];
+const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation'];
 
 function isProtected(pathname) {
   return protectedRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -208,7 +210,7 @@ const server = http.createServer(async (req, res) => {
   const { pathname: rawPathname } = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   // Pages normalise to a trailing slash (/pricing/), but the API router matches
   // exact paths. Vercel's trailingSlash setting and hand-typed URLs both deliver
-  // /api/auth/me/ — strip it so that becomes a 401/200 instead of a 404.
+  // /api/auth/me/ â€” strip it so that becomes a 401/200 instead of a 404.
   const pathname = (rawPathname === '/api' || rawPathname.startsWith('/api/')) ? rawPathname.replace(/\/+$/, '') : rawPathname;
 
   for (const [key, value] of Object.entries(securityHeaders())) res.setHeader(key, value);
