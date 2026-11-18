@@ -408,7 +408,7 @@
 
     drawKV('DATE', formatDateDisplay(data.date), kvY);
     drawKV('QUOTATION #', data.qno, kvY + 7.5);
-    drawKV('CUSTOMER ID', data.cid, kvY + 15);
+    drawKV('TPIN/ID', data.cid, kvY + 15);
 
     // ---- 2. Quotation For & Valid Until / Prepared By ----
     y = 58;
