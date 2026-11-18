@@ -20,7 +20,14 @@
   flex-wrap: wrap; gap: 16px;
 }
 .quote-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.quote-actions .btn { gap: 8px; white-space: nowrap; }
+.quote-actions .btn,
+.quote-dialog-actions .btn {
+  gap: 8px;
+  white-space: nowrap;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.quote-actions .btn:active,
+.quote-dialog-actions .btn:active { transform: scale(0.97); }
 .quote-danger { color: #b42318; }
 .quote-danger:hover { background: #fef3f2; color: #912018; }
 
@@ -200,7 +207,7 @@
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
-  animation: quoteFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: quoteFadeIn 180ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .quote-dialog-overlay[hidden] { display: none !important; }
 
@@ -210,8 +217,9 @@
   box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08);
   width: 100%; max-width: 440px;
   padding: 24px;
+  transform-origin: center;
   transform: scale(1);
-  animation: quoteScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: quoteScaleIn 200ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .quote-dialog-header {

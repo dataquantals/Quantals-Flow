@@ -302,6 +302,358 @@
     return val;
   }
 
+  function getLogoDataUrl() {
+    var img = document.querySelector('.quote-brand img');
+    if (!img || !img.complete || !img.naturalWidth) return null;
+    try {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0);
+      return c.toDataURL('image/jpeg', 0.95);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function buildVectorQuotationPdf(pdf, filename) {
+    var data = S || sample();
+    var totals = calc();
+
+    // Palette matching quotation.css
+    var NAVY = [42, 65, 182];       // #2a41b6
+    var ORANGE = [217, 72, 15];     // #d9480f
+    var INK = [22, 27, 38];         // #161b26
+    var MUTED = [91, 102, 130];     // #5b6682
+    var LINE = [213, 217, 226];     // #d5d9e2
+    var LINE_SOFT = [238, 240, 244];// #eef0f4
+    var WHITE = [255, 255, 255];
+
+    var pageW = pdf.internal.pageSize.getWidth();   // 210 mm
+    var pageH = pdf.internal.pageSize.getHeight();  // 297 mm
+    var cardX = 12;
+    var cardY = 12;
+    var cardW = pageW - 24;                         // 186 mm
+    var L = 20;                                     // inner left
+    var R = pageW - 20;                             // inner right (190 mm)
+    var W = R - L;                                  // 170 mm
+
+    // Clean white page background
+    pdf.setFillColor(WHITE[0], WHITE[1], WHITE[2]);
+    pdf.rect(0, 0, pageW, pageH, 'F');
+
+    function hLine(x1, x2, yPos, color, width) {
+      pdf.setDrawColor(color[0], color[1], color[2]);
+      pdf.setLineWidth(width || 0.25);
+      pdf.line(x1, yPos, x2, yPos);
+    }
+
+    // ---- 1. Header Block (Logo + Company Info | QUOTATION + Date/Q#/CID) ----
+    var y = 21;
+    var logoData = getLogoDataUrl();
+    if (logoData) {
+      pdf.addImage(logoData, 'JPEG', L, y - 2, 20, 12.6);
+    }
+
+    var coX = L + 24;
+    var coR = 114;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(15);
+    pdf.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+    pdf.text(String(data.coName || 'Quantals Solution'), coX, y + 3);
+    hLine(coX, coR, y + 5, LINE);
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2]);
+    pdf.text(String(data.tagline || ''), coX, y + 9.5);
+    hLine(coX, coR, y + 11.5, LINE);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    pdf.text(String(data.coAddr1 || ''), coX, y + 16);
+    hLine(coX, coR, y + 18, LINE);
+    pdf.text(String(data.coAddr2 || ''), coX, y + 22);
+    hLine(coX, coR, y + 24, LINE);
+    pdf.text(String(data.coPhone || ''), coX, y + 28);
+    hLine(coX, coR, y + 30, LINE);
+
+    // Right header: QUOTATION + Metadata
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(18);
+    pdf.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2]);
+    pdf.text('QUOTATION', R, y + 3, { align: 'right' });
+
+    var kvLblX = 148;
+    var kvValX = 151;
+    var kvY = y + 11.5;
+
+    function drawKV(label, value, yPos) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      pdf.text(label, kvLblX, yPos, { align: 'right' });
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(INK[0], INK[1], INK[2]);
+      pdf.text(String(value || ''), kvValX, yPos);
+      hLine(kvValX - 1, R, yPos + 2, LINE);
+    }
+
+    drawKV('DATE', formatDateDisplay(data.date), kvY);
+    drawKV('QUOTATION #', data.qno, kvY + 7.5);
+    drawKV('CUSTOMER ID', data.cid, kvY + 15);
+
+    // ---- 2. Quotation For & Valid Until / Prepared By ----
+    y = 58;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    pdf.text('QUOTATION FOR', L, y);
+
+    var forLines = [
+      data.toName || '',
+      data.toOrg || '',
+      data.toAddr1 || '',
+      data.toAddr2 || '',
+      data.toPhone || ''
+    ];
+    var fy = y + 6;
+    forLines.forEach(function (lineText) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(INK[0], INK[1], INK[2]);
+      if (lineText) {
+        pdf.text(String(lineText), L + 1, fy);
+      }
+      hLine(L, coR, fy + 2, LINE);
+      fy += 7;
+    });
+
+    drawKV('VALID UNTIL', formatDateDisplay(data.valid), y + 6);
+    drawKV('PREPARED BY', data.prep, y + 13.5);
+
+    // ---- 3. Comments or Special Instructions ----
+    y = fy + 5;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    pdf.text('COMMENTS OR SPECIAL INSTRUCTIONS', L, y);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(INK[0], INK[1], INK[2]);
+    var commentLines = pdf.splitTextToSize(String(data.comments || ''), W - 2);
+    if (commentLines.length) {
+      pdf.text(commentLines, L + 1, y + 5.5);
+    }
+    var commentH = Math.max(1, commentLines.length) * 4.5;
+    hLine(L, R, y + 5.5 + commentH, LINE);
+
+    // ---- 4. Order Details Strip ----
+    y = y + 11 + commentH;
+    var stripCols = [
+      { label: 'SALESPERSON', val: data.sales || '', w: 30 },
+      { label: 'P.O. NUMBER', val: data.po || '', w: 26 },
+      { label: 'SHIP DATE', val: data.shipDate || '', w: 26 },
+      { label: 'SHIP VIA', val: data.shipVia || '', w: 26 },
+      { label: 'F.O.B. POINT', val: data.fob || '', w: 28 },
+      { label: 'TERMS', val: data.terms || '', w: 34 }
+    ];
+    var stripHdrH = 6.5;
+    var stripValH = 8;
+
+    pdf.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+    pdf.rect(L, y, W, stripHdrH, 'F');
+
+    pdf.setDrawColor(LINE[0], LINE[1], LINE[2]);
+    pdf.setLineWidth(0.25);
+    pdf.rect(L, y, W, stripHdrH + stripValH, 'S');
+
+    var sx = L;
+    stripCols.forEach(function (col, idx) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(WHITE[0], WHITE[1], WHITE[2]);
+      pdf.text(col.label, sx + 2, y + 4.4);
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(INK[0], INK[1], INK[2]);
+      var cellLines = pdf.splitTextToSize(String(col.val), col.w - 4);
+      if (cellLines.length) {
+        pdf.text(cellLines[0], sx + 2, y + stripHdrH + 5.2);
+      }
+      if (idx > 0) {
+        pdf.setDrawColor(LINE[0], LINE[1], LINE[2]);
+        pdf.line(sx, y + stripHdrH, sx, y + stripHdrH + stripValH);
+      }
+      sx += col.w;
+    });
+
+    // ---- 5. Line Items Table ----
+    y += stripHdrH + stripValH + 6;
+    var tblCols = [
+      { label: 'QUANTITY', w: 22, align: 'left' },
+      { label: 'DESCRIPTION', w: 78, align: 'left' },
+      { label: 'UNIT PRICE', w: 24, align: 'right' },
+      { label: 'TAXABLE', w: 18, align: 'center' },
+      { label: 'AMOUNT', w: 28, align: 'right' }
+    ];
+    var tblHdrH = 7;
+
+    function drawTableHeader(yPos) {
+      pdf.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
+      pdf.rect(L, yPos, W, tblHdrH, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.setTextColor(WHITE[0], WHITE[1], WHITE[2]);
+      var tx = L;
+      tblCols.forEach(function (c) {
+        var textX = c.align === 'right' ? tx + c.w - 2 : (c.align === 'center' ? tx + c.w / 2 : tx + 2);
+        pdf.text(c.label, textX, yPos + 4.8, { align: c.align });
+        tx += c.w;
+      });
+    }
+
+    drawTableHeader(y);
+    y += tblHdrH;
+
+    var activeItems = (data.items || []).filter(function (it) { return !isBlank(it); });
+    if (!activeItems.length) activeItems = [blankItem()];
+
+    activeItems.forEach(function (it) {
+      var descLines = pdf.splitTextToSize(String(it.d || ''), 74);
+      var rowH = Math.max(7.5, descLines.length * 4.5 + 3);
+
+      // Page break if needed before drawing row
+      if (y + rowH > pageH - 28) {
+        pdf.setDrawColor(LINE[0], LINE[1], LINE[2]);
+        pdf.setLineWidth(0.3);
+        pdf.roundedRect(cardX, cardY, cardW, Math.min(y + 4 - cardY, pageH - 24), 3.5, 3.5, 'S');
+        pdf.addPage();
+        pdf.setFillColor(WHITE[0], WHITE[1], WHITE[2]);
+        pdf.rect(0, 0, pageW, pageH, 'F');
+        y = 20;
+        drawTableHeader(y);
+        y += tblHdrH;
+      }
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(INK[0], INK[1], INK[2]);
+
+      var rowY = y + 5;
+      var qStr = it.q === '' || it.q == null ? '' : String(it.q);
+      var pStr = it.p === '' || it.p == null ? '' : String(it.p);
+      var tStr = it.t === 'T' ? 'Yes' : 'No';
+      var aStr = (it.q === '' && it.p === '') ? '' : money(num(it.q) * num(it.p));
+
+      pdf.text(qStr, L + 2, rowY);
+      if (descLines.length) pdf.text(descLines, L + 24, rowY);
+      pdf.text(pStr, L + 22 + 78 + 24 - 2, rowY, { align: 'right' });
+      pdf.text(tStr, L + 22 + 78 + 24 + 9, rowY, { align: 'center' });
+      pdf.text(aStr, R - 2, rowY, { align: 'right' });
+
+      hLine(L, R, y + rowH, LINE_SOFT, 0.25);
+      y += rowH;
+    });
+
+    // ---- 6. Notes & Totals ----
+    if (y + 58 > pageH - 20) {
+      pdf.setDrawColor(LINE[0], LINE[1], LINE[2]);
+      pdf.setLineWidth(0.3);
+      pdf.roundedRect(cardX, cardY, cardW, y + 4 - cardY, 3.5, 3.5, 'S');
+      pdf.addPage();
+      pdf.setFillColor(WHITE[0], WHITE[1], WHITE[2]);
+      pdf.rect(0, 0, pageW, pageH, 'F');
+      y = 22;
+    } else {
+      y += 7;
+    }
+
+    var notesTop = y;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(7);
+    pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    pdf.text('NOTES', L, notesTop);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(INK[0], INK[1], INK[2]);
+    var noteLines = pdf.splitTextToSize(String(data.notes || ''), 94);
+    if (noteLines.length) {
+      pdf.text(noteLines, L + 1, notesTop + 5.5);
+    }
+    var notesEndY = notesTop + 14 + Math.max(0, noteLines.length - 1) * 4.5;
+    hLine(L, coR, notesEndY, LINE);
+
+    var totLblX = 154;
+    var totValX = R;
+    var ty = notesTop + 1;
+
+    function drawTotRow(label, val, underlineVal) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+      pdf.text(label, totLblX, ty, { align: 'right' });
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9.5);
+      pdf.setTextColor(INK[0], INK[1], INK[2]);
+      pdf.text(String(val), totValX, ty, { align: 'right' });
+
+      if (underlineVal) {
+        hLine(158, R, ty + 2, LINE);
+      }
+      ty += 7.5;
+    }
+
+    drawTotRow('SUBTOTAL', money(totals.sub), false);
+    drawTotRow('TAX RATE (%)', data.rate == null ? '0' : String(data.rate), true);
+    drawTotRow('SALES TAX', money(totals.tax), false);
+    drawTotRow('OTHER', data.other == null ? '0' : String(data.other), true);
+
+    // Blue accent divider above Total
+    hLine(132, totLblX, ty - 3, NAVY, 0.55);
+    hLine(158, R, ty - 3, NAVY, 0.55);
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12.5);
+    pdf.setTextColor(INK[0], INK[1], INK[2]);
+    pdf.text('Total', totLblX, ty + 2.5, { align: 'right' });
+
+    pdf.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2]);
+    pdf.text(money(totals.total), totValX, ty + 2.5, { align: 'right' });
+
+    // ---- 7. Footer ----
+    y = Math.max(notesEndY, ty + 6) + 8;
+    hLine(L, R, y, LINE);
+    y += 6;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
+    var footLines = pdf.splitTextToSize(String(data.footer || ''), W);
+    if (footLines.length) {
+      pdf.text(footLines, pageW / 2, y, { align: 'center' });
+    }
+    var contentBottom = y + Math.max(1, footLines.length) * 4 + 4;
+
+    // Outer card rounded border
+    var cardH = Math.max(contentBottom - cardY, 120);
+    pdf.setDrawColor(LINE[0], LINE[1], LINE[2]);
+    pdf.setLineWidth(0.3);
+    pdf.roundedRect(cardX, cardY, cardW, Math.min(cardH, pageH - 24), 3.5, 3.5, 'S');
+
+    pdf.save(filename);
+  }
+
   function generateAndDownloadPdf(rawFilename) {
     var filename = (rawFilename || '').trim() || getDefaultFilename();
     if (!/\.pdf$/i.test(filename)) filename += '.pdf';
@@ -309,214 +661,38 @@
     setStatus('saving', 'Preparing ' + filename + '\u2026');
 
     if (typeof html2pdf !== 'undefined') {
-      var sheetEl = $('sheet');
-      if (!sheetEl) return;
-
-      var clone = sheetEl.cloneNode(true);
-      clone.id = 'sheet-pdf-export';
-      clone.removeAttribute('aria-busy');
-      clone.style.cssText =
-        'width: 860px; max-width: 860px; box-sizing: border-box; background: #ffffff; ' +
-        'padding: 30px 34px; border: 1px solid #d5d9e2; border-radius: 16px; ' +
-        'box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05); margin: 0 auto; color: #172554; ' +
-        'opacity: 1; pointer-events: auto; display: grid; gap: 20px; ' +
-        'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
-
-      var brandCol = clone.querySelector('.quote-brand > div');
-      if (brandCol) {
-        brandCol.style.flex = '1 1 auto';
-        brandCol.style.minWidth = '220px';
-      }
-
-      var origInputs = sheetEl.querySelectorAll('input, select, textarea');
-      var cloneInputs = clone.querySelectorAll('input, select, textarea');
-
-      for (var i = 0; i < origInputs.length; i++) {
-        var orig = origInputs[i];
-        var cl = cloneInputs[i];
-        if (!cl) continue;
-
-        var cs = window.getComputedStyle(orig);
-        var rawVal = orig.value != null ? String(orig.value) : '';
-        var isPlaceholder = false;
-
-        if (orig.tagName === 'SELECT') {
-          var selOpt = orig.options && orig.options[orig.selectedIndex];
-          rawVal = selOpt ? selOpt.text : rawVal;
-        } else if (orig.type === 'date' && rawVal) {
-          rawVal = formatDateDisplay(rawVal);
-        } else if (!rawVal && orig.getAttribute('placeholder')) {
-          rawVal = orig.getAttribute('placeholder');
-          isPlaceholder = true;
-        }
-
-        var box = document.createElement('div');
-        var textSpan = document.createElement('span');
-        textSpan.textContent = rawVal;
-        box.appendChild(textSpan);
-
-        var inTable = Boolean(orig.closest('.quote-table'));
-        var borderBottom = inTable
-          ? '1px solid transparent'
-          : (cs.borderBottomWidth && cs.borderBottomWidth !== '0px'
-              ? cs.borderBottomWidth + ' ' + cs.borderBottomStyle + ' ' + cs.borderBottomColor
-              : '1px solid #d5d9e2');
-
-        box.style.cssText =
-          'box-sizing: border-box; width: 100%; display: flex; align-items: center; ' +
-          'font-family: ' + cs.fontFamily + '; ' +
-          'font-size: ' + cs.fontSize + '; ' +
-          'font-weight: ' + cs.fontWeight + '; ' +
-          'line-height: ' + cs.lineHeight + '; ' +
-          'letter-spacing: ' + cs.letterSpacing + '; ' +
-          'color: ' + (isPlaceholder ? '#8a8f9c' : cs.color) + '; ' +
-          'padding: ' + cs.paddingTop + ' ' + cs.paddingRight + ' ' + cs.paddingBottom + ' ' + cs.paddingLeft + '; ' +
-          'min-height: ' + (cs.minHeight && cs.minHeight !== '0px' ? cs.minHeight : '28px') + '; ' +
-          'border-bottom: ' + borderBottom + '; ' +
-          (orig.tagName === 'TEXTAREA' ? 'white-space: pre-wrap; word-break: break-word;' : 'white-space: nowrap; overflow: hidden;');
-
-        var align = cs.textAlign;
-        if (orig.type === 'date') {
-          box.style.justifyContent = 'space-between';
-          var calIcon = document.createElement('span');
-          calIcon.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#64748b" stroke-width="2" style="display:block;flex:none;"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="5"/><line x1="16" y1="2" x2="16" y2="5"/></svg>';
-          box.appendChild(calIcon);
-        } else if (orig.tagName === 'SELECT') {
-          box.style.justifyContent = 'center';
-          box.style.gap = '4px';
-          var chevIcon = document.createElement('span');
-          chevIcon.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block;flex:none;"><polyline points="6 9 12 15 18 9"/></svg>';
-          box.appendChild(chevIcon);
-        } else if (orig.classList.contains('n') || (orig.parentElement && orig.parentElement.classList.contains('n')) || align === 'right' || align === 'end') {
-          box.style.justifyContent = 'flex-end';
-          box.style.textAlign = 'right';
-        } else if (align === 'center' || (orig.parentElement && orig.parentElement.classList.contains('c'))) {
-          box.style.justifyContent = 'center';
-          box.style.textAlign = 'center';
-        } else {
-          box.style.justifyContent = 'flex-start';
-          box.style.textAlign = 'left';
-        }
-
-        if (orig.tagName === 'TEXTAREA') {
-          box.style.alignItems = 'flex-start';
-          box.style.minHeight = orig.getAttribute('rows') === '3' ? '56px' : '42px';
-        }
-
-        if (cl.parentNode) {
-          cl.parentNode.replaceChild(box, cl);
-        }
-      }
-
-      // Now remove blank spare rows from the table
-      var rows = clone.querySelectorAll('.quote-table tbody tr');
-      var nonBlankCount = 0;
-      rows.forEach(function (tr) {
-        if (!tr.classList.contains('is-blank')) nonBlankCount++;
-      });
-      rows.forEach(function (tr, idx) {
-        if (tr.classList.contains('is-blank') && (nonBlankCount > 0 || idx > 0)) {
-          tr.remove();
-        }
-      });
-
-      // Remove the remove (×) column so the table ends cleanly at Amount
-      var removeCells = clone.querySelectorAll('.quote-table th:last-child, .quote-table td.x');
-      removeCells.forEach(function (c) { c.remove(); });
-
-      var tableEl = clone.querySelector('.quote-table');
-      if (tableEl) {
-        tableEl.style.minWidth = '0';
-        tableEl.style.width = '100%';
-      }
-
-      var prevScrollX = window.scrollX || window.pageXOffset || 0;
-      var prevScrollY = window.scrollY || window.pageYOffset || 0;
-      window.scrollTo(0, 0);
-
-      var opt = {
-        margin: [8, 8, 8, 8],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          scrollX: 0,
-          scrollY: 0,
-          x: 0,
-          y: 0,
-          width: 892,
-          windowWidth: 1100
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      var worker = html2pdf().set(opt).from(clone);
-      worker
-        .toContainer()
-        .then(function () {
-          var c = (this && this.prop && this.prop.container) || document.querySelector('.html2pdf__container');
-          if (c) {
-            c.style.margin = '0';
-            c.style.left = '0';
-            c.style.right = 'auto';
-            c.style.top = '0';
-            c.style.width = '892px';
-            c.style.padding = '16px';
-            c.style.boxSizing = 'border-box';
-            c.style.backgroundColor = '#ffffff';
-          }
-        })
-        .toCanvas()
-        .toPdf()
-        .then(function () {
-          window.scrollTo(prevScrollX, prevScrollY);
-          var canvas = this && this.prop && this.prop.canvas;
-          var pdf = this && this.prop && this.prop.pdf;
-          if (canvas && pdf) {
-            var pageW = pdf.internal.pageSize.getWidth();   // 210 mm
-            var pageH = pdf.internal.pageSize.getHeight();  // 297 mm
-            var margin = 8;
-            var availW = pageW - margin * 2;                // 194 mm
-            var availH = pageH - margin * 2;                // 281 mm
-
-            var imgData = canvas.toDataURL('image/jpeg', 0.98);
-            var ratio = canvas.height / canvas.width;
-            var renderW = availW;
-            var renderH = renderW * ratio;
-
-            // Scale proportionally if taller than 1 page so the entire quotation card fits cleanly
-            if (renderH > availH) {
-              renderH = availH;
-              renderW = renderH / ratio;
-            }
-            var offsetX = (pageW - renderW) / 2;
-            var offsetY = margin;
-
-            var totalPages = pdf.internal.getNumberOfPages();
-            for (var p = totalPages; p > 1; p--) {
-              pdf.deletePage(p);
-            }
-            pdf.setPage(1);
-            pdf.setFillColor(255, 255, 255);
-            pdf.rect(0, 0, pageW, pageH, 'F');
-            pdf.addImage(imgData, 'JPEG', offsetX, offsetY, renderW, renderH);
-            pdf.save(filename);
-          }
-        })
-        .then(function () {
-          setStatus('saved', 'Downloaded ' + filename);
-          setTimeout(function () {
-            setStatus('saved', 'All changes saved to Convex Cloud');
-          }, 3000);
-        })
-        .catch(function (err) {
-          window.scrollTo(prevScrollX, prevScrollY);
-          console.error('html2pdf generation error:', err);
-          fallbackPrintDownload(filename);
+      try {
+        var tinyCanvas = document.createElement('canvas');
+        tinyCanvas.width = 1;
+        tinyCanvas.height = 1;
+        var worker = html2pdf().set({
+          margin: [0, 0, 0, 0],
+          filename: filename,
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         });
+        worker.prop.canvas = tinyCanvas;
+        worker
+          .setPageSize()
+          .toPdf()
+          .then(function () {
+            var pdf = this && this.prop && this.prop.pdf;
+            if (!pdf) throw new Error('jsPDF instance unavailable');
+            buildVectorQuotationPdf(pdf, filename);
+          })
+          .then(function () {
+            setStatus('saved', 'Downloaded ' + filename);
+            setTimeout(function () {
+              setStatus('saved', 'All changes saved to Convex Cloud');
+            }, 3000);
+          })
+          .catch(function (err) {
+            console.error('Vector PDF generation error:', err);
+            fallbackPrintDownload(filename);
+          });
+      } catch (err) {
+        console.error('Vector PDF init error:', err);
+        fallbackPrintDownload(filename);
+      }
     } else {
       fallbackPrintDownload(filename);
     }

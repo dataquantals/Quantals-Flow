@@ -78,7 +78,13 @@ for (const file of sources) {
       ? route
       : route.startsWith('/app/') && routes.has('/app/')
         ? '/app/'
-        : null;
+        // /dashboard/starred/, /dashboard/files/ and /dashboard/space/* are
+        // nested views served by the dashboard shell (DASHBOARD_NESTED_ROUTE_RE
+        // in server/index.js), not physical route directories. Validate them
+        // against the dashboard source just like /app/ nested routes.
+        : route.startsWith('/dashboard/') && routes.has('/dashboard/')
+          ? '/dashboard/'
+          : null;
     if (!resolvedRoute) {
       problems.push(`missing route: ${where}`);
       continue;
