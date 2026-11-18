@@ -683,6 +683,13 @@
   // Immediately sync active tab and panel based on URL pathname
   applyFilterState(parseDashboardRoute(window.location.pathname), false);
 
+  /* Cross-page service links (e.g. the Quotation page's sidebar) land here
+     with ?service= and expect the same create-board modal the in-page
+     service buttons open. */
+  var svcParam = new URLSearchParams(window.location.search).get('service');
+  if (svcParam === 'brainstorm') openCreateBoardModal('brainstorm');
+  else if (svcParam === 'kanban') openCreateBoardModal('kanban');
+
   /* Auth Check */
   fetch('/api/auth/me', { credentials: 'same-origin' })
     .then(function (res) {
