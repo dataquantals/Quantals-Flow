@@ -23,8 +23,8 @@ const TIMEOUT_MS = 20000;
 
 function authHeaders() {
   const key = config.convex.deployKey;
-  if (!key || key.startsWith('preview:')) return {};
-  return { Authorization: `Convex ${key}` };
+  if (!key || key.startsWith('preview:') || key.startsWith('dev:') || key.startsWith('prod:')) return {};
+  return {};
 }
 
 async function postConvex(kind, path, args = {}) {
@@ -428,6 +428,37 @@ export function syncPreferencesToConvex(userId, prefs) {
     filesSortBy: String(prefs.filesSortBy || 'date-desc'),
     updatedAt: Date.now()
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * Quotations (quotations + quotationItems)
+ * ------------------------------------------------------------------ */
+
+export function syncQuotationToConvex(userId, quotationObj, updatedAt) {
+  if (!userId || !quotationObj || config.isTest) return Promise.resolve(null);
+  const quotationJson =
+    typeof quotationObj === 'string' ? quotationObj : JSON.stringify(quotationObj);
+  return convexMutation('quotations:upsertQuotation', {
+    userId: String(userId),
+    quotationJson,
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+export async function getQuotationFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('quotations:getQuotation', {
+    userId: String(userId)
+  });
+  if (!doc || !doc.dataJson) return null;
+  try {
+    return {
+      data: JSON.parse(doc.dataJson),
+      updatedAt: Number(doc.updatedAt || Date.now())
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function checkConvexConnection() {

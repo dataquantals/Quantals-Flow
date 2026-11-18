@@ -4,7 +4,7 @@
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/router/:path*" },
+    { "source": "/api/(.*)", "destination": "/api/router?__api_path=$1" },
     { "source": "/app/(.*)", "destination": "/app/index.html" },
     { "source": "/dashboard/(.*)", "destination": "/dashboard/index.html" }
   ],

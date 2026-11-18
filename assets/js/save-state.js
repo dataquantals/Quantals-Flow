@@ -190,6 +190,35 @@
     } catch (e) {}
   })();
 
+  /* ---------- Vercel Serverless /api/router Fallback ----------
+     If a static edge deployment returns a platform 404 (text/plain) for
+     /api/<subpath>, automatically retry via /api/router?__api_path=<subpath>. */
+  (function installVercelApiFallback() {
+    if (typeof global.fetch !== 'function') return;
+    var nativeFetch = global.fetch.bind(global);
+    global.fetch = function (input, init) {
+      var urlStr = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+      return nativeFetch(input, init).then(function (res) {
+        if (
+          res.status === 404 &&
+          typeof urlStr === 'string' &&
+          urlStr.indexOf('/api/') === 0 &&
+          urlStr.indexOf('/api/router') !== 0
+        ) {
+          var ct = (res.headers && res.headers.get('content-type')) || '';
+          if (ct.indexOf('application/json') === -1) {
+            var qIdx = urlStr.indexOf('?');
+            var pathPart = (qIdx >= 0 ? urlStr.slice(0, qIdx) : urlStr).replace(/^\/api\/+/, '');
+            var queryPart = qIdx >= 0 ? '&' + urlStr.slice(qIdx + 1) : '';
+            var fallbackUrl = '/api/router?__api_path=' + encodeURIComponent(pathPart) + queryPart;
+            return nativeFetch(fallbackUrl, init);
+          }
+        }
+        return res;
+      });
+    };
+  })();
+
   // Don't lose the final keystroke if the user navigates away before the
   // debounce timer fires. `pagehide` covers back/forward, close and reload.
   global.addEventListener('pagehide', flush);

@@ -14,6 +14,12 @@ const accounts = [
     password: '12345678'
   },
   {
+    email: 'mumbarich3@gmail.com',
+    name: 'Richard Mumba',
+    role: 'member',
+    password: '12345678'
+  },
+  {
     email: 'dataqauntals@gmail.com',
     name: 'Data Quantals',
     role: 'owner',

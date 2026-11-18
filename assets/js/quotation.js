@@ -125,7 +125,11 @@
           throw new Error(d.error || ('HTTP ' + res.status));
         });
       }
-      if (!dirty) setStatus('saved', 'All changes saved');
+      return res.json().catch(function () { return {}; }).then(function (d) {
+        if (!dirty) {
+          setStatus('saved', d && d.convexSynced ? 'All changes saved to Convex Cloud' : 'All changes saved');
+        }
+      });
     }).catch(function (err) {
       dirty = true;
       setStatus('error', 'Could not save (' + err.message + '). Retrying\u2026');
@@ -211,7 +215,152 @@
     scheduleSave();
   });
 
-  $('print').addEventListener('click', function () { window.print(); });
+  /* ------------------------------------------------------------ PDF Download & Prompt */
+  function getDefaultFilename() {
+    var qno = (S && S.qno ? String(S.qno).trim() : '000001');
+    var org = (S && S.toOrg ? String(S.toOrg).trim() : '');
+    var safeOrg = org.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+    return safeOrg ? 'Quotation-' + qno + '-' + safeOrg + '.pdf' : 'Quotation-' + qno + '.pdf';
+  }
+
+  var dialogEl = $('downloadDialog');
+  var formEl = $('downloadForm');
+  var filenameInput = $('pdfFilename');
+  var cancelBtn = $('cancelDownload');
+  var downloadBtn = $('downloadPdf') || $('print');
+
+  function openDownloadDialog() {
+    if (!dialogEl || !filenameInput) {
+      var name = window.prompt('Enter the name for the PDF file to be downloaded:', getDefaultFilename());
+      if (name) generateAndDownloadPdf(name);
+      return;
+    }
+    var defName = getDefaultFilename();
+    filenameInput.value = defName;
+    dialogEl.hidden = false;
+
+    setTimeout(function () {
+      filenameInput.focus();
+      var dotIndex = defName.lastIndexOf('.');
+      if (dotIndex > 0) {
+        filenameInput.setSelectionRange(0, dotIndex);
+      } else {
+        filenameInput.select();
+      }
+    }, 50);
+  }
+
+  function closeDownloadDialog() {
+    if (dialogEl) dialogEl.hidden = true;
+  }
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', openDownloadDialog);
+  }
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeDownloadDialog);
+  }
+  if (dialogEl) {
+    dialogEl.addEventListener('click', function (e) {
+      if (e.target === dialogEl) closeDownloadDialog();
+    });
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && dialogEl && !dialogEl.hidden) {
+        closeDownloadDialog();
+      }
+    });
+  }
+
+  if (formEl) {
+    formEl.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var rawName = filenameInput ? filenameInput.value : '';
+      closeDownloadDialog();
+      generateAndDownloadPdf(rawName);
+    });
+  }
+
+  function generateAndDownloadPdf(rawFilename) {
+    var filename = (rawFilename || '').trim() || getDefaultFilename();
+    if (!/\.pdf$/i.test(filename)) filename += '.pdf';
+
+    setStatus('saving', 'Preparing ' + filename + '\u2026');
+
+    if (typeof html2pdf !== 'undefined') {
+      var sheetEl = $('sheet');
+      if (!sheetEl) return;
+
+      var clone = sheetEl.cloneNode(true);
+      clone.id = 'sheet-pdf-export';
+      clone.removeAttribute('aria-busy');
+      // A4 portrait: 595px at 72dpi; use max-width to let the table flow naturally.
+      clone.style.cssText = 'max-width: 595px; background: #ffffff; padding: 32px; box-shadow: none; border: 1px solid #e2e8f0; margin: 0 auto; color: #1e293b; opacity: 1; pointer-events: auto; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+
+      var origInputs = sheetEl.querySelectorAll('input, select, textarea');
+      var cloneInputs = clone.querySelectorAll('input, select, textarea');
+
+      for (var i = 0; i < origInputs.length; i++) {
+        var orig = origInputs[i];
+        var cl = cloneInputs[i];
+        if (!cl) continue;
+        var val = orig.value || '';
+        var span = document.createElement('span');
+        span.textContent = val;
+        span.style.cssText = 'display: inline-block; width: 100%; min-height: 20px; font: inherit; color: inherit;';
+        if (orig.classList.contains('n') || (orig.parentElement && orig.parentElement.classList.contains('n'))) {
+          span.style.textAlign = 'right';
+        }
+        if (cl.parentNode) {
+          cl.parentNode.replaceChild(span, cl);
+        }
+      }
+
+      var rows = clone.querySelectorAll('.quote-table tbody tr');
+      rows.forEach(function (tr) {
+        if (tr.classList.contains('is-blank')) {
+          tr.remove();
+        }
+      });
+
+      var removeCells = clone.querySelectorAll('.quote-table th.x, .quote-table td.x');
+      removeCells.forEach(function (c) { c.remove(); });
+
+      var container = document.createElement('div');
+      container.style.cssText = 'position: fixed; top: -99999px; left: -99999px; width: 860px; background: #ffffff; z-index: -9999;';
+      container.appendChild(clone);
+      document.body.appendChild(container);
+
+      var opt = {
+        margin: [10, 10, 10, 10],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(clone).save().then(function () {
+        container.remove();
+        setStatus('saved', 'Downloaded ' + filename);
+        setTimeout(function () {
+          setStatus('saved', 'All changes saved');
+        }, 3000);
+      }).catch(function (err) {
+        console.error('html2pdf generation error:', err);
+        container.remove();
+        fallbackPrintDownload(filename);
+      });
+    } else {
+      fallbackPrintDownload(filename);
+    }
+  }
+
+  function fallbackPrintDownload(filename) {
+    var prevTitle = document.title;
+    document.title = filename.replace(/\.pdf$/i, '');
+    window.print();
+    setTimeout(function () { document.title = prevTitle; }, 2000);
+    setStatus('saved', 'Downloaded ' + filename);
+  }
 
   $('copy').addEventListener('click', function () {
     if (!S) return;
@@ -271,6 +420,12 @@
 
   /* ------------------------------------------------------------------ boot */
   function boot() {
+    // Immediately render default state and clear aria-busy so the sheet is never grayed out
+    S = sample();
+    fillFields();
+    buildRows();
+    if (sheet) sheet.removeAttribute('aria-busy');
+
     fetch('/api/auth/me', { credentials: 'same-origin' })
       .then(function (res) {
         if (res.status === 401) { goToLogin(); return null; }
@@ -295,15 +450,18 @@
         S = fresh ? sample() : saved;
         fillFields();
         buildRows();
-        sheet.removeAttribute('aria-busy');
+        if (sheet) sheet.removeAttribute('aria-busy');
         if (fresh) {
-          // First visit: store the sample so the number sequence starts server-side.
+          // First visit: store the sample so the number sequence starts server-side & in Convex.
           scheduleSave();
         } else {
-          setStatus('saved', 'All changes saved');
+          setStatus('saved', 'All changes saved to Convex Cloud');
+          // Ensure existing quotation is also synced to Convex Cloud
+          save();
         }
       })
       .catch(function (err) {
+        if (sheet) sheet.removeAttribute('aria-busy');
         setStatus('error', 'We could not load your quotation (' + err.message + '). Refresh to try again.');
       });
   }

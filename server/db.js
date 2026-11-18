@@ -14,7 +14,9 @@ import {
   moveFileInConvex,
   deleteFileFromConvex,
   syncFileOrderToConvex,
-  syncPreferencesToConvex
+  syncPreferencesToConvex,
+  syncQuotationToConvex,
+  getQuotationFromConvex
 } from './convex.js';
 
 try {
@@ -52,18 +54,16 @@ try { db.exec("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT ''"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN avatar_storage_id TEXT DEFAULT ''"); } catch {}
 
-// Seed default users if table is empty (e.g. serverless cold start)
+// Seed default users if missing (e.g. serverless cold start)
 (function seedDefaultUsers() {
   try {
-    const count = db.prepare('SELECT COUNT(*) AS cnt FROM users').get().cnt;
-    if (count > 0) return;
     const now = Date.now();
     const insert = db.prepare(`
-      INSERT INTO users (id, email, name, role, password_hash, created_at)
+      INSERT OR IGNORE INTO users (id, email, name, role, password_hash, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
     insert.run(1, 'dataquantals@gmail.com', 'Owner', 'owner', 'scrypt$16384$8$1$CO5QdVMR0vj5W9msSvj3pw$AhT51UQkmP3kKuGqIwg6RyStyurtk4LGqxR645rNwPgT-nGvrcRSQQvFmnvgVXwdaFNjZHq2rpO8bJ8g-TETug', now);
-    insert.run(2, 'mumbarich3@gmail.com', 'Richard Mumba', 'member', 'scrypt$16384$8$1$HKtejCl2A8vXaVDN2iLkwg$8Fez7w2QoIzqRmo_uPY5cRQFVyv1VJ5d_GRwdx92iaQkvOT75ijl5kIHJoXa2EdhIJeBX2PP7wwVSK7VSS3a1Q', now);
+    insert.run(2, 'mumbarich3@gmail.com', 'Richard Mumba', 'member', 'scrypt$16384$8$1$CO5QdVMR0vj5W9msSvj3pw$AhT51UQkmP3kKuGqIwg6RyStyurtk4LGqxR645rNwPgT-nGvrcRSQQvFmnvgVXwdaFNjZHq2rpO8bJ8g-TETug', now);
     insert.run(3, 'dataqauntals@gmail.com', 'Data Quantals', 'owner', 'scrypt$16384$8$1$r6ZatIMO-nuOLLgzLl6oDw$uHU31ILaz9yP2u7lrflRuO426JW4nNmmU1P82o3O0l_ROXxgPAsbqbmZRMnpnETgURRHrI-Ay_JEv5VTm7g3yg', now);
     insert.run(4, 'mumbarich@gmail.com', 'Mumbarich', 'member', 'scrypt$16384$8$1$RgQEHgwWCTRGk9vMm2QcUw$lKP2MojGNgkfmwppHI7KYmkSBbvQP9p_SJFXR2ENIkOp-uT2FwSWG6utqRcHejzED-KHPF5ka8lbwjxSomQNfw', now);
   } catch {}
@@ -1169,20 +1169,40 @@ db.exec(`
 `);
 
 /** Returns the saved quotation object, or null when the user has none yet. */
-export function getUserQuotation(userId) {
+export async function getUserQuotation(userId) {
   if (userId == null) return null;
   const row = db.prepare('SELECT data_json, updated_at FROM user_quotations WHERE user_id = ?').get(userId);
-  if (!row) return null;
-  try {
-    const parsed = JSON.parse(row.data_json);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return { data: parsed, updatedAt: row.updated_at };
-  } catch {
-    return null;
+  if (row) {
+    try {
+      const parsed = JSON.parse(row.data_json);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { data: parsed, updatedAt: row.updated_at };
+      }
+    } catch {
+      // fall through to Convex hydration
+    }
   }
+
+  // Cold local cache / missing SQLite row: hydrate from Convex if available.
+  try {
+    const remote = await getQuotationFromConvex(userId);
+    const qData = remote && remote.data ? remote.data : remote;
+    if (qData && typeof qData === 'object' && !Array.isArray(qData) && Array.isArray(qData.items)) {
+      const now = Number((remote && remote.updatedAt) || qData.updatedAt || Date.now());
+      db.prepare(`
+        INSERT INTO user_quotations (user_id, data_json, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+      `).run(userId, JSON.stringify(qData), now);
+      return { data: qData, updatedAt: now };
+    }
+  } catch {
+    // Convex unavailable or not configured — treat as no saved quotation.
+  }
+
+  return null;
 }
 
-export function saveUserQuotation(userId, data) {
+export async function saveUserQuotation(userId, data) {
   if (userId == null) throw forbidden();
   if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.items)) {
     const err = new Error('A quotation needs a list of line items.');
@@ -1199,5 +1219,14 @@ export function saveUserQuotation(userId, data) {
     INSERT INTO user_quotations (user_id, data_json, updated_at) VALUES (?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
   `).run(userId, JSON.stringify(data), now);
-  return { updatedAt: now };
+
+  let convexSynced = false;
+  try {
+    const res = await syncQuotationToConvex(userId, data, now);
+    convexSynced = Boolean(res && (res.quotationId || res.updatedAt || res.quotationNumber));
+  } catch {
+    convexSynced = false;
+  }
+
+  return { updatedAt: now, convexSynced };
 }

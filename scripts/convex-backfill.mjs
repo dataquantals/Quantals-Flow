@@ -36,6 +36,9 @@ const fileOrders = db
 const preferences = db
   .prepare('SELECT user_id, files_view_mode, files_sort_by, updated_at FROM user_preferences WHERE user_id IS NOT NULL')
   .all();
+const quotations = db
+  .prepare('SELECT user_id, data_json, updated_at FROM user_quotations WHERE user_id IS NOT NULL')
+  .all();
 
 const parse = (raw) => {
   try {
@@ -152,6 +155,17 @@ for (const pr of preferences) {
       filesViewMode: String(pr.files_view_mode || 'grid'),
       filesSortBy: String(pr.files_sort_by || 'date-desc'),
       updatedAt: Number(pr.updated_at || Date.now())
+    })
+  );
+}
+
+console.log('quotations');
+for (const q of quotations) {
+  await step(`quotation for user ${q.user_id}`, () =>
+    convexMutation('quotations:upsertQuotation', {
+      userId: String(q.user_id),
+      quotationJson: String(q.data_json || '{}'),
+      updatedAt: Number(q.updated_at || Date.now())
     })
   );
 }
