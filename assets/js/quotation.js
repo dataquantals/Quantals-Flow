@@ -42,7 +42,22 @@
   function money(n) {
     return CUR + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  function isBlank(it) { return it.q === '' && it.d === '' && it.p === ''; }
+  function isBlank(it) {
+    return !it || ((it.q === '' || it.q == null) && (it.d === '' || it.d == null) && (it.p === '' || it.p == null));
+  }
+  function isValidQuotation(q) {
+    return Boolean(
+      q &&
+      typeof q === 'object' &&
+      typeof q.coName === 'string' &&
+      q.coName.trim().length > 0 &&
+      typeof q.qno === 'string' &&
+      Array.isArray(q.items) &&
+      q.items.length > 0 &&
+      q.items[0] &&
+      ('q' in q.items[0] || 'd' in q.items[0] || 'p' in q.items[0])
+    );
+  }
 
   /* ---------------------------------------------------------------- render */
   function buildRows() {
@@ -280,6 +295,13 @@
     });
   }
 
+  function formatDateDisplay(val) {
+    if (!val || typeof val !== 'string') return val || '';
+    var m = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return m[3] + '/' + m[2] + '/' + m[1];
+    return val;
+  }
+
   function generateAndDownloadPdf(rawFilename) {
     var filename = (rawFilename || '').trim() || getDefaultFilename();
     if (!/\.pdf$/i.test(filename)) filename += '.pdf';
@@ -293,8 +315,18 @@
       var clone = sheetEl.cloneNode(true);
       clone.id = 'sheet-pdf-export';
       clone.removeAttribute('aria-busy');
-      // A4 portrait: 595px at 72dpi; use max-width to let the table flow naturally.
-      clone.style.cssText = 'max-width: 595px; background: #ffffff; padding: 32px; box-shadow: none; border: 1px solid #e2e8f0; margin: 0 auto; color: #1e293b; opacity: 1; pointer-events: auto; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+      clone.style.cssText =
+        'width: 860px; max-width: 860px; box-sizing: border-box; background: #ffffff; ' +
+        'padding: 30px 34px; border: 1px solid #d5d9e2; border-radius: 16px; ' +
+        'box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05); margin: 0 auto; color: #172554; ' +
+        'opacity: 1; pointer-events: auto; display: grid; gap: 20px; ' +
+        'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;';
+
+      var brandCol = clone.querySelector('.quote-brand > div');
+      if (brandCol) {
+        brandCol.style.flex = '1 1 auto';
+        brandCol.style.minWidth = '220px';
+      }
 
       var origInputs = sheetEl.querySelectorAll('input, select, textarea');
       var cloneInputs = clone.querySelectorAll('input, select, textarea');
@@ -303,52 +335,188 @@
         var orig = origInputs[i];
         var cl = cloneInputs[i];
         if (!cl) continue;
-        var val = orig.value || '';
-        var span = document.createElement('span');
-        span.textContent = val;
-        span.style.cssText = 'display: inline-block; width: 100%; min-height: 20px; font: inherit; color: inherit;';
-        if (orig.classList.contains('n') || (orig.parentElement && orig.parentElement.classList.contains('n'))) {
-          span.style.textAlign = 'right';
+
+        var cs = window.getComputedStyle(orig);
+        var rawVal = orig.value != null ? String(orig.value) : '';
+        var isPlaceholder = false;
+
+        if (orig.tagName === 'SELECT') {
+          var selOpt = orig.options && orig.options[orig.selectedIndex];
+          rawVal = selOpt ? selOpt.text : rawVal;
+        } else if (orig.type === 'date' && rawVal) {
+          rawVal = formatDateDisplay(rawVal);
+        } else if (!rawVal && orig.getAttribute('placeholder')) {
+          rawVal = orig.getAttribute('placeholder');
+          isPlaceholder = true;
         }
+
+        var box = document.createElement('div');
+        var textSpan = document.createElement('span');
+        textSpan.textContent = rawVal;
+        box.appendChild(textSpan);
+
+        var inTable = Boolean(orig.closest('.quote-table'));
+        var borderBottom = inTable
+          ? '1px solid transparent'
+          : (cs.borderBottomWidth && cs.borderBottomWidth !== '0px'
+              ? cs.borderBottomWidth + ' ' + cs.borderBottomStyle + ' ' + cs.borderBottomColor
+              : '1px solid #d5d9e2');
+
+        box.style.cssText =
+          'box-sizing: border-box; width: 100%; display: flex; align-items: center; ' +
+          'font-family: ' + cs.fontFamily + '; ' +
+          'font-size: ' + cs.fontSize + '; ' +
+          'font-weight: ' + cs.fontWeight + '; ' +
+          'line-height: ' + cs.lineHeight + '; ' +
+          'letter-spacing: ' + cs.letterSpacing + '; ' +
+          'color: ' + (isPlaceholder ? '#8a8f9c' : cs.color) + '; ' +
+          'padding: ' + cs.paddingTop + ' ' + cs.paddingRight + ' ' + cs.paddingBottom + ' ' + cs.paddingLeft + '; ' +
+          'min-height: ' + (cs.minHeight && cs.minHeight !== '0px' ? cs.minHeight : '28px') + '; ' +
+          'border-bottom: ' + borderBottom + '; ' +
+          (orig.tagName === 'TEXTAREA' ? 'white-space: pre-wrap; word-break: break-word;' : 'white-space: nowrap; overflow: hidden;');
+
+        var align = cs.textAlign;
+        if (orig.type === 'date') {
+          box.style.justifyContent = 'space-between';
+          var calIcon = document.createElement('span');
+          calIcon.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#64748b" stroke-width="2" style="display:block;flex:none;"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="5"/><line x1="16" y1="2" x2="16" y2="5"/></svg>';
+          box.appendChild(calIcon);
+        } else if (orig.tagName === 'SELECT') {
+          box.style.justifyContent = 'center';
+          box.style.gap = '4px';
+          var chevIcon = document.createElement('span');
+          chevIcon.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block;flex:none;"><polyline points="6 9 12 15 18 9"/></svg>';
+          box.appendChild(chevIcon);
+        } else if (orig.classList.contains('n') || (orig.parentElement && orig.parentElement.classList.contains('n')) || align === 'right' || align === 'end') {
+          box.style.justifyContent = 'flex-end';
+          box.style.textAlign = 'right';
+        } else if (align === 'center' || (orig.parentElement && orig.parentElement.classList.contains('c'))) {
+          box.style.justifyContent = 'center';
+          box.style.textAlign = 'center';
+        } else {
+          box.style.justifyContent = 'flex-start';
+          box.style.textAlign = 'left';
+        }
+
+        if (orig.tagName === 'TEXTAREA') {
+          box.style.alignItems = 'flex-start';
+          box.style.minHeight = orig.getAttribute('rows') === '3' ? '56px' : '42px';
+        }
+
         if (cl.parentNode) {
-          cl.parentNode.replaceChild(span, cl);
+          cl.parentNode.replaceChild(box, cl);
         }
       }
 
+      // Now remove blank spare rows from the table
       var rows = clone.querySelectorAll('.quote-table tbody tr');
+      var nonBlankCount = 0;
       rows.forEach(function (tr) {
-        if (tr.classList.contains('is-blank')) {
+        if (!tr.classList.contains('is-blank')) nonBlankCount++;
+      });
+      rows.forEach(function (tr, idx) {
+        if (tr.classList.contains('is-blank') && (nonBlankCount > 0 || idx > 0)) {
           tr.remove();
         }
       });
 
-      var removeCells = clone.querySelectorAll('.quote-table th.x, .quote-table td.x');
+      // Remove the remove (×) column so the table ends cleanly at Amount
+      var removeCells = clone.querySelectorAll('.quote-table th:last-child, .quote-table td.x');
       removeCells.forEach(function (c) { c.remove(); });
 
-      var container = document.createElement('div');
-      container.style.cssText = 'position: fixed; top: -99999px; left: -99999px; width: 860px; background: #ffffff; z-index: -9999;';
-      container.appendChild(clone);
-      document.body.appendChild(container);
+      var tableEl = clone.querySelector('.quote-table');
+      if (tableEl) {
+        tableEl.style.minWidth = '0';
+        tableEl.style.width = '100%';
+      }
+
+      var prevScrollX = window.scrollX || window.pageXOffset || 0;
+      var prevScrollY = window.scrollY || window.pageYOffset || 0;
+      window.scrollTo(0, 0);
 
       var opt = {
-        margin: [10, 10, 10, 10],
+        margin: [8, 8, 8, 8],
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0,
+          x: 0,
+          y: 0,
+          width: 892,
+          windowWidth: 1100
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      html2pdf().set(opt).from(clone).save().then(function () {
-        container.remove();
-        setStatus('saved', 'Downloaded ' + filename);
-        setTimeout(function () {
-          setStatus('saved', 'All changes saved');
-        }, 3000);
-      }).catch(function (err) {
-        console.error('html2pdf generation error:', err);
-        container.remove();
-        fallbackPrintDownload(filename);
-      });
+      var worker = html2pdf().set(opt).from(clone);
+      worker
+        .toContainer()
+        .then(function () {
+          var c = (this && this.prop && this.prop.container) || document.querySelector('.html2pdf__container');
+          if (c) {
+            c.style.margin = '0';
+            c.style.left = '0';
+            c.style.right = 'auto';
+            c.style.top = '0';
+            c.style.width = '892px';
+            c.style.padding = '16px';
+            c.style.boxSizing = 'border-box';
+            c.style.backgroundColor = '#ffffff';
+          }
+        })
+        .toCanvas()
+        .toPdf()
+        .then(function () {
+          window.scrollTo(prevScrollX, prevScrollY);
+          var canvas = this && this.prop && this.prop.canvas;
+          var pdf = this && this.prop && this.prop.pdf;
+          if (canvas && pdf) {
+            var pageW = pdf.internal.pageSize.getWidth();   // 210 mm
+            var pageH = pdf.internal.pageSize.getHeight();  // 297 mm
+            var margin = 8;
+            var availW = pageW - margin * 2;                // 194 mm
+            var availH = pageH - margin * 2;                // 281 mm
+
+            var imgData = canvas.toDataURL('image/jpeg', 0.98);
+            var ratio = canvas.height / canvas.width;
+            var renderW = availW;
+            var renderH = renderW * ratio;
+
+            // Scale proportionally if taller than 1 page so the entire quotation card fits cleanly
+            if (renderH > availH) {
+              renderH = availH;
+              renderW = renderH / ratio;
+            }
+            var offsetX = (pageW - renderW) / 2;
+            var offsetY = margin;
+
+            var totalPages = pdf.internal.getNumberOfPages();
+            for (var p = totalPages; p > 1; p--) {
+              pdf.deletePage(p);
+            }
+            pdf.setPage(1);
+            pdf.setFillColor(255, 255, 255);
+            pdf.rect(0, 0, pageW, pageH, 'F');
+            pdf.addImage(imgData, 'JPEG', offsetX, offsetY, renderW, renderH);
+            pdf.save(filename);
+          }
+        })
+        .then(function () {
+          setStatus('saved', 'Downloaded ' + filename);
+          setTimeout(function () {
+            setStatus('saved', 'All changes saved to Convex Cloud');
+          }, 3000);
+        })
+        .catch(function (err) {
+          window.scrollTo(prevScrollX, prevScrollY);
+          console.error('html2pdf generation error:', err);
+          fallbackPrintDownload(filename);
+        });
     } else {
       fallbackPrintDownload(filename);
     }
@@ -446,7 +614,7 @@
       .then(function (data) {
         if (!data) return;
         var saved = data.quotation;
-        var fresh = !saved || !Array.isArray(saved.items) || !saved.items.length;
+        var fresh = !isValidQuotation(saved);
         S = fresh ? sample() : saved;
         fillFields();
         buildRows();

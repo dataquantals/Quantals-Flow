@@ -80,6 +80,7 @@
 /* Header block */
 .quote-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 22px; }
 .quote-brand { display: flex; gap: 16px; align-items: flex-start; min-width: 0; flex: 1 1 340px; }
+.quote-brand > div { flex: 1 1 auto; min-width: 0; }
 .quote-brand img { width: 84px; height: auto; flex: none; border-radius: 6px; }
 .quote-co { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; color: var(--quote-head); }
 .quote-co input { font-weight: 700; letter-spacing: -.02em; padding-inline: 4px; }
@@ -144,7 +145,7 @@
 /* Totals */
 .quote-bottom { display: grid; grid-template-columns: 1fr minmax(260px, 330px); gap: 24px; align-items: start; }
 .quote-tot {
-  display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; align-items: center;
+  display: grid; grid-template-columns: 90px 1fr; gap: 8px 14px; align-items: center;
   font-variant-numeric: tabular-nums;
 }
 .quote-tot .quote-lbl { text-align: right; }
