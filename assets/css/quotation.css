@@ -49,9 +49,10 @@
   background: #fff; color: var(--ink);
   border: 1px solid var(--line); border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: clamp(18px, 3.4vw, 44px);
+  padding: clamp(18px, 3vw, 40px);
   display: grid; gap: 24px; min-width: 0;
-  max-width: 940px;
+  width: 100%;
+  max-width: none;
   transition: opacity .2s var(--ease);
 }
 .quote-sheet[aria-busy="true"] { opacity: .5; pointer-events: none; }

@@ -1840,7 +1840,7 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
   padding: 18px 20px; margin-bottom: 24px;
 }
 .dash-templates-row {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;
 }
 .dash-tpl-btn {
   display: flex; flex-direction: column; align-items: flex-start; text-align: left;
@@ -1922,11 +1922,137 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
   padding: 28px 24px; text-align: center; color: var(--ink-soft); font-size: 14.5px;
 }
 
+.dash-top__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.dash-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line-soft);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.dash-hamburger:hover {
+  background: var(--bg-warm);
+  border-color: var(--line);
+}
+.dash-hamburger:active {
+  transform: scale(0.95);
+}
+.dash-hamburger:focus-visible {
+  outline: 2px solid var(--ring, #4262ff);
+  outline-offset: 2px;
+}
+.dash-sidebar__mobile-head {
+  display: none;
+}
+.dash-sidebar-backdrop {
+  display: none;
+}
+body.dash-drawer-locked {
+  overflow: hidden;
+}
+
 @media (max-width: 960px) {
   .dash-layout { grid-template-columns: 1fr; }
-  .dash-sidebar { border-right: none; border-bottom: 1px solid var(--line-soft); }
+  .dash-hamburger { display: inline-flex; }
+  .dash-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(296px, 84vw);
+    max-width: 100%;
+    z-index: 1200;
+    border-right: 1px solid var(--line-soft);
+    border-bottom: none;
+    background: #fff;
+    padding: 16px 14px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform: translateX(-100%);
+    visibility: hidden;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+    transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 260ms;
+  }
+  .dash-sidebar.is-drawer-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 0s;
+  }
+  .dash-sidebar__mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 4px 14px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .dash-sidebar__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--line-soft);
+    background: var(--bg-warm);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .dash-sidebar__close:active {
+    transform: scale(0.95);
+  }
+  .dash-sidebar__close:focus-visible {
+    outline: 2px solid var(--ring, #4262ff);
+    outline-offset: 2px;
+  }
+  .dash-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1190;
+    background: rgba(15, 23, 42, 0.42);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .dash-sidebar-backdrop.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
   .dash-templates-row { grid-template-columns: repeat(2, 1fr); }
   .dash-search-bar { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-sidebar,
+  .dash-sidebar-backdrop,
+  .dash-hamburger,
+  .dash-sidebar__close {
+    transition: none !important;
+  }
+}
+@media print {
+  .dash-hamburger,
+  .dash-sidebar-backdrop,
+  .dash-sidebar__mobile-head {
+    display: none !important;
+  }
 }
 
 /* ==========================================================================
@@ -1938,9 +2064,10 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
   min-height: 100vh;
 }
 .profile-container {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 44px 24px 96px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(24px, 3vw, 44px) clamp(16px, 3vw, 48px) 84px;
 }
 .profile-hero {
   display: flex;
@@ -2167,9 +2294,9 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
    ========================================================================== */
 .tpl-container {
   width: 100%;
-  max-width: 1320px;
-  margin-inline: auto;
-  padding-inline: var(--gutter);
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: clamp(16px, 3vw, 48px);
 }
 
 /* ---------- Hero ---------- */
