@@ -184,11 +184,11 @@
 
   /* ------------------------------------------------------------- navigation */
   function goToLogin() {
-    window.location.replace('/login/?next=' + encodeURIComponent('/quotation/'));
+    window.location.replace('/login/?next=' + encodeURIComponent(window.location.pathname || '/dashboard/quotation/'));
   }
 
   /* ---------------------------------------------------------------- events */
-  document.addEventListener('input', function (e) {
+  (sheet || document).addEventListener('input', function (e) {
     if (!S) return;
     var el = e.target;
     if (el.dataset.k) S[el.dataset.k] = el.value;

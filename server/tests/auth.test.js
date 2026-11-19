@@ -1000,4 +1000,37 @@ test('Quotation route is gated, /api/quotation saves and retrieves user quotatio
   assert.equal(getJsonB.quotation, null, 'User B must not see User A quotation data');
 });
 
+test('Hierarchical /dashboard/<child>/ routes guard auth, canonicalise slashes, render target views, and 404 unknown paths', async () => {
+  const cookie = ownerCookie();
+  const childRoutes = [
+    { slug: 'notepad', marker: 'Note Pad | QuantalFlow' },
+    { slug: 'quotation', marker: 'Quotation | QuantalFlow' },
+    { slug: 'invoice', marker: 'Invoice | QuantalFlow' }
+  ];
+
+  for (const { slug, marker } of childRoutes) {
+    const unauth = await fetch(`${base}/dashboard/${slug}/`, { redirect: 'manual' });
+    assert.equal(unauth.status, 302);
+    assert.equal(unauth.headers.get('location'), `/login/?next=${encodeURIComponent(`/dashboard/${slug}/`)}`);
+
+    const noSlash = await fetch(`${base}/dashboard/${slug}`, {
+      headers: { cookie },
+      redirect: 'manual'
+    });
+    assert.equal(noSlash.status, 301);
+    assert.equal(noSlash.headers.get('location'), `/dashboard/${slug}/`);
+
+    const page = await fetch(`${base}/dashboard/${slug}/`, { headers: { cookie } });
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.ok(html.includes(marker), `/dashboard/${slug}/ should render "${marker}"`);
+    assert.ok(html.includes('workspace-router.js'), `/dashboard/${slug}/ should include workspace-router.js`);
+  }
+
+  const missing = await fetch(`${base}/dashboard/does-not-exist/`, { headers: { cookie } });
+  assert.equal(missing.status, 404);
+  const missingHtml = await missing.text();
+  assert.ok(missingHtml.includes('404'), 'unknown /dashboard/<missing>/ route should render the 404 page');
+});
+
 

@@ -3,7 +3,7 @@
   'use strict';
 
   function goToLogin() {
-    window.location.replace('/login/?next=' + encodeURIComponent('/notepad/'));
+    window.location.replace('/login/?next=' + encodeURIComponent(window.location.pathname || '/dashboard/notepad/'));
   }
 
   function wireChrome(user) {

@@ -855,7 +855,7 @@ body.is-drawer-open { overflow: hidden; }
   gap: 16px; padding: 12px var(--gutter); background: #fff;
   border-bottom: 1px solid var(--line-soft); position: sticky; top: 0; z-index: 20;
 }
-.dash-top__right { display: flex; align-items: center; gap: 14px; }
+.dash-top__right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .dash-badge {
   background: var(--yellow); color: var(--ink);
   font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
@@ -939,14 +939,35 @@ body.is-drawer-open { overflow: hidden; }
 @media (max-width: 900px) {
   .dash__grid, .dash__stats { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 620px) {
+@media (max-width: 640px) {
   .auth__card { padding: 32px 24px 26px; }
   .auth-logo { padding: 18px 20px; }
   .auth-footer { padding: 18px 20px; }
-  .dash-top { padding: 12px 20px; }
+  .dash-top { padding: 10px 14px; gap: 8px; }
+  .dash-top__left { flex: 1 1 auto; min-width: 0; overflow: hidden; gap: 8px; }
+  .dash-top__left .logo { min-width: 0; gap: 7px; }
+  .dash-top__left .logo__mark { width: 26px; height: 26px; flex-shrink: 0; }
+  .dash-top__left .logo__word { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dash-top__right { gap: 8px; }
+  .dash-profile-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0 !important;
+    justify-content: center;
+    border-radius: 999px;
+  }
+  .dash-profile-btn span:last-child { display: none; }
+  .dash-top__right .btn--dark {
+    padding: 7px 12px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
   .dash-user__name { display: none; }
-  .dash { padding: 32px 20px 56px; }
+  .dash { padding: 20px 14px 48px; }
   .dash__grid, .dash__stats { grid-template-columns: 1fr; }
+}
+@media (max-width: 350px) {
+  .dash-top__left .logo__word { display: none; }
 }
 
 /* ============================ Reveal animation ============================ */

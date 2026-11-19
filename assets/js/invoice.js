@@ -184,11 +184,11 @@
 
   /* ------------------------------------------------------------- navigation */
   function goToLogin() {
-    window.location.replace('/login/?next=' + encodeURIComponent('/invoice/'));
+    window.location.replace('/login/?next=' + encodeURIComponent(window.location.pathname || '/dashboard/invoice/'));
   }
 
   /* ---------------------------------------------------------------- events */
-  document.addEventListener('input', function (e) {
+  (sheet || document).addEventListener('input', function (e) {
     if (!S) return;
     var el = e.target;
     if (el.dataset.k) S[el.dataset.k] = el.value;

@@ -27,6 +27,12 @@ const dashboardShellPage = path.join(config.root, 'dashboard', 'index.html');
 const APP_NESTED_ROUTE_RE = /^\/app\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+){0,2}\/?$/;
 // 2) /dashboard/starred, /dashboard/recent, /dashboard/files, /dashboard/space/<spaceSlug>
 const DASHBOARD_NESTED_ROUTE_RE = /^\/dashboard\/(?:starred|recent|files|space\/[a-zA-Z0-9_-]+)\/?$/;
+// 3) Dedicated child workspace pages mounted hierarchically under /dashboard/<child>/
+const DASHBOARD_CHILD_PAGES = {
+  notepad: path.join(config.root, 'notepad', 'index.html'),
+  quotation: path.join(config.root, 'quotation', 'index.html'),
+  invoice: path.join(config.root, 'invoice', 'index.html')
+};
 
 // Sweep expired sessions hourly so the table does not grow without bound.
 if (!process.env.VERCEL) {
@@ -277,6 +283,19 @@ const server = http.createServer(async (req, res) => {
       const isNavigation = !path.extname(pathname);
       if (isNavigation && APP_NESTED_ROUTE_RE.test(pathname) && fs.existsSync(appShellPage)) {
         return sendFile(res, appShellPage);
+      }
+      // Dedicated child modules under /dashboard/<module>/ (notepad, quotation, invoice)
+      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice)(\/)?$/);
+      if (dashChildMatch) {
+        const childKey = dashChildMatch[1];
+        const childFile = DASHBOARD_CHILD_PAGES[childKey];
+        if (childFile && fs.existsSync(childFile)) {
+          if (!dashChildMatch[2]) {
+            res.writeHead(301, { Location: `/dashboard/${childKey}/` });
+            return res.end();
+          }
+          return sendFile(res, childFile);
+        }
       }
       if (isNavigation && DASHBOARD_NESTED_ROUTE_RE.test(pathname) && fs.existsSync(dashboardShellPage)) {
         return sendFile(res, dashboardShellPage);
