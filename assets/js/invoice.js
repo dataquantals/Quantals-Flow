@@ -408,8 +408,11 @@
     var data = S || sample();
     var totals = calc();
 
-    // Palette matching quotation.css
+    // Palette matching quotation.css (.invoice-body)
     var NAVY = [42, 65, 182];       // #2a41b6
+    var GREEN = [13, 122, 85];      // rgba(13, 122, 85, 0.6) — invoice bars (60% opacity)
+    var BAR_INK = [6, 36, 23];      // #062417 — 6.55:1 contrast on 60% emerald bar
+    var BAR_OPACITY = 0.6;
     var ORANGE = [217, 72, 15];     // #d9480f
     var INK = [22, 27, 38];         // #161b26
     var MUTED = [91, 102, 130];     // #5b6682
@@ -434,6 +437,23 @@
       pdf.setDrawColor(color[0], color[1], color[2]);
       pdf.setLineWidth(width || 0.25);
       pdf.line(x1, yPos, x2, yPos);
+    }
+
+    // Green document bars are drawn at 60% opacity. Graphics state is scoped to
+    // the fill only, so labels/borders drawn afterwards stay fully opaque.
+    function fillBar(x, yPos, width, height) {
+      var opaque = false;
+      try {
+        if (pdf.setGState && pdf.GState) {
+          pdf.setGState(new pdf.GState({ opacity: BAR_OPACITY }));
+          opaque = true;
+        }
+      } catch (e) { /* older jsPDF: fall back to solid fill */ }
+      pdf.setFillColor(GREEN[0], GREEN[1], GREEN[2]);
+      pdf.rect(x, yPos, width, height, 'F');
+      if (opaque) {
+        try { pdf.setGState(new pdf.GState({ opacity: 1 })); } catch (e) {}
+      }
     }
 
     // ---- 1. Header Block (Logo + Company Info | QUOTATION + Date/Q#/CID) ----
@@ -563,8 +583,7 @@
     var stripHdrH = 6.5;
     var stripValH = 8;
 
-    pdf.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-    pdf.rect(L, y, W, stripHdrH, 'F');
+    fillBar(L, y, W, stripHdrH);
 
     pdf.setDrawColor(LINE[0], LINE[1], LINE[2]);
     pdf.setLineWidth(0.25);
@@ -574,7 +593,7 @@
     stripCols.forEach(function (col, idx) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(6.5);
-      pdf.setTextColor(WHITE[0], WHITE[1], WHITE[2]);
+      pdf.setTextColor(BAR_INK[0], BAR_INK[1], BAR_INK[2]);
       pdf.text(col.label, sx + 2, y + 4.4);
 
       pdf.setFont('helvetica', 'normal');
@@ -603,11 +622,10 @@
     var tblHdrH = 7;
 
     function drawTableHeader(yPos) {
-      pdf.setFillColor(NAVY[0], NAVY[1], NAVY[2]);
-      pdf.rect(L, yPos, W, tblHdrH, 'F');
+      fillBar(L, yPos, W, tblHdrH);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(7);
-      pdf.setTextColor(WHITE[0], WHITE[1], WHITE[2]);
+      pdf.setTextColor(BAR_INK[0], BAR_INK[1], BAR_INK[2]);
       var tx = L;
       tblCols.forEach(function (c) {
         var textX = c.align === 'right' ? tx + c.w - 2 : (c.align === 'center' ? tx + c.w / 2 : tx + 2);

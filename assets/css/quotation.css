@@ -7,8 +7,17 @@
 .quote-body {
   --quote-accent: #d9480f;      /* 4.6:1 on white, passes for text of any size */
   --quote-head: var(--blue-deep);
+  --quote-bar-bg: var(--quote-head);
+  --quote-bar-ink: #ffffff;
   --quote-field: var(--bg-warm);
   --quote-muted: #5b6682;       /* 5.9:1 on white */
+}
+
+/* Invoice-specific translucent emerald-teal header bars (60% opacity)
+   Blends to #6eb099 on white; #062417 text delivers 6.55:1 WCAG AA contrast. */
+.invoice-body {
+  --quote-bar-bg: rgba(13, 122, 85, 0.6);
+  --quote-bar-ink: #062417;
 }
 
 .quote-main { max-width: 100%; min-width: 0; }
@@ -147,7 +156,7 @@
 .quote-strip > div { padding: 0 8px 8px; border-right: 1px solid var(--line); min-width: 0; }
 .quote-strip > div:last-child { border-right: 0; }
 .quote-strip .quote-lbl {
-  background: var(--quote-head); color: #fff;
+  background: var(--quote-bar-bg); color: var(--quote-bar-ink);
   margin: 0 -8px 6px; padding: 7px 8px;
 }
 
@@ -155,11 +164,18 @@
 .quote-table-wrap { overflow-x: auto; border-radius: var(--radius-sm); }
 .quote-table { width: 100%; border-collapse: collapse; min-width: 640px; font-variant-numeric: tabular-nums; }
 .quote-table th {
-  background: var(--quote-head); color: #fff; font-size: 11px; font-weight: 700;
+  background: var(--quote-bar-bg); color: var(--quote-bar-ink); font-size: 11px; font-weight: 700;
   letter-spacing: .08em; text-transform: uppercase; padding: 9px 8px; text-align: left;
 }
 .quote-table th.n, .quote-table td.n { text-align: right; }
 .quote-table th.c, .quote-table td.c { text-align: center; }
+
+/* Invoice document bars (Salesperson strip + Quantity table header):
+   green at 60% opacity. Scoped to .invoice-body so Quotation keeps its blue. */
+.invoice-body .quote-strip .quote-lbl,
+.invoice-body .quote-table th {
+  background: rgba(18, 183, 106, 0.6);
+}
 .quote-table td { border-bottom: 1px solid var(--line-soft); padding: 2px 4px; }
 .quote-table td.n input { text-align: right; }
 .quote-table td input, .quote-table td select { border-bottom-color: transparent; }
