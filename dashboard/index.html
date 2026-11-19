@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/css/styles.css?v=a096d14d" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=ecaeaf7d" />
   <link rel="stylesheet" href="/assets/css/pages.css?v=5150c484" />
   <link rel="stylesheet" href="/assets/css/folder.css" />
   <link rel="stylesheet" href="/assets/css/project-planning.css?v=d3b3fc76" />
@@ -35,7 +35,7 @@
     <div class="dash-top__right">
       <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
         <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
-        <span>Profile</span>
+        <span id="dash-profile-name">Profile</span>
       </a>
       <button class="btn btn--dark" type="button" id="logout">Log out</button>
     </div>
@@ -60,10 +60,10 @@
           <span>Starred Boards</span>
         </button>
 
-        <button class="dash-nav__item" id="nav-files" data-filter="files" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span>Files</span>
-                  </button>
+        <a class="dash-nav__item" id="nav-notepad" href="/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
+        </a>
 
         <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
 
@@ -97,27 +97,22 @@
           <span>Templates</span>
                   </a>
 
-        <div class="dash-sidebar__section-label">Team Services</div>
+        <div class="dash-sidebar__section-label">Other Services</div>
 
-        <button class="dash-nav__item" id="nav-service-ai" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>
-          <span>AI Ideation Studio</span>
-                  </button>
-
-        <button class="dash-nav__item" id="nav-service-workshop" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M10 2h4"/></svg>
-          <span>Interactive Workshop Hub</span>
-                  </button>
-
-        <button class="dash-nav__item" id="nav-service-assets" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M12 11v6m-3-3 3-3 3 3"/></svg>
-          <span>Cloud Asset Library</span>
-                  </button>
+        <button class="dash-nav__item" id="nav-files" data-filter="files" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+        </button>
 
         <a class="dash-nav__item" id="nav-quotation" href="/quotation/" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           <span>Quotation</span>
                   </a>
+
+        <a class="dash-nav__item" id="nav-invoice" href="/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
+        </a>
 
 
         <div class="dash-sidebar__section-label">Account</div>
@@ -431,6 +426,6 @@
   <script src="/assets/js/folder.js"></script>
   <script src="/assets/js/new-folder.js"></script>
   <script src="/assets/js/dashboard-files.js"></script>
-  <script src="/assets/js/dashboard.js?v=8d6c2d0b"></script>
+  <script src="/assets/js/dashboard.js?v=72510a23"></script>
 </body>
 </html>

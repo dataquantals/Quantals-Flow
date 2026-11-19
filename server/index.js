@@ -167,6 +167,12 @@ export async function handleApi(req, res) {
   if (pathname === '/api/files/order' && req.method === 'PUT') return api.saveFileOrderApi(req, res);
   if (pathname === '/api/quotation' && req.method === 'GET') return api.getQuotationApi(req, res);
   if (pathname === '/api/quotation' && req.method === 'PUT') return api.saveQuotationApi(req, res);
+  if (pathname === '/api/quotation/logo' && req.method === 'POST') return api.uploadQuotationLogoApi(req, res);
+  if (pathname === '/api/invoice' && req.method === 'GET') return api.getInvoiceApi(req, res);
+  if (pathname === '/api/invoice' && req.method === 'PUT') return api.saveInvoiceApi(req, res);
+  if (pathname === '/api/invoice/logo' && req.method === 'POST') return api.uploadInvoiceLogoApi(req, res);
+  if (pathname === '/api/notepad' && req.method === 'GET') return api.getNotepadApi(req, res);
+  if (pathname === '/api/notepad' && req.method === 'PUT') return api.saveNotepadApi(req, res);
   if (pathname === '/api/preferences' && req.method === 'GET') return api.getPreferencesApi(req, res);
   if (pathname === '/api/preferences' && (req.method === 'PATCH' || req.method === 'PUT')) {
     return api.savePreferencesApi(req, res);
@@ -200,7 +206,7 @@ export async function handleApi(req, res) {
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
 // session, so gate it here rather than letting the page flash and bounce.
-const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation'];
+const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad'];
 
 function isProtected(pathname) {
   return protectedRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));

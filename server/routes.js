@@ -46,6 +46,10 @@ import {
   saveUserPreferences,
   getUserQuotation,
   saveUserQuotation,
+  getUserInvoice,
+  saveUserInvoice,
+  getUserNotepad,
+  saveUserNotepad,
   db
 } from './db.js';
 import {
@@ -1199,6 +1203,162 @@ export function createApi(limiter) {
       }
       try {
         const result = await saveUserQuotation(user.id, body && body.quotation);
+        return sendJson(res, 200, { success: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** POST /api/quotation/logo - Upload quotation logo image to Convex Cloud Storage (<= 5MB) */
+    async uploadQuotationLogoApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+
+      const rawContentType = (req.headers['content-type'] || '').toLowerCase();
+      const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+      const mimeType = rawContentType.split(';')[0].trim();
+      if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+        return sendJson(res, 400, {
+          error: 'Invalid file format. Please upload a PNG, JPG, WebP, GIF, or SVG image.'
+        });
+      }
+
+      let buffer;
+      try {
+        buffer = await readBuffer(req, 5 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, {
+          error: err.message || 'File size exceeds 5MB limit. Please upload an image 5MB or below.'
+        });
+      }
+
+      if (!buffer || buffer.length === 0) {
+        return sendJson(res, 400, { error: 'No image data provided.' });
+      }
+
+      if (buffer.length > 5 * 1024 * 1024) {
+        return sendJson(res, 413, {
+          error: 'File size exceeds the 5MB limit. Please upload an image 5MB or below.'
+        });
+      }
+
+      try {
+        const { storageId, url } = await uploadBufferToConvex(buffer, mimeType, user.id);
+        return sendJson(res, 200, {
+          ok: true,
+          logoUrl: url || '',
+          storageId: storageId || '',
+          message: 'Quotation logo uploaded to Convex.'
+        });
+      } catch (err) {
+        return sendJson(res, 502, {
+          error: 'Failed to upload logo to Convex: ' + (err.message || 'Unknown error')
+        });
+      }
+    },
+
+    /** GET /api/invoice */
+    async getInvoiceApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const saved = await getUserInvoice(user.id);
+        return sendJson(res, 200, { success: true, invoice: saved ? saved.data : null, updatedAt: saved ? saved.updatedAt : null });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to load invoice.' });
+      }
+    },
+
+    /** PUT /api/invoice */
+    async saveInvoiceApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 512 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = await saveUserInvoice(user.id, body && body.invoice);
+        return sendJson(res, 200, { success: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** POST /api/invoice/logo - Upload invoice logo image to Convex Cloud Storage (<= 5MB) */
+    async uploadInvoiceLogoApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+
+      const rawContentType = (req.headers['content-type'] || '').toLowerCase();
+      const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+      const mimeType = rawContentType.split(';')[0].trim();
+      if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+        return sendJson(res, 400, {
+          error: 'Invalid file format. Please upload a PNG, JPG, WebP, GIF, or SVG image.'
+        });
+      }
+
+      let buffer;
+      try {
+        buffer = await readBuffer(req, 5 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, {
+          error: err.message || 'File size exceeds 5MB limit. Please upload an image 5MB or below.'
+        });
+      }
+
+      if (!buffer || buffer.length === 0) {
+        return sendJson(res, 400, { error: 'No image data provided.' });
+      }
+
+      if (buffer.length > 5 * 1024 * 1024) {
+        return sendJson(res, 413, {
+          error: 'File size exceeds the 5MB limit. Please upload an image 5MB or below.'
+        });
+      }
+
+      try {
+        const { storageId, url } = await uploadBufferToConvex(buffer, mimeType, user.id);
+        return sendJson(res, 200, {
+          ok: true,
+          logoUrl: url || '',
+          storageId: storageId || '',
+          message: 'Invoice logo uploaded to Convex.'
+        });
+      } catch (err) {
+        return sendJson(res, 502, {
+          error: 'Failed to upload logo to Convex: ' + (err.message || 'Unknown error')
+        });
+      }
+    },
+
+    /** GET /api/notepad */
+    async getNotepadApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const saved = await getUserNotepad(user.id);
+        return sendJson(res, 200, { success: true, notes: saved ? saved.notes : [], updatedAt: saved ? saved.updatedAt : null });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to load notes.' });
+      }
+    },
+
+    /** PUT /api/notepad */
+    async saveNotepadApi(req, res) {
+      const user = await auth(req);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 4 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = await saveUserNotepad(user.id, body && body.notes);
         return sendJson(res, 200, { success: true, ...result });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });

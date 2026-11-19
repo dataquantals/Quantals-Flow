@@ -867,6 +867,13 @@ body.is-drawer-open { overflow: hidden; }
   gap: 8px;
   text-decoration: none;
 }
+.dash-profile-btn span:last-child,
+.header__link--profile span:last-child {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .dash-profile-avatar {
   width: 24px;
   height: 24px;

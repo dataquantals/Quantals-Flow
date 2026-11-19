@@ -3382,6 +3382,7 @@
       openModal(document.getElementById('modal-add-workspace'));
     },
     switchModule: function (mod, pushHistory) { switchWorkspaceModule(mod, pushHistory); },
+    switchWorkspaceModule: function (mod, pushHistory) { switchWorkspaceModule(mod, pushHistory); },
     removeWorkspaceModule: removeWorkspaceModule,
     deleteCurrentWorkspace: deleteCurrentWorkspace,
     buildWsDropdownMenuHtml: buildWsDropdownMenuHtml,

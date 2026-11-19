@@ -1,0 +1,666 @@
+/*
+ * NOTE PAD — typed & drawn notes with auto-save
+ *
+ * Adapted into QuantalFlow's dashboard workspace with scoped design tokens.
+ */
+
+.notepad-main {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.notepad-page-card {
+  --color-primary: var(--blue-deep, #1e4472);
+  --color-primary-subtle: rgba(37, 99, 235, 0.08);
+  --color-primary-soft: rgba(37, 99, 235, 0.22);
+  --color-border: var(--line, #e2e8f0);
+  --color-white: #ffffff;
+  --color-text-dark: var(--ink, #161b26);
+  --color-text-muted: var(--ink-soft, #475569);
+  --color-text-subtle: var(--muted, #64748b);
+  --color-cream: var(--bg-warm, #f8fafc);
+  --color-cream-dark: #eef2f6;
+  --color-cream-border: #e2e8f0;
+  --color-success: #12b76a;
+  --color-danger: #d92d20;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-full: 999px;
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-sm);
+  padding: clamp(18px, 3vw, 32px);
+  max-width: 1060px;
+}
+
+.notepad-page-card .section-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  letter-spacing: -0.015em;
+}
+
+.notepad-page-card .btn-primary {
+  background: var(--blue, #2563eb);
+  color: #ffffff;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notepad-page-card .btn-primary:hover {
+  background: var(--blue-deep, #1d4ed8);
+}
+
+.notepad-page-card .btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.notepad-page-card .alert-box {
+  display: none;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.notepad-page-card .alert-box.visible {
+  display: block;
+}
+
+.notepad-page-card .alert-box.alert-success {
+  background: #ecfdf3;
+  color: #027a48;
+  border: 1px solid #a6f4c5;
+}
+
+.notepad-page-card .alert-box.alert-error {
+  background: #fef3f2;
+  color: #b42318;
+  border: 1px solid #fecdca;
+}
+
+.notepad-page-card .alert-box.alert-info {
+  background: #eff8ff;
+  color: #175cd3;
+  border: 1px solid #b2ddff;
+}
+
+.notepad-page-card,
+.notepad-page-card.active {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---- Header ---- */
+.notepad-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notepad-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notepad-icon-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-soft);
+  line-height: 0;
+}
+
+.notepad-subtitle {
+  font-size: 12.5px;
+  color: var(--color-text-subtle);
+  margin-top: 2px;
+}
+
+.notepad-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- Scoped button overrides (the shared .btn-primary is full-width) ---- */
+.notepad-page-card .btn-primary {
+  width: auto;
+  min-height: 40px;
+  padding: 8px 18px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition:
+    transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color 120ms ease;
+}
+
+.notepad-page-card .btn-primary:active {
+  transform: scale(0.97);
+}
+
+.notepad-page-card .btn-ghost {
+  width: auto;
+  min-height: 36px;
+  padding: 7px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.notepad-page-card .btn-ghost:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.notepad-page-card .btn-ghost:active {
+  transform: scale(0.97);
+}
+
+.notepad-page-card .btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Layout: notes rail + editor ---- */
+.notepad-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 880px) {
+  .notepad-layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+}
+
+/* ---- Notes rail ---- */
+.notepad-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  box-shadow: var(--shadow-sm);
+}
+
+.notepad-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notepad-rail-label {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.notepad-rail-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+}
+
+.notepad-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.notepad-notes-empty {
+  padding: 18px 6px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--color-text-subtle);
+  font-style: italic;
+}
+
+.notepad-note-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.notepad-note-item:hover {
+  background: var(--color-cream);
+}
+
+.notepad-note-item.is-active {
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary-soft);
+}
+
+.notepad-note-item:active {
+  transform: scale(0.98);
+}
+
+.notepad-note-item-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notepad-note-item.is-active .notepad-note-item-title {
+  color: var(--color-primary);
+}
+
+.notepad-note-item-snippet {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notepad-note-item-time {
+  font-size: 11px;
+  color: var(--color-text-subtle);
+}
+
+/* ---- Editor ---- */
+.notepad-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.notepad-title-input {
+  width: 100%;
+  padding: 6px 2px 10px;
+  border: none;
+  border-bottom: 1.5px solid var(--color-border);
+  border-radius: 0;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  background: transparent;
+  transition: border-color 120ms ease;
+}
+
+.notepad-title-input::placeholder {
+  color: var(--color-text-subtle);
+  font-weight: 500;
+}
+
+.notepad-title-input:focus {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
+.notepad-title-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Mode toggle — segmented control */
+.notepad-mode-toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-cream-dark);
+  border: 1px solid var(--color-cream-border);
+  border-radius: 10px;
+}
+
+.notepad-mode-btn {
+  padding: 7px 18px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.notepad-mode-btn.notepad-mode-active {
+  background: var(--color-white);
+  color: var(--color-primary);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.notepad-mode-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Typed note area */
+.notepad-textarea {
+  width: 100%;
+  min-height: 240px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--color-text-dark);
+  background: var(--color-white);
+  resize: vertical;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.notepad-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+.notepad-textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---- Draw mode ---- */
+.notepad-draw-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.notepad-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-cream);
+  border: 1px solid var(--color-cream-border);
+}
+
+.notepad-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notepad-tool-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notepad-tool-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.notepad-tool-btn:hover {
+  border-color: var(--color-primary);
+}
+
+.notepad-tool-btn.notepad-tool-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.notepad-tool-btn:active {
+  transform: scale(0.96);
+}
+
+.notepad-size-slider {
+  width: 100px;
+}
+
+.notepad-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notepad-color-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 120ms var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.notepad-color-btn:nth-child(1) { background: #1E4472; }
+.notepad-color-btn:nth-child(2) { background: #C53030; }
+.notepad-color-btn:nth-child(3) { background: #207245; }
+.notepad-color-btn:nth-child(4) { background: #5B3278; }
+.notepad-color-btn:nth-child(5) { background: #B7791F; }
+
+.notepad-color-btn.notepad-color-active {
+  border-color: var(--color-text-dark);
+  transform: scale(1.15);
+}
+
+.notepad-tool-spacer {
+  flex: 1 1 auto;
+}
+
+.notepad-tool-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notepad-canvas-wrap {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #FFFFFF;
+  background-image: linear-gradient(#F1F1F1 1px, transparent 1px);
+  background-size: 100% 28px;
+  overflow: hidden;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+#notepad-canvas {
+  display: block;
+  width: 100%;
+  height: 400px;
+  touch-action: none;
+}
+
+/* AI prediction result */
+.notepad-result {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary-soft);
+}
+
+.notepad-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.notepad-result-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.notepad-prediction-text {
+  font-size: 15px;
+  color: var(--color-text-dark);
+  line-height: 1.6;
+  min-height: 24px;
+}
+
+.notepad-prediction-text:empty::before {
+  content: 'Draw on the pad above, then press "Ask AI" to read your handwriting.';
+  color: var(--color-text-subtle);
+  font-style: italic;
+}
+
+.notepad-prediction-confidence {
+  font-size: 12px;
+  color: var(--color-text-subtle);
+  margin-top: 6px;
+}
+
+/* ---- Footer ---- */
+.notepad-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notepad-save-status {
+  font-size: 12px;
+  color: var(--color-text-subtle);
+  min-height: 16px;
+}
+
+.notepad-save-status.is-saved,
+.notepad-save-status.is-synced {
+  color: var(--color-success);
+}
+
+.notepad-save-status.is-saved::before,
+.notepad-save-status.is-synced::before {
+  content: '✓ ';
+}
+
+.notepad-save-status.is-saving {
+  color: var(--color-text-subtle);
+}
+
+.notepad-delete-btn {
+  color: var(--color-danger);
+}
+
+.notepad-delete-btn.is-armed {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+  .notepad-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notepad-tool-spacer {
+    display: none;
+  }
+
+  .notepad-tool-actions {
+    justify-content: flex-end;
+  }
+
+  #notepad-canvas {
+    height: 320px;
+  }
+
+  .notepad-actions {
+    width: 100%;
+  }
+
+  .notepad-actions .btn-primary {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .notepad-page-card .btn-primary,
+  .notepad-page-card .btn-ghost,
+  .notepad-tool-btn,
+  .notepad-color-btn,
+  .notepad-mode-btn,
+  .notepad-note-item {
+    transition: none;
+  }
+}

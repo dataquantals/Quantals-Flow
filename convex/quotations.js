@@ -127,6 +127,8 @@ export const upsertQuotation = mutation({
       companyAddress1: toStr(qData.coAddr1) || undefined,
       companyAddress2: toStr(qData.coAddr2) || undefined,
       companyPhone: toStr(qData.coPhone) || undefined,
+      logoUrl: toStr(qData.logoUrl) || undefined,
+      logoStorageId: toStr(qData.logoStorageId) || undefined,
       date: toStr(qData.date, new Date().toISOString().slice(0, 10)),
       customerId: toStr(qData.cid) || undefined,
       validUntil: toStr(qData.valid) || undefined,

@@ -87,8 +87,33 @@
 /* Header block */
 .quote-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 22px; }
 .quote-brand { display: flex; gap: 16px; align-items: flex-start; min-width: 0; flex: 1 1 340px; }
-.quote-brand > div { flex: 1 1 auto; min-width: 0; }
-.quote-brand img { width: 84px; height: auto; flex: none; border-radius: 6px; }
+.quote-brand-info { flex: 1 1 auto; min-width: 0; }
+.quote-logo-wrap { flex: none; position: relative; }
+.quote-logo-btn {
+  position: relative; display: block; padding: 0; margin: 0;
+  border: 1.5px dashed transparent; border-radius: 8px;
+  background: transparent; cursor: pointer; overflow: hidden;
+  width: 88px; min-height: 54px;
+  transition: border-color .15s var(--ease), transform 160ms cubic-bezier(0.23, 1, 0.32, 1), opacity .15s var(--ease);
+}
+.quote-logo-btn:hover { border-color: var(--blue); }
+.quote-logo-btn:active { transform: scale(0.97); }
+.quote-logo-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.quote-logo-btn.is-uploading { opacity: 0.6; pointer-events: none; }
+.quote-logo-btn img {
+  display: block; width: 84px; max-height: 68px; height: auto;
+  object-fit: contain; border-radius: 6px; margin: 0 auto;
+}
+.quote-logo-overlay {
+  position: absolute; inset: 0;
+  background: rgba(15, 23, 42, 0.62); color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  opacity: 0; transition: opacity .15s var(--ease);
+  border-radius: 6px;
+}
+.quote-logo-btn:hover .quote-logo-overlay,
+.quote-logo-btn:focus-visible .quote-logo-overlay { opacity: 1; }
 .quote-co { margin: 0; font-size: 24px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; color: var(--quote-head); }
 .quote-co input { font-weight: 700; letter-spacing: -.02em; padding-inline: 4px; }
 .quote-tag { margin: 2px 0 8px; }
@@ -276,7 +301,8 @@
 @media print {
   @page { margin: 14mm; }
   .quote-body { background: #fff; }
-  .dash-top, .dash-sidebar, .quote-hero, .quote-dialog-overlay { display: none !important; }
+  .dash-top, .dash-sidebar, .quote-hero, .quote-dialog-overlay, .quote-logo-overlay { display: none !important; }
+  .quote-logo-btn { border-color: transparent !important; }
   .dash-layout { display: block; min-height: 0; }
   .quote-main { padding: 0; max-width: none; }
   .quote-sheet {

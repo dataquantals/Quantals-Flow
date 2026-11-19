@@ -604,6 +604,16 @@
         }
       }
     });
+    var displayName = (user.name && user.name.trim()) ? user.name.trim() : (user.email || 'Profile');
+    ['header-profile-name', 'drawer-profile-name'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = displayName;
+    });
+    var profLink = document.getElementById('header-profile-link');
+    if (profLink) {
+      var lastSpan = profLink.querySelector('span:last-child');
+      if (lastSpan) lastSpan.textContent = displayName;
+    }
     var userBox = document.getElementById('header-user-button');
     if (userBox && user && !userBox.hasChildNodes()) {
       userBox.innerHTML =

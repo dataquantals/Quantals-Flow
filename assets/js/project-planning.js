@@ -1174,8 +1174,11 @@
         e.stopPropagation();
         var targetMod = wsItem.getAttribute('data-ws-module');
         closePpWsDropdown();
-        if (targetMod && window.QuantalFlowApp && window.QuantalFlowApp.switchWorkspaceModule) {
-          window.QuantalFlowApp.switchWorkspaceModule(targetMod, true);
+        if (targetMod && window.QuantalFlowApp) {
+          var switcher = window.QuantalFlowApp.switchWorkspaceModule || window.QuantalFlowApp.switchModule;
+          if (typeof switcher === 'function') {
+            switcher(targetMod, true);
+          }
         }
       }
     });
@@ -3363,6 +3366,7 @@
   }
 
   function closeWorkspace() {
+    flushPendingPlan();
     if (shellEl) {
       shellEl.hidden = true;
       shellEl.style.display = 'none';

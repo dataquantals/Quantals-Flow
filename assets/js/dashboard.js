@@ -712,6 +712,10 @@
       var nameEl = document.getElementById('dash-name');
       if (nameEl) nameEl.textContent = name;
 
+      var profileNameEl = document.getElementById('dash-profile-name') ||
+        (document.querySelector('.dash-profile-btn span:last-child'));
+      if (profileNameEl && name) profileNameEl.textContent = name;
+
       var initialEl = document.getElementById('dash-initial');
       if (initialEl) {
         var imgUrl = user.avatar_url || user.avatarUrl || user.imageUrl || user.avatar;

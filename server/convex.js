@@ -461,6 +461,68 @@ export async function getQuotationFromConvex(userId) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Invoices (invoices + invoiceItems)
+ * ------------------------------------------------------------------ */
+
+export function syncInvoiceToConvex(userId, invoiceObj, updatedAt) {
+  if (!userId || !invoiceObj || config.isTest) return Promise.resolve(null);
+  const invoiceJson =
+    typeof invoiceObj === 'string' ? invoiceObj : JSON.stringify(invoiceObj);
+  return convexMutation('invoices:upsertInvoice', {
+    userId: String(userId),
+    invoiceJson,
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+export async function getInvoiceFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('invoices:getInvoice', {
+    userId: String(userId)
+  });
+  if (!doc || !doc.dataJson) return null;
+  try {
+    return {
+      data: JSON.parse(doc.dataJson),
+      updatedAt: Number(doc.updatedAt || Date.now())
+    };
+  } catch {
+    return null;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Note Pad (userNotepads)
+ * ------------------------------------------------------------------ */
+
+export function syncNotepadToConvex(userId, notesArr, updatedAt) {
+  if (!userId || !Array.isArray(notesArr) || config.isTest) return Promise.resolve(null);
+  const notesJson = JSON.stringify(notesArr);
+  return convexMutation('notepad:saveNotes', {
+    userId: String(userId),
+    notesJson,
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+export async function getNotepadFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('notepad:getNotes', {
+    userId: String(userId)
+  });
+  if (!doc || !doc.notesJson) return null;
+  try {
+    const parsed = JSON.parse(doc.notesJson);
+    return {
+      notes: Array.isArray(parsed) ? parsed : [],
+      updatedAt: Number(doc.updatedAt || Date.now())
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function checkConvexConnection() {
   const info = {
     configured: Boolean(config.convex.cloudUrl),

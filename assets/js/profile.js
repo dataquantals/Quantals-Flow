@@ -104,6 +104,11 @@
       }
     }
 
+    var headName = $('prof-header-name') || $('dash-profile-name') || document.querySelector('.dash-profile-btn span:last-child');
+    if (headName) {
+      headName.textContent = name;
+    }
+
     var dispName = $('profile-display-name');
     if (dispName) dispName.textContent = name;
 

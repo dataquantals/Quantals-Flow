@@ -16,7 +16,11 @@ import {
   syncFileOrderToConvex,
   syncPreferencesToConvex,
   syncQuotationToConvex,
-  getQuotationFromConvex
+  getQuotationFromConvex,
+  syncInvoiceToConvex,
+  getInvoiceFromConvex,
+  syncNotepadToConvex,
+  getNotepadFromConvex
 } from './convex.js';
 
 try {
@@ -1224,6 +1228,148 @@ export async function saveUserQuotation(userId, data) {
   try {
     const res = await syncQuotationToConvex(userId, data, now);
     convexSynced = Boolean(res && (res.quotationId || res.updatedAt || res.quotationNumber));
+  } catch {
+    convexSynced = false;
+  }
+
+  return { updatedAt: now, convexSynced };
+}
+
+/* ---------- Invoice (one working document per user) ---------- */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_invoices (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    data_json  TEXT    NOT NULL DEFAULT '{}',
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+/** Returns the saved invoice object, or null when the user has none yet. */
+export async function getUserInvoice(userId) {
+  if (userId == null) return null;
+  const row = db.prepare('SELECT data_json, updated_at FROM user_invoices WHERE user_id = ?').get(userId);
+  if (row) {
+    try {
+      const parsed = JSON.parse(row.data_json);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { data: parsed, updatedAt: row.updated_at };
+      }
+    } catch {
+      // fall through to Convex hydration
+    }
+  }
+
+  try {
+    const remote = await getInvoiceFromConvex(userId);
+    const invData = remote && remote.data ? remote.data : remote;
+    if (invData && typeof invData === 'object' && !Array.isArray(invData) && Array.isArray(invData.items)) {
+      const now = Number((remote && remote.updatedAt) || invData.updatedAt || Date.now());
+      db.prepare(`
+        INSERT INTO user_invoices (user_id, data_json, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+      `).run(userId, JSON.stringify(invData), now);
+      return { data: invData, updatedAt: now };
+    }
+  } catch {
+    // Convex unavailable or not configured — treat as no saved invoice.
+  }
+
+  return null;
+}
+
+export async function saveUserInvoice(userId, data) {
+  if (userId == null) throw forbidden();
+  if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.items)) {
+    const err = new Error('An invoice needs a list of line items.');
+    err.status = 400;
+    throw err;
+  }
+  if (data.items.length > 500) {
+    const err = new Error('An invoice can hold at most 500 line items.');
+    err.status = 400;
+    throw err;
+  }
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO user_invoices (user_id, data_json, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+  `).run(userId, JSON.stringify(data), now);
+
+  let convexSynced = false;
+  try {
+    const res = await syncInvoiceToConvex(userId, data, now);
+    convexSynced = Boolean(res && (res.invoiceId || res.updatedAt || res.invoiceNumber));
+  } catch {
+    convexSynced = false;
+  }
+
+  return { updatedAt: now, convexSynced };
+}
+
+/* ---------- Note Pad (typed & drawn notes per user) ---------- */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_notepads (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    notes_json TEXT    NOT NULL DEFAULT '[]',
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+export async function getUserNotepad(userId) {
+  if (userId == null) return null;
+  const row = db.prepare('SELECT notes_json, updated_at FROM user_notepads WHERE user_id = ?').get(userId);
+  if (row) {
+    try {
+      const parsed = JSON.parse(row.notes_json);
+      if (Array.isArray(parsed)) {
+        return { notes: parsed, updatedAt: row.updated_at };
+      }
+    } catch {
+      // fall through to Convex hydration
+    }
+  }
+
+  try {
+    const remote = await getNotepadFromConvex(userId);
+    if (remote && Array.isArray(remote.notes)) {
+      const now = Number(remote.updatedAt || Date.now());
+      db.prepare(`
+        INSERT INTO user_notepads (user_id, notes_json, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET notes_json = excluded.notes_json, updated_at = excluded.updated_at
+      `).run(userId, JSON.stringify(remote.notes), now);
+      return { notes: remote.notes, updatedAt: now };
+    }
+  } catch {
+    // Convex unavailable — return empty
+  }
+
+  return null;
+}
+
+export async function saveUserNotepad(userId, notes) {
+  if (userId == null) throw forbidden();
+  if (!Array.isArray(notes)) {
+    const err = new Error('Notes must be an array.');
+    err.status = 400;
+    throw err;
+  }
+  if (notes.length > 500) {
+    const err = new Error('Note Pad can hold at most 500 notes.');
+    err.status = 400;
+    throw err;
+  }
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO user_notepads (user_id, notes_json, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET notes_json = excluded.notes_json, updated_at = excluded.updated_at
+  `).run(userId, JSON.stringify(notes), now);
+
+  let convexSynced = false;
+  try {
+    const res = await syncNotepadToConvex(userId, notes, now);
+    convexSynced = Boolean(res && (res.id || res.updatedAt));
   } catch {
     convexSynced = false;
   }

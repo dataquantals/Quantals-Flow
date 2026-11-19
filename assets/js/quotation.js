@@ -8,13 +8,16 @@
   var CUR = 'ZMK ';
   var SAVE_DELAY_MS = 700;
   var RETRY_DELAY_MS = 4000;
+  var DEFAULT_LOGO_SRC = '/assets/img/quotation-logo.jpg';
+  var ALLOWED_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+  var MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
   function blankItem() { return { q: '', d: '', p: '', t: '' }; }
   function blankItems(n) { return Array.from({ length: n }, blankItem); }
 
   function sample() {
     return {
-      coName: 'Quantals Solution', tagline: 'delivering the Best',
+      coName: 'Quantals Solution', tagline: 'Delivering the Best',
       coAddr1: 'PHI off Great East Road', coAddr2: 'Lusaka Zambia', coPhone: 'Phone +260977445615',
       date: '2026-08-20', qno: '000072', cid: '', valid: '2026-12-01', prep: 'Richard Mumba',
       toName: 'Purchasing Officer', toOrg: 'ZESCO', toAddr1: 'Great East Road', toAddr2: 'Lusaka Zambia', toPhone: '',
@@ -29,6 +32,9 @@
   var rowsEl = $('rows');
   var statusEl = $('status');
   var sheet = $('sheet');
+  var logoImgEl = $('quoteLogoImg');
+  var logoUploadBtn = $('logoUploadBtn');
+  var logoFileInput = $('logoFileInput');
   var S = null;
 
   /* ---------------------------------------------------------------- status */
@@ -100,6 +106,14 @@
     return { sub: sub, tax: tax, total: total };
   }
 
+  function renderLogo() {
+    if (!logoImgEl) return;
+    var nextSrc = (S && typeof S.logoUrl === 'string' && S.logoUrl.trim()) ? S.logoUrl.trim() : DEFAULT_LOGO_SRC;
+    if (logoImgEl.getAttribute('src') !== nextSrc) {
+      logoImgEl.src = nextSrc;
+    }
+  }
+
   function fillFields() {
     document.querySelectorAll('[data-k]').forEach(function (el) {
       var v = S[el.dataset.k];
@@ -107,6 +121,7 @@
     });
     $('rate').value = S.rate == null ? '' : S.rate;
     $('other').value = S.other == null ? '' : S.other;
+    renderLogo();
   }
 
   /* ------------------------------------------------------------------ save */
@@ -230,6 +245,72 @@
     scheduleSave();
   });
 
+  /* ------------------------------------------------------------ Logo Upload */
+  if (logoImgEl) {
+    logoImgEl.addEventListener('error', function () {
+      if (logoImgEl.getAttribute('src') !== DEFAULT_LOGO_SRC) {
+        logoImgEl.src = DEFAULT_LOGO_SRC;
+      }
+    });
+  }
+
+  if (logoUploadBtn && logoFileInput) {
+    logoUploadBtn.addEventListener('click', function () {
+      if (!S) return;
+      logoFileInput.click();
+    });
+
+    logoFileInput.addEventListener('change', function () {
+      var file = logoFileInput.files && logoFileInput.files[0];
+      logoFileInput.value = '';
+      if (!file || !S) return;
+
+      if (ALLOWED_LOGO_TYPES.indexOf(file.type) === -1) {
+        setStatus('error', 'Invalid file format. Please choose a PNG, JPG, WebP, GIF, or SVG image.');
+        return;
+      }
+      if (file.size > MAX_LOGO_BYTES) {
+        setStatus('error', 'Logo exceeds the 5MB limit. Please choose a smaller image.');
+        return;
+      }
+
+      var prevSrc = (S && S.logoUrl) ? S.logoUrl : DEFAULT_LOGO_SRC;
+      var previewUrl = URL.createObjectURL(file);
+      if (logoImgEl) logoImgEl.src = previewUrl;
+      logoUploadBtn.classList.add('is-uploading');
+      logoUploadBtn.disabled = true;
+      setStatus('saving', 'Uploading logo to Convex Cloud\u2026');
+
+      fetch('/api/quotation/logo', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': file.type },
+        body: file
+      }).then(function (res) {
+        if (res.status === 401) { goToLogin(); return null; }
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+          return data;
+        });
+      }).then(function (data) {
+        if (!data) return;
+        if (!data.logoUrl) throw new Error('Convex did not return a logo URL.');
+        S.logoUrl = data.logoUrl;
+        S.logoStorageId = data.storageId || '';
+        if (logoImgEl) logoImgEl.src = data.logoUrl;
+        dirty = true;
+        return save();
+      }).catch(function (err) {
+        if (logoImgEl) logoImgEl.src = prevSrc;
+        setStatus('error', 'Logo upload failed (' + err.message + ').');
+      }).then(function () {
+        URL.revokeObjectURL(previewUrl);
+        logoUploadBtn.classList.remove('is-uploading');
+        logoUploadBtn.disabled = false;
+      });
+    });
+  }
+
   /* ------------------------------------------------------------ PDF Download & Prompt */
   function getDefaultFilename() {
     var qno = (S && S.qno ? String(S.qno).trim() : '000001');
@@ -303,7 +384,7 @@
   }
 
   function getLogoDataUrl() {
-    var img = document.querySelector('.quote-brand img');
+    var img = logoImgEl || document.querySelector('.quote-brand img');
     if (!img || !img.complete || !img.naturalWidth) return null;
     try {
       var c = document.createElement('canvas');
@@ -313,7 +394,11 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0);
-      return c.toDataURL('image/jpeg', 0.95);
+      return {
+        dataUrl: c.toDataURL('image/jpeg', 0.95),
+        width: img.naturalWidth,
+        height: img.naturalHeight
+      };
     } catch (e) {
       return null;
     }
@@ -354,8 +439,17 @@
     // ---- 1. Header Block (Logo + Company Info | QUOTATION + Date/Q#/CID) ----
     var y = 21;
     var logoData = getLogoDataUrl();
-    if (logoData) {
-      pdf.addImage(logoData, 'JPEG', L, y - 2, 20, 12.6);
+    if (logoData && logoData.dataUrl) {
+      var maxW = 20;
+      var maxH = 14;
+      var ratio = (logoData.width && logoData.height) ? (logoData.width / logoData.height) : (20 / 12.6);
+      var drawW = maxW;
+      var drawH = drawW / ratio;
+      if (drawH > maxH) {
+        drawH = maxH;
+        drawW = drawH * ratio;
+      }
+      pdf.addImage(logoData.dataUrl, 'JPEG', L, y - 2, drawW, drawH);
     }
 
     var coX = L + 24;
@@ -728,7 +822,7 @@
 
   /* ------------------------------------------------------------ header chrome */
   function wireChrome(user) {
-    var name = user.name || user.email || '';
+    var name = (user.name && user.name.trim()) ? user.name.trim() : (user.email || '');
     var initialEl = $('dash-initial');
     if (initialEl) {
       var img = user.avatar_url || user.avatarUrl || user.imageUrl || user.avatar;
@@ -741,6 +835,10 @@
       } else {
         initialEl.textContent = (name.charAt(0) || '?').toUpperCase();
       }
+    }
+    var profileNameEl = $('dash-profile-name') || document.querySelector('.dash-profile-btn span:last-child');
+    if (profileNameEl && name) {
+      profileNameEl.textContent = name;
     }
   }
 

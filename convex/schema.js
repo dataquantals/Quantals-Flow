@@ -185,6 +185,8 @@ export default defineSchema({
     companyAddress1: v.optional(v.string()),
     companyAddress2: v.optional(v.string()),
     companyPhone: v.optional(v.string()),
+    logoUrl: v.optional(v.string()),
+    logoStorageId: v.optional(v.string()),
     date: v.string(),
     customerId: v.optional(v.string()),
     validUntil: v.optional(v.string()),
@@ -228,5 +230,74 @@ export default defineSchema({
     updatedAt: v.number()
   })
     .index('by_user', ['userId'])
-    .index('by_user_qno', ['userId', 'quotationNumber'])
+    .index('by_user_qno', ['userId', 'quotationNumber']),
+
+  /* ================================================================== *
+   * Invoices (header document + individual line items)
+   * ================================================================== */
+  invoices: defineTable({
+    userId: v.string(),
+    invoiceNumber: v.string(),
+    companyName: v.string(),
+    tagline: v.optional(v.string()),
+    companyAddress1: v.optional(v.string()),
+    companyAddress2: v.optional(v.string()),
+    companyPhone: v.optional(v.string()),
+    logoUrl: v.optional(v.string()),
+    logoStorageId: v.optional(v.string()),
+    date: v.string(),
+    customerId: v.optional(v.string()),
+    dueDate: v.optional(v.string()),
+    preparedBy: v.optional(v.string()),
+    toName: v.optional(v.string()),
+    toOrg: v.optional(v.string()),
+    toAddr1: v.optional(v.string()),
+    toAddr2: v.optional(v.string()),
+    toPhone: v.optional(v.string()),
+    comments: v.optional(v.string()),
+    salesperson: v.optional(v.string()),
+    poNumber: v.optional(v.string()),
+    shipDate: v.optional(v.string()),
+    shipVia: v.optional(v.string()),
+    fob: v.optional(v.string()),
+    terms: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    footer: v.optional(v.string()),
+    taxRate: v.number(),
+    other: v.number(),
+    subtotal: v.number(),
+    salesTax: v.number(),
+    total: v.number(),
+    itemCount: v.number(),
+    dataJson: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_ino', ['userId', 'invoiceNumber']),
+
+  invoiceItems: defineTable({
+    userId: v.string(),
+    invoiceNumber: v.string(),
+    lineIndex: v.number(),
+    quantity: v.number(),
+    description: v.string(),
+    unitPrice: v.number(),
+    taxable: v.boolean(),
+    amount: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_ino', ['userId', 'invoiceNumber']),
+
+  /* ================================================================== *
+   * Note Pad (typed & drawn notes per user)
+   * ================================================================== */
+  userNotepads: defineTable({
+    userId: v.string(),
+    notesJson: v.string(),
+    noteCount: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
 });

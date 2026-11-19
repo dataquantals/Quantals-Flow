@@ -17,7 +17,7 @@ scripts: /assets/js/html2pdf.bundle.min.js, /assets/js/quotation.js
     <div class="dash-top__right">
       <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
         <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
-        <span>Profile</span>
+        <span id="dash-profile-name">Profile</span>
       </a>
       <button class="btn btn--dark" type="button" id="logout">Log out</button>
     </div>
@@ -47,9 +47,9 @@ scripts: /assets/js/html2pdf.bundle.min.js, /assets/js/quotation.js
           <span>Starred Boards</span>
         </a>
 
-        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span>Files</span>
+        <a class="dash-nav__item" id="nav-notepad" href="/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
         </a>
 
         <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
@@ -84,26 +84,21 @@ scripts: /assets/js/html2pdf.bundle.min.js, /assets/js/quotation.js
           <span>Templates</span>
         </a>
 
-        <div class="dash-sidebar__section-label">Team Services</div>
+        <div class="dash-sidebar__section-label">Other Services</div>
 
-        <a class="dash-nav__item" href="/dashboard/?service=brainstorm" style="text-decoration:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3Z"/></svg>
-          <span>AI Ideation Studio</span>
-        </a>
-
-        <a class="dash-nav__item" href="/dashboard/?service=kanban" style="text-decoration:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M10 2h4"/></svg>
-          <span>Interactive Workshop Hub</span>
-        </a>
-
-        <a class="dash-nav__item" href="/dashboard/files/" style="text-decoration:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="M12 11v6m-3-3 3-3 3 3"/></svg>
-          <span>Cloud Asset Library</span>
+        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
         </a>
 
         <a class="dash-nav__item is-active" href="/quotation/" aria-current="page" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           <span>Quotation</span>
+        </a>
+
+        <a class="dash-nav__item" href="/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
         </a>
 
         <div class="dash-sidebar__section-label">Account</div>
@@ -142,8 +137,17 @@ scripts: /assets/js/html2pdf.bundle.min.js, /assets/js/quotation.js
       <div class="quote-sheet" id="sheet">
         <div class="quote-head">
           <div class="quote-brand">
-            <img src="/assets/img/quotation-logo.jpg" alt="" width="84" height="53" />
-            <div>
+            <div class="quote-logo-wrap">
+              <button class="quote-logo-btn" id="logoUploadBtn" type="button" title="Click to replace logo from your device" aria-label="Change company logo">
+                <img id="quoteLogoImg" src="/assets/img/quotation-logo.jpg" alt="Company logo" width="84" height="53" crossorigin="anonymous" />
+                <span class="quote-logo-overlay" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Change</span>
+                </span>
+              </button>
+              <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden />
+            </div>
+            <div class="quote-brand-info">
               <h2 class="quote-co"><input id="coName" data-k="coName" aria-label="Company name" /></h2>
               <div class="quote-tag"><input data-k="tagline" aria-label="Tagline" /></div>
               <div class="quote-addr">

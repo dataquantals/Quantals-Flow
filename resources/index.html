@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/css/styles.css?v=a096d14d" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=ecaeaf7d" />
   <link rel="stylesheet" href="/assets/css/pages.css?v=5150c484" />
   <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
   <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
@@ -210,7 +210,7 @@
         <a class="header__link" href="/dashboard/" id="header-dashboard-link" data-auth-signed-in hidden>Dashboard</a>
         <a class="header__link header__link--profile" href="/profile/" id="header-profile-link" data-auth-signed-in hidden style="display:inline-flex;align-items:center;gap:7px;">
           <span class="dash-profile-avatar" id="header-profile-initial" style="width:22px;height:22px;border-radius:50%;background:#4262ff;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;line-height:1;">&mdash;</span>
-          <span>Profile</span>
+          <span id="header-profile-name">Profile</span>
         </a>
         <div id="header-user-button" data-auth-signed-in hidden style="display:inline-flex;align-items:center;gap:8px;"></div>
       </div>
@@ -270,7 +270,7 @@
       <a href="/dashboard/" data-auth-signed-in hidden>Dashboard</a>
       <a href="/profile/" data-auth-signed-in hidden style="display:inline-flex;align-items:center;gap:8px;">
         <span class="dash-profile-avatar" id="drawer-profile-initial" style="width:20px;height:20px;border-radius:50%;background:#4262ff;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;line-height:1;">&mdash;</span>
-        <span>Profile</span>
+        <span id="drawer-profile-name">Profile</span>
       </a>
       <a href="/login/" data-auth-signed-out>Login</a>
       <a class="btn btn--dark" href="/get-started/" data-auth-signed-out>Get started free</a>
@@ -552,6 +552,6 @@
 
 
   <script src="/assets/js/save-state.js?v=94cf0ad9"></script>
-  <script src="/assets/js/main.js?v=6eec5dec"></script>
+  <script src="/assets/js/main.js?v=1d84e176"></script>
 </body>
 </html>
