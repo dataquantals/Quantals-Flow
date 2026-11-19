@@ -6,6 +6,12 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/router?__api_path=$1" },
     { "source": "/app/(.*)", "destination": "/app/index.html" },
+    { "source": "/dashboard/notepad", "destination": "/notepad/index.html" },
+    { "source": "/dashboard/notepad/", "destination": "/notepad/index.html" },
+    { "source": "/dashboard/quotation", "destination": "/quotation/index.html" },
+    { "source": "/dashboard/quotation/", "destination": "/quotation/index.html" },
+    { "source": "/dashboard/invoice", "destination": "/invoice/index.html" },
+    { "source": "/dashboard/invoice/", "destination": "/invoice/index.html" },
     { "source": "/dashboard/(.*)", "destination": "/dashboard/index.html" }
   ],
   "functions": {

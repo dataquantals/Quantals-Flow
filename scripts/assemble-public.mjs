@@ -63,6 +63,18 @@ for (const dir of ASSET_DIRS.concat(routeDirs())) {
   copied.push(`${dir}/`);
 }
 
+/* Materialise hierarchical /dashboard/<child>/ static pages so static hosts
+   (Vercel, Netlify, etc.) serve them directly without rewrite ambiguity. */
+for (const child of ['notepad', 'quotation', 'invoice']) {
+  const srcHtml = path.join(outDir, child, 'index.html');
+  if (fs.existsSync(srcHtml)) {
+    const destDir = path.join(outDir, 'dashboard', child);
+    fs.mkdirSync(destDir, { recursive: true });
+    fs.copyFileSync(srcHtml, path.join(destDir, 'index.html'));
+    copied.push(`dashboard/${child}/index.html`);
+  }
+}
+
 /* Vercel serves `404.html` for unmatched paths. */
 const notFound = path.join(outDir, '404', 'index.html');
 if (fs.existsSync(notFound)) fs.copyFileSync(notFound, path.join(outDir, '404.html'));

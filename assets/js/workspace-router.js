@@ -14,9 +14,9 @@
     { path: '/dashboard/',           key: 'boards',    shell: 'dashboard', filter: 'all' },
     { path: '/dashboard/starred/',   key: 'starred',   shell: 'dashboard', filter: 'starred' },
     { path: '/dashboard/files/',     key: 'files',     shell: 'dashboard', filter: 'files' },
-    { path: '/dashboard/notepad/',   key: 'notepad',   shell: 'notepad' },
-    { path: '/dashboard/quotation/', key: 'quotation', shell: 'quotation' },
-    { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice' }
+    { path: '/dashboard/notepad/',   key: 'notepad',   shell: 'notepad',   markerId: 'admin-view-notes' },
+    { path: '/dashboard/quotation/', key: 'quotation', shell: 'quotation', markerId: 'sheet' },
+    { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice',   markerId: 'sheet' }
   ];
 
   var LEGACY_ALIASES = {
@@ -238,7 +238,9 @@
 
       var doc = new DOMParser().parseFromString(html, 'text/html');
       var nextMain = doc.querySelector('main.dash');
-      if (!nextMain) {
+      var markerOk = !route.markerId || Boolean(doc.getElementById(route.markerId));
+      if (!nextMain || !markerOk) {
+        htmlCache.delete(route.path);
         window.location.assign(targetFull);
         return true;
       }
