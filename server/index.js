@@ -25,8 +25,8 @@ const dashboardShellPage = path.join(config.root, 'dashboard', 'index.html');
 // Hierarchical SPA sub-route patterns:
 // 1) /app/<boardSlug>/<boardCode>[/<template>] or /app/<boardId>[/<template>]
 const APP_NESTED_ROUTE_RE = /^\/app\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+){0,2}\/?$/;
-// 2) /dashboard/starred, /dashboard/recent, /dashboard/files, /dashboard/space/<spaceSlug>
-const DASHBOARD_NESTED_ROUTE_RE = /^\/dashboard\/(?:starred|recent|files|space\/[a-zA-Z0-9_-]+)\/?$/;
+// 2) /dashboard/starred, /dashboard/recent, /dashboard/files, /dashboard/team, /dashboard/space/<spaceSlug>
+const DASHBOARD_NESTED_ROUTE_RE = /^\/dashboard\/(?:starred|recent|files|team|space\/[a-zA-Z0-9_-]+)\/?$/;
 // 3) Dedicated child workspace pages mounted hierarchically under /dashboard/<child>/
 const DASHBOARD_CHILD_PAGES = {
   notepad: path.join(config.root, 'notepad', 'index.html'),
@@ -145,8 +145,34 @@ export async function handleApi(req, res) {
   if (pathname === '/api/admin/users' && req.method === 'GET') return api.adminUsers(req, res);
   if (pathname === '/api/admin/system-stats' && req.method === 'GET') return api.adminSystemStats(req, res);
 
+  if (pathname === '/api/workspace/members' && req.method === 'GET') return api.listWorkspaceMembersApi(req, res);
+  if (pathname === '/api/workspace/invitations' && req.method === 'POST') return api.inviteWorkspaceMembersApi(req, res);
+  const wsMemberMatch = pathname.match(/^\/api\/workspace\/members\/([^/]+)$/);
+  if (wsMemberMatch) {
+    const memberId = decodeURIComponent(wsMemberMatch[1]);
+    if (req.method === 'PATCH' || req.method === 'PUT') return api.updateWorkspaceMemberApi(req, res, memberId);
+    if (req.method === 'DELETE') return api.removeWorkspaceMemberApi(req, res, memberId);
+  }
+
   if (pathname === '/api/boards' && req.method === 'GET') return api.listBoardsApi(req, res);
   if (pathname === '/api/boards' && req.method === 'POST') return api.createBoardApi(req, res);
+
+  const boardMemberItemMatch = pathname.match(/^\/api\/boards\/([^/]+)\/members\/([^/]+)$/);
+  if (boardMemberItemMatch) {
+    const boardId = decodeURIComponent(boardMemberItemMatch[1]);
+    const memberId = decodeURIComponent(boardMemberItemMatch[2]);
+    if (req.method === 'PATCH' || req.method === 'PUT') return api.updateBoardMemberApi(req, res, boardId, memberId);
+    if (req.method === 'DELETE') return api.removeBoardMemberApi(req, res, boardId, memberId);
+  }
+
+  const boardSubMatch = pathname.match(/^\/api\/boards\/([^/]+)\/(members|invitations|access)$/);
+  if (boardSubMatch) {
+    const boardId = decodeURIComponent(boardSubMatch[1]);
+    const sub = boardSubMatch[2];
+    if (sub === 'members' && req.method === 'GET') return api.listBoardMembersApi(req, res, boardId);
+    if (sub === 'invitations' && req.method === 'POST') return api.inviteBoardMembersApi(req, res, boardId);
+    if (sub === 'access' && req.method === 'GET') return api.getBoardAccessApi(req, res, boardId);
+  }
 
   const boardMatch = pathname.match(/^\/api\/boards\/([^/]+)$/);
   if (boardMatch) {

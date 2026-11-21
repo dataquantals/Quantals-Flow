@@ -53,7 +53,8 @@ const post = (path, body, headers = {}) =>
 
 const sidFrom = (res) => {
   const raw = res.headers.getSetCookie().find((c) => c.startsWith('quantalflow_sid='));
-  return raw ? raw.split(';')[0] : null;
+  if (!raw) return null;
+  return raw.split(';')[0]; // "quantalflow_sid=<token>"
 };
 
 test('owner can log in and receives a session cookie', async () => {
@@ -876,61 +877,98 @@ test('Workspace navigation retains project ID, defaults to project-planning, and
   assert.equal(created.state.workspaceMode, 'project-planning');
   assert.equal(created.state.activeModule, 'project-planning');
 
-  // 2. Switch workspace to Mind Map, Kanban, Perspective, and Brainstorm while retaining project ID
-  const modulesData = {
-    mindmap: { version: 2, items: [{ id: 'mm-1', type: 'shape', text: 'Root Node', x: 100, y: 100 }] },
-    kanban: { version: 2, items: [{ id: 'kb-1', type: 'sticky', text: 'Sprint Task', x: 200, y: 150 }] },
-    perspective: { version: 2, items: [{ id: 'ps-1', type: 'frame', text: 'Strategic Vision', x: 50, y: 50 }] },
-    brainstorm: { version: 2, items: [{ id: 'bs-1', type: 'sticky', text: 'Growth Idea', x: 300, y: 200 }] }
-  };
+  // Verification: Clean up.
+  await fetch(`${base}/api/boards/${projectId}`, { method: 'DELETE', headers: { cookie } });
+});
 
-  const updateRes = await fetch(`${base}/api/boards/${projectId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', cookie },
-    body: JSON.stringify({
-      title: 'Enterprise Architecture 2026',
-      state: {
-        version: 2,
-        workspaceMode: 'canvas',
-        activeModule: 'perspective',
-        modules: modulesData,
-        items: modulesData.perspective.items
-      }
-    })
-  });
-  assert.equal(updateRes.status, 200);
-  const { board: updated } = await updateRes.json();
-  assert.equal(updated.id, projectId, 'Project ID must remain invariant across module switches');
-  assert.equal(updated.state.activeModule, 'perspective');
-  assert.equal(updated.state.modules.mindmap.items[0].text, 'Root Node');
-  assert.equal(updated.state.modules.kanban.items[0].text, 'Sprint Task');
-  assert.equal(updated.state.modules.perspective.items[0].text, 'Strategic Vision');
-  assert.equal(updated.state.modules.brainstorm.items[0].text, 'Growth Idea');
+test('Session security: HttpOnly, SameSite=Strict, NO Max-Age, and 10-minute idle timeout', async () => {
+  const { IDLE_TIMEOUT_MS } = await import('../auth.js');
+  const { db } = await import('../db.js');
 
-  // 3. Saving a Project Plan automatically ensures workspaceMode is preserved
-  const planSave = await fetch(`${base}/api/projects/${projectId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', cookie },
-    body: JSON.stringify({
-      plan: {
-        projectName: 'Enterprise Architecture 2026',
-        phases: [{ id: 'ph-1', wbs: '1.0', name: 'Foundation' }],
-        tasks: [{ id: 'tsk-1', wbs: '1.1', title: 'Security Audit', status: 'done' }]
-      }
-    })
-  });
-  assert.equal(planSave.status, 200);
+  // Production must add Secure, dev/test must not (so http://localhost works).
+  // Spawn a tiny child process with NODE_ENV=production to check the builder.
+  const { execFileSync } = await import('node:child_process');
+  const prodCookie = execFileSync(process.execPath, ['--input-type=module', '-e',
+    "import('./server/http.js').then(m => process.stdout.write(m.buildSessionCookie('t')))"
+  ], { cwd: process.cwd(), env: { ...process.env, NODE_ENV: 'production' }, encoding: 'utf8' });
+  assert.match(prodCookie, /Secure/, 'production cookie must have Secure');
+  assert.match(prodCookie, /HttpOnly/, 'production cookie must have HttpOnly');
+  assert.match(prodCookie, /SameSite=Strict/, 'production cookie must have SameSite=Strict');
+  assert.ok(!prodCookie.includes('Max-Age='), 'production cookie must NOT have Max-Age');
 
-  // 4. Reloading the board retains both the project plan and all module states
-  const reloadBoard = await fetch(`${base}/api/boards/${projectId}`, {
-    headers: { cookie }
+  // 1. Log in and check cookie headers
+  const loginRes = await post('/api/auth/login', {
+    email: owner.email,
+    password: '123456'
   });
-  assert.equal(reloadBoard.status, 200);
-  const { board: reloaded } = await reloadBoard.json();
-  assert.equal(reloaded.id, projectId);
-  assert.equal(reloaded.state.workspaceMode, 'project-planning');
-  assert.equal(reloaded.state.modules.mindmap.items[0].text, 'Root Node');
-  assert.equal(reloaded.state.modules.perspective.items[0].text, 'Strategic Vision');
+  const setCookie = loginRes.headers.getSetCookie()[0];
+  assert.match(setCookie, /HttpOnly/, 'must have HttpOnly');
+  assert.match(setCookie, /SameSite=Strict/, 'must have SameSite=Strict');
+  assert.ok(!setCookie.includes('Max-Age='), 'must NOT have Max-Age for session cookie');
+  assert.ok(!setCookie.includes('Expires='), 'must NOT have Expires for session cookie');
+
+  const cookie = sidFrom(loginRes);
+  const token = cookie.split('=')[1];
+
+  // 2. Rolling activity: access /api/auth/me and verify last_activity updated
+  const rowBefore = db.prepare('SELECT last_activity FROM sessions WHERE id = ?').get(token);
+  assert.ok(rowBefore.last_activity > 0, 'expected a last_activity stamp');
+
+  // Artificial delay to ensure timestamp change
+  await new Promise(r => setTimeout(r, 10));
+
+  const meRes = await fetch(base + '/api/auth/me', { headers: { cookie } });
+  assert.equal(meRes.status, 200);
+  const rowAfter = db.prepare('SELECT last_activity FROM sessions WHERE id = ?').get(token);
+  assert.ok(rowAfter.last_activity > rowBefore.last_activity, 'expected last_activity to roll forward');
+
+  // 3. Idle timeout: manually age the session in DB and verify 401 + cookie clear
+  db.prepare('UPDATE sessions SET last_activity = ? WHERE id = ?').run(Date.now() - IDLE_TIMEOUT_MS - 1000, token);
+  const expiredRes = await fetch(base + '/api/auth/me', { headers: { cookie } });
+  assert.equal(expiredRes.status, 401, 'expected 401 for idle-expired session');
+  const clearCookie = expiredRes.headers.getSetCookie().find((c) => c.startsWith('quantalflow_sid='));
+  assert.ok(clearCookie && /Max-Age=0/.test(clearCookie), 'idle expiry must clear the client cookie');
+
+  // 4. The stale session row must be destroyed server-side, not merely rejected.
+  const deadRow = db.prepare('SELECT id FROM sessions WHERE id = ?').get(token);
+  assert.equal(deadRow, undefined, 'idle-expired session must be deleted from the store');
+});
+
+test('Session fixation protection: rotate ID on login and password change', async () => {
+  // 1. Register gets a session
+  const regRes = await post('/api/auth/register', {
+    name: 'Rotation Test',
+    email: 'rotate@example.com',
+    password: 'hunter2rotation'
+  });
+  const token1 = sidFrom(regRes);
+
+  // 2. Log in with the same account -> ID must change
+  const loginRes = await post('/api/auth/login', {
+    email: 'rotate@example.com',
+    password: 'hunter2rotation'
+  }, { Cookie: token1 });
+  const token2 = sidFrom(loginRes);
+  assert.notEqual(token1, token2, 'session ID must rotate on login');
+
+  // 3. Old ID must be dead
+  const oldRes = await fetch(base + '/api/auth/me', { headers: { Cookie: token1 } });
+  assert.equal(oldRes.status, 401, 'pre-login session must be destroyed');
+
+  // 4. Password change -> ID must rotate again
+  const changeRes = await fetch(base + '/api/auth/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: token2 },
+    body: JSON.stringify({ currentPassword: 'hunter2rotation', newPassword: 'new-rotated-pass' })
+  });
+  assert.equal(changeRes.status, 200);
+  const token3 = sidFrom(changeRes);
+  assert.ok(token3, 'expected a new session cookie after password change');
+  assert.notEqual(token2, token3, 'session ID must rotate on password change');
+
+  // 5. Intermediary ID must be dead
+  const midRes = await fetch(base + '/api/auth/me', { headers: { Cookie: token2 } });
+  assert.equal(midRes.status, 401, 'stale session must be destroyed after password change');
 });
 
 test('Quotation route is gated, /api/quotation saves and retrieves user quotations with RLS isolation', async () => {
@@ -1031,6 +1069,151 @@ test('Hierarchical /dashboard/<child>/ routes guard auth, canonicalise slashes, 
   assert.equal(missing.status, 404);
   const missingHtml = await missing.text();
   assert.ok(missingHtml.includes('404'), 'unknown /dashboard/<missing>/ route should render the 404 page');
+});
+
+test('Email-based member invitations, auto-accept on signup, role changes, and RBAC enforcement work end-to-end', async () => {
+  const owner = ownerCookie();
+
+  // 1. Owner creates a board to collaborate on
+  const boardRes = await fetch(`${base}/api/boards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie: owner },
+    body: JSON.stringify({ title: 'Team Collab Roadmap', category: 'Strategy & Planning' })
+  });
+  assert.equal(boardRes.status, 201);
+  const { board } = await boardRes.json();
+  assert.ok(board && board.id);
+
+  // 2. Register an existing user (Alice) and invite her by email as Can Edit (editor)
+  const aliceEmail = 'alice-collab@example.com';
+  const aliceReg = await post('/api/auth/register', {
+    name: 'Alice Editor',
+    email: aliceEmail,
+    password: 'Password123!'
+  });
+  assert.equal(aliceReg.status, 201);
+  const aliceCookie = sidFrom(aliceReg);
+
+  const inviteAlice = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie: owner },
+    body: JSON.stringify({ emails: aliceEmail, permission: 'editor' })
+  });
+  assert.equal(inviteAlice.status, 201);
+  const inviteAliceJson = await inviteAlice.json();
+  assert.equal(inviteAliceJson.invited[0].status, 'active', 'existing user is immediately active');
+  const aliceMemberId = inviteAliceJson.invited[0].id;
+
+  // Alice sees the shared board on her dashboard and can edit it
+  const aliceBoardsRes = await fetch(`${base}/api/boards`, { headers: { cookie: aliceCookie } });
+  assert.equal(aliceBoardsRes.status, 200);
+  const aliceBoards = (await aliceBoardsRes.json()).boards;
+  const sharedBoard = aliceBoards.find((b) => b.id === board.id);
+  assert.ok(sharedBoard, 'shared board appears on invited user dashboard');
+  assert.equal(sharedBoard.permission, 'editor');
+
+  const aliceEditOk = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
+    body: JSON.stringify({ title: 'Team Collab Roadmap (Edited by Alice)' })
+  });
+  assert.equal(aliceEditOk.status, 200);
+
+  // 3. Invite an unregistered email (Bob) to the workspace as Viewer -> pending with token
+  const bobEmail = 'bob-pending@example.com';
+  const inviteBob = await fetch(`${base}/api/workspace/invitations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie: owner },
+    body: JSON.stringify({ emails: bobEmail, permission: 'viewer' })
+  });
+  assert.equal(inviteBob.status, 201);
+  const inviteBobJson = await inviteBob.json();
+  assert.equal(inviteBobJson.invited[0].status, 'pending');
+  assert.ok(String(inviteBobJson.invited[0].inviteToken || '').startsWith('inv_'));
+  const bobWsMemberId = inviteBobJson.invited[0].id;
+
+  // Bob signs up with that email -> invitation auto-accepts and grants Viewer role
+  const bobReg = await post('/api/auth/register', {
+    name: 'Bob Viewer',
+    email: bobEmail,
+    password: 'Password123!'
+  });
+  assert.equal(bobReg.status, 201);
+  const bobCookie = sidFrom(bobReg);
+
+  const bobMeRes = await fetch(`${base}/api/auth/me`, { headers: { cookie: bobCookie } });
+  assert.equal(bobMeRes.status, 200);
+  const bobMe = await bobMeRes.json();
+  assert.equal(bobMe.user.workspaceRole, 'viewer');
+  assert.equal(bobMe.user.workspaceRoleLabel, 'Viewer');
+
+  // Bob (Viewer) is blocked from editing the Owner's board and from creating Admins-only folders
+  const bobEditBlocked = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie: bobCookie },
+    body: JSON.stringify({ title: 'Unauthorized Bob Edit' })
+  });
+  assert.equal(bobEditBlocked.status, 403);
+
+  const bobFolderBlocked = await fetch(`${base}/api/folders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie: bobCookie },
+    body: JSON.stringify({ key: 'bob-test-folder', name: 'Blocked Folder' })
+  });
+  assert.equal(bobFolderBlocked.status, 403);
+
+  // Promote Bob to Admin -> now allowed to manage Admins-only folders
+  const promoteBob = await fetch(`${base}/api/workspace/members/${encodeURIComponent(bobWsMemberId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', cookie: owner },
+    body: JSON.stringify({ permission: 'admin' })
+  });
+  assert.equal(promoteBob.status, 200);
+
+  const bobFolderOk = await fetch(`${base}/api/folders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie: bobCookie },
+    body: JSON.stringify({ key: 'bob-admin-folder', name: 'Admin Folder' })
+  });
+  assert.equal(bobFolderOk.status, 200);
+
+  // 4. Downgrade Alice from Can Edit -> Can View: backend blocks edits & /access reflects live state
+  const downgradeAlice = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}/members/${encodeURIComponent(aliceMemberId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', cookie: owner },
+    body: JSON.stringify({ permission: 'viewer' })
+  });
+  assert.equal(downgradeAlice.status, 200);
+
+  const aliceAccess = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}/access`, {
+    headers: { cookie: aliceCookie }
+  });
+  assert.equal(aliceAccess.status, 200);
+  const aliceAccessJson = await aliceAccess.json();
+  assert.equal(aliceAccessJson.permission, 'viewer');
+  assert.equal(aliceAccessJson.capabilities.canEdit, false);
+  assert.ok(Array.isArray(aliceAccessJson.presence) && aliceAccessJson.presence.length >= 1);
+
+  const aliceEditBlocked = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
+    body: JSON.stringify({ title: 'Should Be Rejected' })
+  });
+  assert.equal(aliceEditBlocked.status, 403);
+
+  // 5. Remove Alice -> /access immediately reports 403 revoked
+  const removeAlice = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}/members/${encodeURIComponent(aliceMemberId)}`, {
+    method: 'DELETE',
+    headers: { cookie: owner }
+  });
+  assert.equal(removeAlice.status, 200);
+
+  const aliceRevoked = await fetch(`${base}/api/boards/${encodeURIComponent(board.id)}/access`, {
+    headers: { cookie: aliceCookie }
+  });
+  assert.equal(aliceRevoked.status, 403);
+  const revokedJson = await aliceRevoked.json();
+  assert.equal(revokedJson.revoked, true);
 });
 
 

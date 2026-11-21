@@ -190,15 +190,33 @@
     } catch (e) {}
   })();
 
-  /* ---------- Vercel Serverless /api/router Fallback ----------
-     If a static edge deployment returns a platform 404 (text/plain) for
-     /api/<subpath>, automatically retry via /api/router?__api_path=<subpath>. */
-  (function installVercelApiFallback() {
+  /* ---------- Global fetch interceptors ----------
+     One wrapper, two concerns, every page (this file is loaded in both the
+     base and standalone layouts):
+
+     1. Vercel serverless /api/router fallback — a static edge deployment can
+        return a platform 404 (text/plain) for /api/<subpath>; retry via
+        /api/router?__api_path=<subpath>.
+
+     2. Auth 401 handling — the session cookie is HttpOnly and the server
+        enforces a rolling 10-minute idle timeout. Any 401 on a non-auth
+        /api/ route means the session expired (or the browser purged the
+        non-persistent cookie), so send the user to login with ?next= pointing
+        back at where they were. Auth endpoints own their 401s (e.g. a wrong
+        password) and are deliberately left alone. */
+  (function installGlobalFetchInterceptors() {
     if (typeof global.fetch !== 'function') return;
     var nativeFetch = global.fetch.bind(global);
+    var AUTH_ENDPOINTS = [
+      '/api/auth/login', '/api/auth/register', '/api/auth/me',
+      '/api/auth/config', '/api/auth/clerk-sync'
+    ];
+    var REDIRECTING_KEY = 'quantalflow_redirecting';
+
     global.fetch = function (input, init) {
       var urlStr = typeof input === 'string' ? input : (input && input.url ? input.url : '');
       return nativeFetch(input, init).then(function (res) {
+        // 1. Vercel fallback (unchanged behaviour).
         if (
           res.status === 404 &&
           typeof urlStr === 'string' &&
@@ -214,6 +232,27 @@
             return nativeFetch(fallbackUrl, init);
           }
         }
+
+        // 2. Idle-timeout / closed-session 401 -> login with a safe ?next=.
+        if (
+          res.status === 401 &&
+          !global[REDIRECTING_KEY] &&
+          typeof urlStr === 'string' &&
+          urlStr.indexOf('/api/') === 0
+        ) {
+          var isAuthEndpoint = false;
+          for (var i = 0; i < AUTH_ENDPOINTS.length; i++) {
+            if (urlStr.indexOf(AUTH_ENDPOINTS[i]) === 0) { isAuthEndpoint = true; break; }
+          }
+          if (!isAuthEndpoint) {
+            // Single in-flight guard so N parallel 401s don't queue N logins.
+            global[REDIRECTING_KEY] = true;
+            try { global.localStorage.removeItem('quantalflow_pp_state_v2_'); } catch (e) {}
+            var next = location.pathname + location.search;
+            location.href = '/login/?next=' + encodeURIComponent(next);
+          }
+        }
+
         return res;
       });
     };

@@ -16,6 +16,7 @@ function present(row) {
     category: row.category,
     starred: Boolean(row.starred),
     state,
+    hasSavedState: Boolean(row.stateJson && row.stateJson !== '{}'),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   };
@@ -43,15 +44,7 @@ export const list = query({
         if (q) return b.title.toLowerCase().includes(q) || b.category.toLowerCase().includes(q);
         return true;
       })
-      .map((row) => ({
-        id: row.boardId,
-        title: row.title,
-        category: row.category,
-        starred: Boolean(row.starred),
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        hasSavedState: Boolean(row.stateJson && row.stateJson !== '{}')
-      }));
+      .map(present);
   }
 });
 

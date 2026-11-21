@@ -101,19 +101,36 @@ export function parseCookies(req) {
   return out;
 }
 
+/**
+ * Build the session cookie as a strict, non-persistent (browser-session) cookie.
+ *
+ * - HttpOnly: client JS (document.cookie) can never read or tamper with it.
+ * - SameSite=Strict: blocks cross-site CSRF entirely. (No third-party OAuth
+ *   callback redirects exist in this codebase, so Strict is safe; a Lax
+ *   fallback would only be needed if a cross-site POST-back redirect were added.)
+ * - Secure (production only): HTTPS-only transmission in production. Local
+ *   http://localhost development keeps working because NODE_ENV !== production.
+ * - NO Max-Age / Expires: a true session cookie. The browser purges it the
+ *   moment the tab/window closes, and the server enforces its own 10-minute
+ *   idle timeout regardless of what the browser does.
+ */
 export function buildSessionCookie(token) {
-  const maxAge = Math.floor(config.session.ttlMs / 1000);
   const parts = [
     `${config.session.cookie}=${encodeURIComponent(token)}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Strict',
-    `Max-Age=${maxAge}`
+    'SameSite=Strict'
   ];
   if (config.isProduction) parts.push('Secure');
   return parts.join('; ');
 }
 
+/**
+ * Clear the session cookie. Max-Age=0 (or an Expires in the past) is required
+ * here — this is the one legitimate exception to "no Max-Age", because a
+ * session cookie with no expiry cannot be programmatically removed by the
+ * browser; we must force-expire it on logout / idle expiry.
+ */
 export function buildClearCookie() {
   return `${config.session.cookie}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
 }

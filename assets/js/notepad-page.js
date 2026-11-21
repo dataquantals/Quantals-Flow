@@ -34,7 +34,7 @@
       return true;
     },
     load: function () {
-      return fetch('/api/notepad', { credentials: 'same-origin' })
+      return fetch('/api/notepad', { credentials: 'same-origin', cache: 'no-store' })
         .then(function (res) {
           if (res.status === 401) { goToLogin(); return null; }
           if (!res.ok) return null;
@@ -48,13 +48,15 @@
           return null;
         });
     },
-    save: function (notes) {
-      return fetch('/api/notepad', {
+    save: function (notes, opts) {
+      var req = {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: Array.isArray(notes) ? notes : [] })
-      }).then(function (res) {
+      };
+      if (opts && opts.keepalive) req.keepalive = true;
+      return fetch('/api/notepad', req).then(function (res) {
         if (res.status === 401) { goToLogin(); throw new Error('Not authenticated'); }
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
@@ -82,7 +84,7 @@
         var done = function () {
           try {
             Object.keys(localStorage).forEach(function (k) {
-              if (k.indexOf('quantalflow_') === 0) localStorage.removeItem(k);
+              if (k.indexOf('quantalflow_') === 0 || k === 'co_notepad_notes_v1') localStorage.removeItem(k);
             });
             sessionStorage.clear();
           } catch (e) {}

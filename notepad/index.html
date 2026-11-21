@@ -4,15 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Note Pad | QuantalFlow</title>
-  <meta name="description" content="Type or draw notes with automatic saving and Convex sync." />
+  <meta name="description" content="Type or draw notes with automatic saving and cloud sync." />
   <meta name="robots" content="noindex" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/assets/css/styles.css?v=f37597e7" />
-  <link rel="stylesheet" href="/assets/css/pages.css?v=00d23bc3" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=a500bd00" />
   <link rel="stylesheet" href="/assets/css/folder.css" />
   <link rel="stylesheet" href="/assets/css/project-planning.css?v=d3b3fc76" />
+  <link rel="stylesheet" href="/assets/css/whiteboard-suite.css" />
   <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
   <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
   <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
@@ -34,7 +35,6 @@
         <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
         <span id="dash-profile-name">Profile</span>
       </a>
-      <button class="btn btn--dark" type="button" id="logout">Log out</button>
     </div>
   </header>
 
@@ -63,6 +63,11 @@
         </a>
 
         <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>
+          <span>Whiteboarding</span>
+        </a>
 
         <a class="dash-nav__item" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
@@ -112,6 +117,10 @@
         </a>
 
         <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Team Members</span>
+        </a>
         <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span>Profile &amp; Settings</span>

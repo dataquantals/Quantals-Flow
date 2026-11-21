@@ -10,6 +10,75 @@
 
   window.WorkspaceFrameworks = [
     {
+      id: 'whiteboard',
+      module: 'whiteboard',
+      label: 'Whiteboarding',
+      badge: 'VISUAL OS',
+      badgeBg: '#eef2ff',
+      badgeColor: '#4f46e5',
+      blurb: 'Infinite smart canvas with layers, AI assistant, doc/slide generation, workflows & dashboards',
+      defaultTitle: 'Visual Strategy Workspace',
+      category: 'Strategy & Planning',
+      tint: '#eef2ff',
+      ink: '#4f46e5',
+      heading: 'Create Whiteboarding Visual Workspace',
+      subtitle: 'Launch an AI-assisted infinite canvas combining visual thinking, tasks, decisions, process maps, and dashboards.',
+      namePlaceholder: 'e.g. Q4 Visual Strategy & Execution Hub',
+      descPlaceholder: 'Workshop goal, team scope, or key decisions…',
+      submitLabel: 'Open Whiteboarding \u2192',
+      icon:
+        '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>',
+      templates: [
+        {
+          id: 'wb-strategy-hub',
+          label: 'Visual Strategy & Execution Hub',
+          tag: 'Recommended',
+          defaultTitle: 'Visual Strategy Workspace',
+          blurb: 'Smart stickies, KPI cards, decision cards, knowledge graph links, and live dashboard sync.',
+          structure: 'Smart Stickies \u2022 KPIs \u2022 Decisions',
+          previewSvg:
+            '<svg viewBox="0 0 200 74" width="100%" height="74" fill="none" style="background:linear-gradient(135deg,#f8faff 0%,#eef2ff 100%);">' +
+            '<rect x="14" y="14" width="46" height="36" rx="6" fill="#fef08a" stroke="#eab308" stroke-width="1.2"/>' +
+            '<rect x="74" y="12" width="52" height="44" rx="6" fill="#fff" stroke="#4f46e5" stroke-width="1.4"/>' +
+            '<rect x="140" y="16" width="46" height="36" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>' +
+            '<path d="M60 32 H74 M126 32 H140" stroke="#6366f1" stroke-width="1.6" stroke-dasharray="3 2"/>' +
+            '</svg>'
+        },
+        {
+          id: 'wb-process-bpmn',
+          label: 'Business Process & BPMN Swimlanes',
+          tag: 'Workflows',
+          defaultTitle: 'Operations Process Map',
+          blurb: 'Swimlanes, decision diamonds, automated workflow validation, and SOP document export.',
+          structure: 'Swimlanes \u2022 BPMN \u2022 Validation',
+          previewSvg:
+            '<svg viewBox="0 0 200 74" width="100%" height="74" fill="none" style="background:linear-gradient(135deg,#f0fdf4 0%,#ecfeff 100%);">' +
+            '<rect x="14" y="24" width="38" height="24" rx="5" fill="#fff" stroke="#0d9488" stroke-width="1.4"/>' +
+            '<polygon points="94,16 116,36 94,56 72,36" fill="#fff" stroke="#f59e0b" stroke-width="1.4"/>' +
+            '<rect x="140" y="24" width="44" height="24" rx="5" fill="#0d9488"/>' +
+            '<path d="M52 36 H72 M116 36 H140" stroke="#0f766e" stroke-width="1.6"/>' +
+            '</svg>'
+        },
+        {
+          id: 'wb-org-twin',
+          label: 'Organisational Map & Visual Database',
+          tag: 'Enterprise',
+          defaultTitle: 'Company Operating Map',
+          blurb: 'Company to Department to Project hierarchy with Table, Kanban, Timeline & Dashboard views.',
+          structure: 'Org Levels \u2022 Multi-View DB',
+          previewSvg:
+            '<svg viewBox="0 0 200 74" width="100%" height="74" fill="none" style="background:linear-gradient(135deg,#eff6ff 0%,#f8fafc 100%);">' +
+            '<rect x="74" y="10" width="52" height="18" rx="4" fill="#1e293b"/>' +
+            '<rect x="20" y="44" width="44" height="18" rx="4" fill="#2563eb"/>' +
+            '<rect x="78" y="44" width="44" height="18" rx="4" fill="#0ea5e9"/>' +
+            '<rect x="136" y="44" width="44" height="18" rx="4" fill="#10b981"/>' +
+            '<path d="M100 28 V36 M42 36 H158 M42 36 V44 M100 36 V44 M158 36 V44" stroke="#64748b" stroke-width="1.4"/>' +
+            '</svg>'
+        }
+      ]
+    },
+    {
       id: 'project-planning',
       module: 'project-planning',
       label: 'Project Planning',

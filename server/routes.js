@@ -12,6 +12,8 @@ import {
   upsertLocalUserFromConvex,
   deleteSession,
   deleteSessionAsync,
+  regenerateSession,
+  regenerateSessionAsync,
   publicUser,
   findOrCreateClerkUser
 } from './auth.js';
@@ -23,6 +25,10 @@ import {
   removeBoard,
   hydrateUserBoardsFromConvex,
   hydrateBoardFromConvex,
+  hydrateUserFilesAndFoldersFromConvex,
+  hydrateUserFileOrderFromConvex,
+  hydrateUserPreferencesFromConvex,
+  scopeBoardId,
   updateUser,
   updateUserAvatar,
   updateUserPassword,
@@ -50,6 +56,19 @@ import {
   saveUserInvoice,
   getUserNotepad,
   saveUserNotepad,
+  getEffectiveWorkspaceRole,
+  capabilitiesForRole,
+  acceptPendingInvitationsForUser,
+  listWorkspaceMembers,
+  inviteWorkspaceMembers,
+  updateWorkspaceMemberRole,
+  removeWorkspaceMember,
+  listBoardMembers,
+  inviteBoardMembers,
+  updateBoardMemberRole,
+  removeBoardMember,
+  resolveBoardAccess,
+  recordBoardPresence,
   db
 } from './db.js';
 import {
@@ -119,7 +138,19 @@ function validateRegistration(body) {
 export function createApi(limiter) {
   const loginLimiter = limiter;
 
-  const auth = (req) => getSessionUserWithConvexFallback(extractSessionToken(req));
+  // On any failed authenticated request, clear the client's session cookie so
+  // an idle-expired (or revoked/absolute-expired) session is immediately
+  // forgotten by the browser. The 401 that follows is then unambiguous: the
+  // next login starts from a clean slate. buildClearCookie is the one place a
+  // Max-Age is allowed, because a session cookie can't otherwise be removed.
+  const auth = async (req, res) => {
+    const token = extractSessionToken(req);
+    const user = await getSessionUserWithConvexFallback(token);
+    if (!user && token && res) {
+      res.setHeader('Set-Cookie', buildClearCookie());
+    }
+    return user;
+  };
 
   const guard = (res, limiterKey) => {
     const result = loginLimiter.check(limiterKey);
@@ -175,10 +206,15 @@ export function createApi(limiter) {
         throw err;
       }
 
+      // Automatically accept any pending workspace/board invitations for this email.
+      acceptPendingInvitationsForUser(user);
+
       const token = await createSessionAsync(user.id, user);
       loginLimiter.reset(`login:${ip}`);
 
-      return sendJson(res, 201, { user: publicUser(user), token, authProvider: 'convex' }, {
+      const wsRole = getEffectiveWorkspaceRole(user);
+      const userPayload = { ...publicUser(user), workspaceRole: wsRole, workspaceRoleLabel: capabilitiesForRole(wsRole).label };
+      return sendJson(res, 201, { user: userPayload, token, authProvider: 'convex' }, {
         'Set-Cookie': buildSessionCookie(token)
       });
     },
@@ -268,10 +304,19 @@ export function createApi(limiter) {
         await syncUserToConvex(user, user.password_hash);
       }
 
-      const token = await createSessionAsync(user.id, user);
+      acceptPendingInvitationsForUser(user);
+
+      // Session fixation protection: rotate the ID on every successful login.
+      // A pre-login session (e.g. one minted by the register route, or an
+      // anonymous visitor's) is destroyed and a fresh token is minted, so a
+      // stolen pre-auth cookie can never be exchanged for an authenticated one.
+      const preLoginToken = extractSessionToken(req);
+      const token = await regenerateSessionAsync(preLoginToken, user.id) || await createSessionAsync(user.id, user);
       loginLimiter.reset(`login:${ip}`);
 
-      return sendJson(res, 200, { user: publicUser(user), token, authProvider: 'convex' }, {
+      const wsRole = getEffectiveWorkspaceRole(user);
+      const userPayload = { ...publicUser(user), workspaceRole: wsRole, workspaceRoleLabel: capabilitiesForRole(wsRole).label };
+      return sendJson(res, 200, { user: userPayload, token, authProvider: 'convex' }, {
         'Set-Cookie': buildSessionCookie(token)
       });
     },
@@ -285,14 +330,25 @@ export function createApi(limiter) {
 
     /** GET /api/auth/me */
     async me(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
-      return sendJson(res, 200, { user: publicUser(user), authProvider: 'convex' });
+      acceptPendingInvitationsForUser(user);
+      const wsRole = getEffectiveWorkspaceRole(user);
+      const caps = capabilitiesForRole(wsRole);
+      return sendJson(res, 200, {
+        user: {
+          ...publicUser(user),
+          workspaceRole: wsRole,
+          workspaceRoleLabel: caps.label,
+          capabilities: caps
+        },
+        authProvider: 'convex'
+      });
     },
 
     /** PATCH /api/auth/me - Update profile fields (name, title/jobTitle, company, bio) */
     async updateMe(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       let body;
@@ -337,7 +393,7 @@ export function createApi(limiter) {
 
     /** POST /api/profile/avatar-upload-url - Generate direct Convex storage upload URL */
     async avatarUploadUrl(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const uploadUrl = await generateConvexUploadUrl(user.id);
@@ -350,7 +406,7 @@ export function createApi(limiter) {
 
     /** POST /api/profile/avatar - Upload profile image to Convex storage (<= 5MB) */
     async uploadAvatar(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const rawContentType = (req.headers['content-type'] || '').toLowerCase();
@@ -433,7 +489,7 @@ export function createApi(limiter) {
 
     /** DELETE /api/profile/avatar - Remove profile photo */
     async removeAvatar(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const updated = updateUserAvatar(user.id, '', '');
@@ -450,7 +506,7 @@ export function createApi(limiter) {
 
     /** POST /api/auth/change-password */
     async changePassword(req, res) {
-      const sessionUser = await auth(req);
+      const sessionUser = await auth(req, res);
       if (!sessionUser) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const ip = getClientIp(req);
@@ -494,9 +550,17 @@ export function createApi(limiter) {
         await syncUserToConvex(user, newHash);
       } catch {}
 
+      // Privilege-escalation hardening: a password change is a credential
+      // transition, so rotate the session ID and force the new token on the
+      // client. Any session the user held before the change is invalidated.
+      const oldToken = extractSessionToken(req);
+      const newToken = await regenerateSessionAsync(oldToken, user.id) || await createSessionAsync(user.id, user);
+
       return sendJson(res, 200, {
         ok: true,
         message: 'Password changed successfully.'
+      }, {
+        'Set-Cookie': buildSessionCookie(newToken)
       });
     },
 
@@ -560,7 +624,7 @@ export function createApi(limiter) {
     /** GET /api/convex/status */
     async convexStatus(req, res) {
       const status = await checkConvexConnection();
-      const user = await auth(req);
+      const user = await auth(req, res);
       return sendJson(res, 200, {
         ...status,
         authProvider: 'convex',
@@ -571,7 +635,7 @@ export function createApi(limiter) {
 
     /** GET /api/boards */
     async listBoardsApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       await hydrateUserBoardsFromConvex(user.id);
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -592,7 +656,7 @@ export function createApi(limiter) {
 
     /** POST /api/boards */
     async createBoardApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
@@ -625,14 +689,15 @@ export function createApi(limiter) {
 
     /** GET /api/boards/:id */
     async getBoardApi(req, res, boardId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let board = getBoardById(boardId, user.id);
       if (!board) {
         board = findBoardBySlug(boardId, user.id);
       }
-      if (!board) {
-        board = await hydrateBoardFromConvex(boardId, user.id);
+      if (!board || !board.state) {
+        const hydrated = await hydrateBoardFromConvex(board ? board.id : boardId, user.id);
+        if (hydrated) board = hydrated;
       }
       if (!board) return sendJson(res, 404, { error: 'Board not found.' });
       return sendJson(res, 200, { board });
@@ -640,7 +705,7 @@ export function createApi(limiter) {
 
     /** PUT /api/boards/:id */
     async updateBoardApi(req, res, boardId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
@@ -670,7 +735,7 @@ export function createApi(limiter) {
 
     /** DELETE /api/boards/:id */
     async deleteBoardApi(req, res, boardId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const result = await removeBoard(boardId, user.id);
       if (!result.removed) return sendJson(res, 404, { error: 'Board not found.' });
@@ -687,7 +752,7 @@ export function createApi(limiter) {
 
     /** GET /api/projects/:boardId - plan for a board (SQLite, then Convex). */
     async getProjectPlanApi(req, res, boardId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let meta = getProjectPlanMeta(boardId, user.id);
       let plan = meta ? meta.plan : null;
@@ -695,7 +760,11 @@ export function createApi(limiter) {
       let updatedAt = meta ? meta.updatedAt : null;
       let source = plan ? 'sqlite' : null;
       if (!plan) {
-        plan = await fetchProjectPlanFromConvex(boardId, user.id);
+        const scopedId = scopeBoardId(boardId, user.id);
+        plan = await fetchProjectPlanFromConvex(scopedId, user.id);
+        if (!plan && scopedId !== boardId) {
+          plan = await fetchProjectPlanFromConvex(boardId, user.id);
+        }
         if (plan) {
           source = 'convex';
           // Backfill the local store so the next read is instant.
@@ -719,7 +788,7 @@ export function createApi(limiter) {
 
     /** PUT /api/projects/:boardId - replace the plan and mirror it to Convex. */
     async saveProjectPlanApi(req, res, boardId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body = {};
       try {
@@ -758,7 +827,7 @@ export function createApi(limiter) {
 
     /** DELETE /api/projects/:boardId - drop a plan from SQLite and Convex. */
     async deleteProjectPlanApi(req, res, boardId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const result = await removeProjectPlan(boardId, user.id);
@@ -770,7 +839,7 @@ export function createApi(limiter) {
 
     /** GET /api/admin/users - Super Admin / Owner only */
     async adminUsers(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       if (user.role !== 'owner' && user.role !== 'admin') {
         return sendJson(res, 403, { error: 'Forbidden. Super Admin privileges required.' });
@@ -781,7 +850,7 @@ export function createApi(limiter) {
 
     /** GET /api/admin/system-stats - Super Admin / Owner only */
     async adminSystemStats(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       if (user.role !== 'owner' && user.role !== 'admin') {
         return sendJson(res, 403, { error: 'Forbidden. Super Admin privileges required.' });
@@ -791,7 +860,7 @@ export function createApi(limiter) {
 
     /** POST /api/ai/generate - powered by DeepSeek AI */
     async generateAi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       let body;
@@ -920,8 +989,13 @@ export function createApi(limiter) {
 
     /** GET /api/files - list the signed-in user's files and folders */
     async listFilesApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      await Promise.all([
+        hydrateUserFilesAndFoldersFromConvex(user.id),
+        hydrateUserPreferencesFromConvex(user.id),
+        hydrateUserFileOrderFromConvex(user.id, 'root')
+      ]);
       const files = listUserFiles(user.id);
       const folders = listUserFolders(user.id);
       const preferences = getUserPreferences(user.id);
@@ -932,7 +1006,7 @@ export function createApi(limiter) {
 
     /** POST /api/files/signature - Cloudinary signed upload ticket */
     async fileSignatureApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const creds = parseCloudinaryUrl(config.cloudinary.url);
       if (!creds) return sendJson(res, 500, { error: 'Cloudinary not configured.' });
@@ -954,7 +1028,7 @@ export function createApi(limiter) {
 
     /** POST /api/files/save (and POST /api/files) - record metadata after Cloudinary upload */
     async saveFileApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -980,12 +1054,13 @@ export function createApi(limiter) {
         visibility: String(body.visibility || 'coordinators'),
         uploadedBy: user.name || user.email
       });
+      if (row?._convexSyncPromise) await row._convexSyncPromise;
       return sendJson(res, 201, { success: true, file: row });
     },
 
     /** POST /api/files/upload - JSON base64 upload for PDF/ZIP stored locally */
     async uploadFileApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -1012,12 +1087,13 @@ export function createApi(limiter) {
         uploadedBy: user.name || user.email,
         dataBase64
       });
+      if (row?._convexSyncPromise) await row._convexSyncPromise;
       return sendJson(res, 201, { success: true, file: row });
     },
 
     /** GET /api/files/:id/content - stream file bytes from DB or Cloudinary */
     async getFileContentApi(req, res, fileId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const file = getUserFile(user.id, fileId);
       if (!file) return sendJson(res, 404, { error: 'File not found.' });
@@ -1057,7 +1133,7 @@ export function createApi(limiter) {
 
     /** POST /api/files/:id/move */
     async moveFileApi(req, res, fileId) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -1066,16 +1142,18 @@ export function createApi(limiter) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
       const result = moveUserFile(user.id, fileId, body.folderId || null);
+      if (result?._convexSyncPromise) await result._convexSyncPromise;
       return sendJson(res, 200, { success: true, ...result });
     },
 
     /** DELETE /api/files/:id or POST /api/files/:id/delete */
     async deleteFileApi(req, res, fileIdArg) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const id = fileIdArg || (req.params && req.params.id) || (req.url.match(/\/api\/files\/([^/?]+)/) || [])[1];
       const row = deleteUserFile(user.id, id);
       if (!row) return sendJson(res, 404, { error: 'File not found.' });
+      if (row?._convexSyncPromise) await row._convexSyncPromise;
       try {
         const creds = parseCloudinaryUrl(config.cloudinary.url);
         if (creds && row.publicId) {
@@ -1098,15 +1176,20 @@ export function createApi(limiter) {
 
     /** GET /api/folders */
     async listFoldersApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      await hydrateUserFilesAndFoldersFromConvex(user.id);
       return sendJson(res, 200, { success: true, folders: listUserFolders(user.id) });
     },
 
     /** POST /api/folders */
     async saveFolderApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const wsRole = getEffectiveWorkspaceRole(user);
+      if (!capabilitiesForRole(wsRole).canManageAdminFolders) {
+        return sendJson(res, 403, { error: 'Only workspace Owners and Admins can manage folders.' });
+      }
       let body;
       try {
         body = await readJson(req);
@@ -1119,6 +1202,7 @@ export function createApi(limiter) {
           name: body.name,
           parentId: body.parentId || null
         });
+        if (folder?._convexSyncPromise) await folder._convexSyncPromise;
         return sendJson(res, 200, { success: true, folder });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
@@ -1127,25 +1211,31 @@ export function createApi(limiter) {
 
     /** POST /api/folders/:key/delete */
     async deleteFolderApi(req, res, key) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const wsRole = getEffectiveWorkspaceRole(user);
+      if (!capabilitiesForRole(wsRole).canManageAdminFolders) {
+        return sendJson(res, 403, { error: 'Only workspace Owners and Admins can delete folders.' });
+      }
       const result = deleteUserFolder(user.id, key);
+      if (result?._convexSyncPromise) await result._convexSyncPromise;
       return sendJson(res, 200, { success: true, ...result });
     },
 
     /** GET /api/files/order?folderId=... */
     async getFileOrderApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       const urlObj = new URL(req.url, 'http://localhost');
       const folderId = urlObj.searchParams.get('folderId') || 'root';
+      await hydrateUserFileOrderFromConvex(user.id, folderId);
       const order = getUserFileOrder(user.id, folderId);
       return sendJson(res, 200, { success: true, folderId, order });
     },
 
     /** PUT /api/files/order */
     async saveFileOrderApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -1155,20 +1245,22 @@ export function createApi(limiter) {
       }
       const folderId = String(body.folderId || 'root').trim() || 'root';
       const order = saveUserFileOrder(user.id, folderId, body.order || {});
+      if (order?._convexSyncPromise) await order._convexSyncPromise;
       return sendJson(res, 200, { success: true, folderId, order });
     },
 
     /** GET /api/preferences */
     async getPreferencesApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      await hydrateUserPreferencesFromConvex(user.id);
       const preferences = getUserPreferences(user.id);
       return sendJson(res, 200, { success: true, preferences });
     },
 
     /** PATCH /api/preferences (and PUT /api/preferences) */
     async savePreferencesApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -1177,11 +1269,12 @@ export function createApi(limiter) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
       const preferences = saveUserPreferences(user.id, body);
+      if (preferences?._convexSyncPromise) await preferences._convexSyncPromise;
       return sendJson(res, 200, { success: true, preferences });
     },
     /** GET /api/quotation */
     async getQuotationApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const saved = await getUserQuotation(user.id);
@@ -1193,7 +1286,7 @@ export function createApi(limiter) {
 
     /** PUT /api/quotation */
     async saveQuotationApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -1211,7 +1304,7 @@ export function createApi(limiter) {
 
     /** POST /api/quotation/logo - Upload quotation logo image to Convex Cloud Storage (<= 5MB) */
     async uploadQuotationLogoApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const rawContentType = (req.headers['content-type'] || '').toLowerCase();
@@ -1259,7 +1352,7 @@ export function createApi(limiter) {
 
     /** GET /api/invoice */
     async getInvoiceApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const saved = await getUserInvoice(user.id);
@@ -1271,7 +1364,7 @@ export function createApi(limiter) {
 
     /** PUT /api/invoice */
     async saveInvoiceApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -1289,7 +1382,7 @@ export function createApi(limiter) {
 
     /** POST /api/invoice/logo - Upload invoice logo image to Convex Cloud Storage (<= 5MB) */
     async uploadInvoiceLogoApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       const rawContentType = (req.headers['content-type'] || '').toLowerCase();
@@ -1337,7 +1430,7 @@ export function createApi(limiter) {
 
     /** GET /api/notepad */
     async getNotepadApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const saved = await getUserNotepad(user.id);
@@ -1349,7 +1442,7 @@ export function createApi(limiter) {
 
     /** PUT /api/notepad */
     async saveNotepadApi(req, res) {
-      const user = await auth(req);
+      const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
@@ -1363,6 +1456,163 @@ export function createApi(limiter) {
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
+    },
+
+    /* ---------------- Workspace & Board Member Collaboration ---------------- */
+
+    /** GET /api/workspace/members */
+    async listWorkspaceMembersApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const data = listWorkspaceMembers(user.id);
+        return sendJson(res, 200, { ok: true, ...data });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message });
+      }
+    },
+
+    /** POST /api/workspace/invitations */
+    async inviteWorkspaceMembersApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = inviteWorkspaceMembers({
+          actorUserId: user.id,
+          emails: body.emails !== undefined ? body.emails : body.email,
+          permission: body.permission || 'editor'
+        });
+        return sendJson(res, 201, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** PATCH /api/workspace/members/:id */
+    async updateWorkspaceMemberApi(req, res, memberId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = updateWorkspaceMemberRole({
+          actorUserId: user.id,
+          memberId,
+          permission: body.permission
+        });
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** DELETE /api/workspace/members/:id */
+    async removeWorkspaceMemberApi(req, res, memberId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const result = removeWorkspaceMember({ actorUserId: user.id, memberId });
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** GET /api/boards/:id/members */
+    async listBoardMembersApi(req, res, boardId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const result = listBoardMembers({ boardId, actorUserId: user.id });
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 404, { error: err.message });
+      }
+    },
+
+    /** POST /api/boards/:id/invitations */
+    async inviteBoardMembersApi(req, res, boardId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = inviteBoardMembers({
+          boardId,
+          actorUserId: user.id,
+          emails: body.emails !== undefined ? body.emails : body.email,
+          permission: body.permission || 'editor'
+        });
+        return sendJson(res, 201, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** PATCH /api/boards/:id/members/:memberId */
+    async updateBoardMemberApi(req, res, boardId, memberId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = updateBoardMemberRole({
+          boardId,
+          actorUserId: user.id,
+          memberId,
+          permission: body.permission
+        });
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** DELETE /api/boards/:id/members/:memberId */
+    async removeBoardMemberApi(req, res, boardId, memberId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const result = removeBoardMember({ boardId, actorUserId: user.id, memberId });
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** GET /api/boards/:id/access - Live presence heartbeat + real-time permission enforcement */
+    async getBoardAccessApi(req, res, boardId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const access = resolveBoardAccess(boardId, user.id);
+      if (!access) {
+        return sendJson(res, 403, { error: 'Access to this board has been revoked.', revoked: true });
+      }
+      const presence = recordBoardPresence(access.internalId, user, access.role);
+      return sendJson(res, 200, {
+        ok: true,
+        permission: access.role,
+        capabilities: capabilitiesForRole(access.role),
+        presence
+      });
     }
   };
 }

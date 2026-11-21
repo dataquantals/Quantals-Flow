@@ -22,6 +22,7 @@
     'all': '/dashboard/',
     'starred': '/dashboard/starred/',
     'files': '/dashboard/files/',
+    'team': '/dashboard/team/',
     'AI & Product Strategy': '/dashboard/space/ai-strategy/',
     'Engineering & Delivery': '/dashboard/space/engineering/',
     'UX & Discovery': '/dashboard/space/ux-discovery/'
@@ -31,6 +32,7 @@
     var clean = String(pathname || '/dashboard/').replace(/\/+$/, '');
     if (clean === '/dashboard/starred') return 'starred';
     if (clean === '/dashboard/files') return 'files';
+    if (clean === '/dashboard/team') return 'team';
     if (clean === '/dashboard/space/ai-strategy') return 'AI & Product Strategy';
     if (clean === '/dashboard/space/engineering') return 'Engineering & Delivery';
     if (clean === '/dashboard/space/ux-discovery') return 'UX & Discovery';
@@ -137,9 +139,12 @@
 
     var boardsView = document.getElementById('dash-boards-view');
     var filesView = document.getElementById('dash-files-view');
+    var teamView = document.getElementById('dash-team-view');
     var isFiles = activeFilter === 'files';
-    if (boardsView) boardsView.hidden = isFiles;
+    var isTeam = activeFilter === 'team';
+    if (boardsView) boardsView.hidden = isFiles || isTeam;
     if (filesView) filesView.hidden = !isFiles;
+    if (teamView) teamView.hidden = !isTeam;
 
     var heading = document.getElementById('dash-boards-heading');
     if (heading) {
@@ -150,7 +155,7 @@
           : activeFilter;
     }
 
-    document.title = (activeFilter === 'all' ? 'Dashboard' : activeFilter === 'files' ? 'Files' : activeFilter) + ' | QuantalFlow';
+    document.title = (activeFilter === 'all' ? 'Dashboard' : activeFilter === 'files' ? 'Files' : activeFilter === 'team' ? 'Team Members' : activeFilter) + ' | QuantalFlow';
 
     var targetUrl = SPACE_ROUTE_MAP[activeFilter] || '/dashboard/';
     if (pushHistoryEntry && window.history && window.history.pushState && window.location.pathname !== targetUrl) {
@@ -161,6 +166,8 @@
       if (window.DashboardFiles && typeof window.DashboardFiles.onShow === 'function') {
         window.DashboardFiles.onShow();
       }
+    } else if (isTeam) {
+      loadTeamMembers();
     } else {
       renderBoards();
     }
@@ -200,15 +207,21 @@
       var starLabel = (b.starred ? 'Unstar ' : 'Star ') + safeTitle;
       var delLabel = 'Delete ' + safeTitle;
       var boardHref = buildBoardPath(b.id, b.activeModule || '', b.title);
+      var perm = b.permission || 'owner';
+      var canDel = perm === 'owner' || perm === 'admin';
+      var permLabels = { owner: 'Owner', admin: 'Admin', editor: 'Can Edit', commenter: 'Can Comment', viewer: 'Can View' };
+      var sharedTag = b.isShared
+        ? ' &bull; <span class="dash-card__role-tag">Shared (' + escapeHtml(permLabels[perm] || perm) + ')</span>'
+        : '';
       html +=
         '<div class="dash-card dash-card--interactive dash-card--tinted" data-board-id="' + safeId + '" style="--dash-tint:' + (tintMap[b.id] || CARD_HUES[0]) + '">' +
           '<div class="dash-card__actions">' +
             '<button class="dash-icon-btn ' + starClass + '" data-star-id="' + safeId + '" type="button" aria-pressed="' + (b.starred ? 'true' : 'false') + '" title="' + starLabel + '" aria-label="' + starLabel + '">&#9733;</button>' +
-            '<button class="dash-icon-btn dash-icon-btn--del" data-del-id="' + safeId + '" type="button" title="' + delLabel + '" aria-label="' + delLabel + '">&times;</button>' +
+            (canDel ? '<button class="dash-icon-btn dash-icon-btn--del" data-del-id="' + safeId + '" type="button" title="' + delLabel + '" aria-label="' + delLabel + '">&times;</button>' : '') +
           '</div>' +
           '<a class="dash-card__link" href="' + boardHref + '">' +
             '<p>' + safeTitle + '</p>' +
-            '<span class="dash-card__meta">' + timeAgo(b.updatedAt) + ' &bull; Open in App &rarr;</span>' +
+            '<span class="dash-card__meta">' + timeAgo(b.updatedAt) + sharedTag + ' &bull; Open in App &rarr;</span>' +
           '</a>' +
         '</div>';
     });
@@ -248,7 +261,7 @@
         var id = btn.dataset.delId;
         var board = allBoards.find(function (item) { return item.id === id; });
         var label = board ? '“' + board.title + '”' : 'this board';
-        if (!confirm('Delete ' + label + ' from your workspace?\n\nIts plan and Convex records are removed too.')) return;
+        if (!confirm('Delete ' + label + ' from your workspace?\n\nIts plan and saved records are removed too.')) return;
 
         var removed = allBoards.slice();
         allBoards = allBoards.filter(function (item) { return item.id !== id; });
@@ -726,17 +739,21 @@
         }
       }
 
-      var roleLabel = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+      var roleLabel = user.workspaceRoleLabel || (user.role.charAt(0).toUpperCase() + user.role.slice(1));
       var roleEl = document.getElementById('dash-role');
       if (roleEl) roleEl.textContent = roleLabel;
 
       var roleStatEl = document.getElementById('dash-role-stat');
       if (roleStatEl) roleStatEl.textContent = roleLabel;
 
+      var teamRolePill = document.getElementById('team-my-role-pill');
+      if (teamRolePill) teamRolePill.textContent = roleLabel;
+
       loadBoards();
+      if (activeFilter === 'team') loadTeamMembers();
 
       var logout = document.getElementById('logout');
-      logout.addEventListener('click', async function () {
+      if (logout) logout.addEventListener('click', async function () {
         logout.disabled = true;
         logout.textContent = 'Logging out…';
         try {
@@ -760,4 +777,177 @@
       document.querySelector('.dash__hero p').textContent =
         'We could not reach the server. Please refresh to try again.';
     });
+
+  /* ---------- Team Members & Email Invitations ---------- */
+  var teamState = { canManage: false, members: [] };
+
+  function setTeamStatus(msg, isError) {
+    var el = document.getElementById('team-status');
+    if (!el) return;
+    if (!msg) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = msg;
+    el.className = 'team-status ' + (isError ? 'is-error' : 'is-success');
+  }
+
+  function renderTeamMembers() {
+    var listEl = document.getElementById('team-members-list');
+    var countEl = document.getElementById('team-member-count');
+    var formEl = document.getElementById('team-invite-form');
+    if (!listEl) return;
+
+    var members = teamState.members || [];
+    if (countEl) countEl.textContent = String(members.length);
+    if (formEl) formEl.hidden = !teamState.canManage;
+
+    if (!members.length) {
+      listEl.innerHTML = '<div class="dash-empty-state">No team members yet. Invite teammates above to collaborate.</div>';
+      return;
+    }
+
+    listEl.innerHTML = members.map(function (m) {
+      var initial = escapeHtml((m.name || m.email || 'U').charAt(0).toUpperCase());
+      var avatarHtml = m.avatarUrl
+        ? '<img src="' + escapeHtml(m.avatarUrl) + '" alt="" />'
+        : initial;
+      var statusBadge = m.status === 'pending'
+        ? '<span class="team-status-pill is-pending">Pending</span>'
+        : '<span class="team-status-pill is-active">Active</span>';
+      var controlsHtml = '';
+      if (m.isOwner) {
+        controlsHtml = '<span class="team-role-pill">Owner</span>';
+      } else if (teamState.canManage) {
+        controlsHtml =
+          '<select class="team-perm-select" data-member-perm="' + escapeHtml(m.id) + '" aria-label="Permission for ' + escapeHtml(m.email) + '">' +
+            '<option value="admin"' + (m.permission === 'admin' ? ' selected' : '') + '>Admin</option>' +
+            '<option value="editor"' + (m.permission === 'editor' ? ' selected' : '') + '>Can Edit</option>' +
+            '<option value="commenter"' + (m.permission === 'commenter' ? ' selected' : '') + '>Can Comment</option>' +
+            '<option value="viewer"' + (m.permission === 'viewer' ? ' selected' : '') + '>Can View</option>' +
+          '</select>' +
+          '<button class="team-remove-btn" data-member-remove="' + escapeHtml(m.id) + '" type="button" title="Remove ' + escapeHtml(m.email) + '" aria-label="Remove ' + escapeHtml(m.email) + '">Remove</button>';
+      } else {
+        controlsHtml = '<span class="team-role-pill">' + escapeHtml(m.permissionLabel || m.permission) + '</span>';
+      }
+
+      return '<div class="team-member-row">' +
+        '<div class="team-member-info">' +
+          '<span class="team-member-avatar" aria-hidden="true">' + avatarHtml + '</span>' +
+          '<div class="team-member-text">' +
+            '<div class="team-member-name">' + escapeHtml(m.name || m.email) + ' ' + statusBadge + '</div>' +
+            '<div class="team-member-email">' + escapeHtml(m.email) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="team-member-controls">' + controlsHtml + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  async function loadTeamMembers() {
+    try {
+      var res = await fetch('/api/workspace/members', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      var data = await res.json();
+      teamState = { canManage: Boolean(data.canManage), members: data.members || [] };
+      var pill = document.getElementById('team-my-role-pill');
+      if (pill && data.effectiveRoleLabel) pill.textContent = data.effectiveRoleLabel;
+      renderTeamMembers();
+    } catch (e) {}
+  }
+
+  var teamForm = document.getElementById('team-invite-form');
+  if (teamForm) {
+    teamForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var emailInput = document.getElementById('team-invite-emails');
+      var permSelect = document.getElementById('team-invite-permission');
+      var submitBtn = document.getElementById('team-invite-submit');
+      if (!emailInput || !permSelect) return;
+
+      var emails = emailInput.value.trim();
+      var permission = permSelect.value || 'editor';
+      if (!emails) return;
+
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending\u2026'; }
+      setTeamStatus('', false);
+      try {
+        var res = await fetch('/api/workspace/invitations', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ emails: emails, permission: permission })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Could not send invitation.');
+        if (data.workspace) {
+          teamState = { canManage: Boolean(data.workspace.canManage), members: data.workspace.members || [] };
+          renderTeamMembers();
+        } else {
+          await loadTeamMembers();
+        }
+        emailInput.value = '';
+        var summary = (data.invited || []).filter(function (x) { return !x.skipped; }).map(function (x) {
+          return x.email + ' (' + (x.status === 'active' ? 'Active immediately' : 'Pending signup') + ')';
+        }).join(', ');
+        setTeamStatus(summary ? 'Invited: ' + summary : 'Invitation updated.', false);
+      } catch (err) {
+        setTeamStatus(err.message || 'Failed to invite member.', true);
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Send Invite'; }
+      }
+    });
+  }
+
+  var teamListEl = document.getElementById('team-members-list');
+  if (teamListEl) {
+    teamListEl.addEventListener('change', async function (e) {
+      var sel = e.target.closest('[data-member-perm]');
+      if (!sel) return;
+      var memberId = sel.getAttribute('data-member-perm');
+      var permission = sel.value;
+      try {
+        var res = await fetch('/api/workspace/members/' + encodeURIComponent(memberId), {
+          method: 'PATCH',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ permission: permission })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Failed to update role.');
+        if (data.workspace) {
+          teamState = { canManage: Boolean(data.workspace.canManage), members: data.workspace.members || [] };
+          renderTeamMembers();
+        }
+        setTeamStatus('Member permission updated.', false);
+      } catch (err) {
+        setTeamStatus(err.message, true);
+        loadTeamMembers();
+      }
+    });
+
+    teamListEl.addEventListener('click', async function (e) {
+      var btn = e.target.closest('[data-member-remove]');
+      if (!btn) return;
+      var memberId = btn.getAttribute('data-member-remove');
+      if (!window.confirm('Remove this member from your workspace?')) return;
+      try {
+        var res = await fetch('/api/workspace/members/' + encodeURIComponent(memberId), {
+          method: 'DELETE',
+          credentials: 'same-origin'
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || 'Failed to remove member.');
+        if (data.workspace) {
+          teamState = { canManage: Boolean(data.workspace.canManage), members: data.workspace.members || [] };
+          renderTeamMembers();
+        }
+        setTeamStatus('Member removed.', false);
+      } catch (err) {
+        setTeamStatus(err.message, true);
+      }
+    });
+  }
 })();

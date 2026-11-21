@@ -19,6 +19,14 @@ const revokedTokens = new Set();
 // which is slow enough to make offline guessing expensive without hurting UX.
 const SCRYPT = { N: 16384, r: 8, p: 1, keylen: 64, maxmem: 96 * 1024 * 1024 };
 
+/**
+ * Maximum idle window enforced server-side, independent of any browser
+ * cookie expiry. 10 minutes = 600 seconds = 600,000 ms. Active requests roll
+ * the window forward; a gap longer than this forces re-authentication even if
+ * the (session, non-persistent) cookie was never deleted by the browser.
+ */
+export const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+
 function signingSecret() {
   return config.convex.syncSecret || 'quantalflow-default-hmac-secret';
 }
@@ -274,9 +282,9 @@ export function createSession(userId, userDetails = null) {
 
   revokedTokens.delete(token);
   db.prepare(
-    `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
-     VALUES (?, ?, ?, ?)`
-  ).run(token, u.id || userId, now, expiresAt);
+    `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at, last_activity)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(token, u.id || userId, now, expiresAt, now);
 
   if (u && u.email) {
     createConvexSession({
@@ -313,9 +321,9 @@ export async function createSessionAsync(userId, userDetails = null) {
 
   revokedTokens.delete(token);
   db.prepare(
-    `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
-     VALUES (?, ?, ?, ?)`
-  ).run(token, u.id || userId, now, expiresAt);
+    `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at, last_activity)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(token, u.id || userId, now, expiresAt, now);
 
   if (u && u.email) {
     await createConvexSession({
@@ -336,12 +344,26 @@ export async function createSessionAsync(userId, userDetails = null) {
   return token;
 }
 
+/**
+ * Look up a session by token and enforce the 10-minute idle timeout.
+ *
+ * On every authenticated request:
+ *   1. If the session's last_activity is older than IDLE_TIMEOUT_MS, the
+ *      session is destroyed server-side and null is returned (the caller
+ *      responds 401 and the client cookie is cleared).
+ *   2. Otherwise last_activity is rolled forward to "now", so an actively
+ *      using user stays logged in indefinitely while an idle one is cut off.
+ *
+ * The absolute `expires_at` (7-day wall clock) is still enforced as a backstop
+ * for the signed stateless token payload used on cold serverless starts.
+ */
 export function getSessionUser(token) {
   if (!token || revokedTokens.has(token)) return null;
 
+  const now = Date.now();
   const row = db
     .prepare(
-      `SELECT s.expires_at, u.id, u.email, u.name, u.role, u.title, u.company, u.bio, u.avatar_url, u.avatar_storage_id, u.created_at
+      `SELECT s.expires_at, s.last_activity, u.id, u.email, u.name, u.role, u.title, u.company, u.bio, u.avatar_url, u.avatar_storage_id, u.created_at
          FROM sessions s
          JOIN users u ON u.id = s.user_id
         WHERE s.id = ?`
@@ -349,10 +371,22 @@ export function getSessionUser(token) {
     .get(token);
 
   if (row) {
-    if (row.expires_at <= Date.now()) {
+    // Backstop: the signed token's absolute wall-clock expiry.
+    if (row.expires_at <= now) {
       deleteSession(token);
       return null;
     }
+
+    // Idle timeout: has the user been inactive longer than the window?
+    const lastActivity = row.last_activity || row.created_at || now;
+    if (now - lastActivity > IDLE_TIMEOUT_MS) {
+      deleteSession(token);
+      return null;
+    }
+
+    // Rolling window: touch last_activity so an active session never expires.
+    db.prepare('UPDATE sessions SET last_activity = ? WHERE id = ?').run(now, token);
+
     return {
       id: row.id,
       email: row.email,
@@ -399,10 +433,11 @@ export async function getSessionUserWithConvexFallback(token) {
       });
 
       if (localUser) {
+        const now = Date.now();
         db.prepare(
-          `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
-           VALUES (?, ?, ?, ?)`
-        ).run(token, localUser.id, convexSession.createdAt || Date.now(), convexSession.expiresAt);
+          `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at, last_activity)
+           VALUES (?, ?, ?, ?, ?)`
+        ).run(token, localUser.id, convexSession.createdAt || now, convexSession.expiresAt, now);
         return publicUser(localUser);
       }
     }
@@ -413,12 +448,18 @@ export async function getSessionUserWithConvexFallback(token) {
   // 2. Fallback to HMAC-signed token verification if serverless instance cold-started
   const signedPayload = verifySignedSessionToken(token);
   if (signedPayload && signedPayload.email) {
-    let localUser = upsertLocalUserFromConvex({
-      email: signedPayload.email,
-      name: signedPayload.name,
-      role: signedPayload.role,
-      externalId: String(signedPayload.uid || '')
-    });
+    let remoteUser = null;
+    try {
+      remoteUser = await getConvexUserByEmail(signedPayload.email);
+    } catch {}
+    let localUser = upsertLocalUserFromConvex(
+      remoteUser || {
+        email: signedPayload.email,
+        name: signedPayload.name,
+        role: signedPayload.role,
+        externalId: String(signedPayload.uid || '')
+      }
+    );
     if (localUser) {
       db.prepare(
         `INSERT OR REPLACE INTO sessions (id, user_id, created_at, expires_at)
@@ -450,6 +491,38 @@ export function deleteUserSessions(userId) {
   if (!userId) return 0;
   removeConvexSessionsByUserId(userId).catch(() => {});
   return db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId).changes;
+}
+
+/**
+ * Session fixation protection: rotate the session ID on every privilege
+ * transition (login, password change, role escalation). The old token is
+ * destroyed in both the in-memory revocation set and the SQLite store, and
+ * the signed token payload is re-signed under the new ID so a stolen
+ * pre-login cookie is worthless after authentication.
+ *
+ * Returns the new token (or null if the old one was invalid).
+ */
+export function regenerateSession(oldToken, userId) {
+  if (!oldToken) return null;
+  const old = getSessionUser(oldToken);
+  if (!old || Number(old.id) !== Number(userId)) {
+    deleteSession(oldToken);
+    return null;
+  }
+  // Invalidate the pre-login session before minting the new one.
+  deleteSession(oldToken);
+  return createSession(userId, old);
+}
+
+export async function regenerateSessionAsync(oldToken, userId) {
+  if (!oldToken) return null;
+  const old = getSessionUser(oldToken);
+  if (!old || Number(old.id) !== Number(userId)) {
+    await deleteSessionAsync(oldToken);
+    return null;
+  }
+  await deleteSessionAsync(oldToken);
+  return createSessionAsync(userId, old);
 }
 
 /** Public shape of a user — never leaks the password hash. */

@@ -157,7 +157,7 @@
       }
       return res.json().catch(function () { return {}; }).then(function (d) {
         if (!dirty) {
-          setStatus('saved', d && d.convexSynced ? 'All changes saved to Convex Cloud' : 'All changes saved');
+          setStatus('saved', 'All changes saved');
         }
       });
     }).catch(function (err) {
@@ -181,6 +181,9 @@
     } catch (e) { /* nothing more to do */ }
   }
   window.addEventListener('pagehide', flushOnLeave);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') flushOnLeave();
+  });
 
   /* ------------------------------------------------------------- navigation */
   function goToLogin() {
@@ -279,7 +282,7 @@
       if (logoImgEl) logoImgEl.src = previewUrl;
       logoUploadBtn.classList.add('is-uploading');
       logoUploadBtn.disabled = true;
-      setStatus('saving', 'Uploading logo to Convex Cloud\u2026');
+      setStatus('saving', 'Uploading logo\u2026');
 
       fetch('/api/invoice/logo', {
         method: 'POST',
@@ -294,7 +297,7 @@
         });
       }).then(function (data) {
         if (!data) return;
-        if (!data.logoUrl) throw new Error('Convex did not return a logo URL.');
+        if (!data.logoUrl) throw new Error('The upload service did not return a logo URL.');
         S.logoUrl = data.logoUrl;
         S.logoStorageId = data.storageId || '';
         if (logoImgEl) logoImgEl.src = data.logoUrl;
@@ -794,7 +797,7 @@
           .then(function () {
             setStatus('saved', 'Downloaded ' + filename);
             setTimeout(function () {
-              setStatus('saved', 'All changes saved to Convex Cloud');
+              setStatus('saved', 'All changes saved');
             }, 3000);
           })
           .catch(function (err) {
@@ -861,7 +864,7 @@
   }
 
   var logout = $('logout');
-  logout.addEventListener('click', function () {
+  if (logout) logout.addEventListener('click', function () {
     logout.disabled = true;
     logout.textContent = 'Logging out\u2026';
     var done = function () {
@@ -895,7 +898,7 @@
       .then(function (data) {
         if (!data || !data.user) return null;
         wireChrome(data.user);
-        return fetch('/api/invoice', { credentials: 'same-origin' });
+        return fetch('/api/invoice', { credentials: 'same-origin', cache: 'no-store' });
       })
       .then(function (res) {
         if (!res) return null;
@@ -905,6 +908,7 @@
       })
       .then(function (data) {
         if (!data) return;
+        if (dirty) return;
         var saved = data.invoice;
         var fresh = !isValidInvoice(saved);
         S = fresh ? sample() : saved;
@@ -915,7 +919,7 @@
           // First visit: store the sample so the number sequence starts server-side & in Convex.
           scheduleSave();
         } else {
-          setStatus('saved', 'All changes saved to Convex Cloud');
+          setStatus('saved', 'All changes saved');
           // Ensure existing invoice is also synced to Convex Cloud
           save();
         }

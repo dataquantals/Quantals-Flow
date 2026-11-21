@@ -14,6 +14,7 @@
     { path: '/dashboard/',           key: 'boards',    shell: 'dashboard', filter: 'all' },
     { path: '/dashboard/starred/',   key: 'starred',   shell: 'dashboard', filter: 'starred' },
     { path: '/dashboard/files/',     key: 'files',     shell: 'dashboard', filter: 'files' },
+    { path: '/dashboard/team/',      key: 'team',      shell: 'dashboard', filter: 'team' },
     { path: '/dashboard/notepad/',   key: 'notepad',   shell: 'notepad',   markerId: 'admin-view-notes' },
     { path: '/dashboard/quotation/', key: 'quotation', shell: 'quotation', markerId: 'sheet' },
     { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice',   markerId: 'sheet' }

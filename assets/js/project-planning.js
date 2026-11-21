@@ -234,7 +234,7 @@
         { id: 'res-7', name: 'GPU Inference Cluster (4x H100)', role: 'AI Compute Node Pool', category: 'Hardware & Cloud Assets', maxHours: 168, rate: 45, availability: 'Active (94%)', avatar: 'H1' },
         { id: 'res-8', name: 'Staging & E2E Load Cluster', role: 'Kubernetes Test Rig', category: 'Hardware & Cloud Assets', maxHours: 168, rate: 20, availability: 'Online', avatar: 'K8' },
         { id: 'res-9', name: 'CyberGuard SOC2 Auditors', role: 'External Security Partner', category: 'Third-Party Assets & Vendors', maxHours: 24, rate: 210, availability: 'Contracted', avatar: 'CG' },
-        { id: 'res-10', name: 'Convex Realtime Cloud Tier', role: 'Managed Sync Infrastructure', category: 'Third-Party Assets & Vendors', maxHours: 168, rate: 18, availability: 'SLA 99.99%', avatar: 'CX' }
+        { id: 'res-10', name: 'Realtime Cloud Tier', role: 'Managed Sync Infrastructure', category: 'Third-Party Assets & Vendors', maxHours: 168, rate: 18, availability: 'SLA 99.99%', avatar: 'CX' }
       ],
       tasks: [
         {
@@ -244,7 +244,7 @@
           storyPoints: 8, startDay: 1, durationDays: 5, progress: 100, budget: 24000,
           dependencies: [],
           comments: [
-            { id: 'c-1', author: 'Andrey V.', time: '2 days ago', text: 'Completed SQLite + Convex state schema with optimistic locking. cc @Elena @Marcus' },
+            { id: 'c-1', author: 'Andrey V.', time: '2 days ago', text: 'Completed the state schema with optimistic locking. cc @Elena @Marcus' },
             { id: 'c-2', author: 'Marcus T.', time: 'Yesterday', text: 'Verified zero-downtime migration scripts on staging.' }
           ]
         },
@@ -364,7 +364,7 @@
       ],
       raidItems: [
         { id: 'RAID-01', type: 'Risk', title: 'Cross-team API schema drift during Q4 load testing', probability: 3, severity: 4, ownerId: 'res-3', linkedTaskId: 'TSK-106', status: 'Open', mitigation: 'Enforce automated contract test gate in CI pipeline before merge.' },
-        { id: 'RAID-02', type: 'Assumption', title: 'Convex websocket tier sustains 10,000 concurrent state deltas with <40ms latency', probability: 2, severity: 4, ownerId: 'res-1', linkedTaskId: 'TSK-101', status: 'Open', mitigation: 'Synthetic bench test scheduled for Friday on staging rig.' },
+        { id: 'RAID-02', type: 'Assumption', title: 'Realtime websocket tier sustains 10,000 concurrent state deltas with <40ms latency', probability: 2, severity: 4, ownerId: 'res-1', linkedTaskId: 'TSK-101', status: 'Open', mitigation: 'Synthetic bench test scheduled for Friday on staging rig.' },
         { id: 'RAID-03', type: 'Issue', title: 'Overlapping schedule on WBS 2.1.2 creates Finish-to-Start dependency collision with TSK-104', probability: 4, severity: 3, ownerId: 'res-2', linkedTaskId: 'TSK-105', status: 'Open', mitigation: 'Run Auto-Resolve Conflicts engine to cascade startDay to day 16.' },
         { id: 'RAID-04', type: 'Dependency', title: 'SOC2 Type II sign-off required prior to GA production traffic routing', probability: 2, severity: 5, ownerId: 'res-6', linkedTaskId: 'TSK-109', status: 'Open', mitigation: 'Weekly audit checkpoint with CyberGuard security leads.' }
       ],
@@ -539,6 +539,7 @@
 
     fetch(planApiUrl(), {
       method: 'PUT',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payloadBody)
     })
@@ -591,14 +592,20 @@
      ~64KB by browsers, so a very large plan waits for the next edit; the
      localStorage copy already has it. */
   function flushPlanOnUnload() {
-    flushPendingPlan();
+    if (planSyncTimer) {
+      clearTimeout(planSyncTimer);
+      planSyncTimer = null;
+    }
+    if (!hasUnsavedLocalEdits) return;
     if (!state || !currentBoardId || typeof fetch !== 'function') return;
     if (currentBoardId === BLANK_WORKSPACE_ID && isDemoFingerprint(state)) return;
     try {
       var body = JSON.stringify({ plan: state, stateVersion: STATE_VERSION });
       if (body.length > 60000) return;
+      hasUnsavedLocalEdits = false;
       fetch(planApiUrl(), {
         method: 'PUT',
+        credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: body,
         keepalive: true
@@ -612,7 +619,7 @@
     if (!currentBoardId || typeof fetch !== 'function') return;
     var boardIdAtRequest = currentBoardId;
 
-    fetch(planApiUrl(), { headers: { Accept: 'application/json' }, cache: 'no-store' })
+    fetch(planApiUrl(), { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' })
       .then(function (res) {
         return res.ok ? res.json() : null;
       })

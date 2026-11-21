@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { config } from './config.js';
 import {
@@ -15,6 +16,10 @@ import {
   deleteFileFromConvex,
   syncFileOrderToConvex,
   syncPreferencesToConvex,
+  fetchFoldersFromConvex,
+  fetchFilesFromConvex,
+  fetchFileOrderFromConvex,
+  fetchPreferencesFromConvex,
   syncQuotationToConvex,
   getQuotationFromConvex,
   syncInvoiceToConvex,
@@ -78,12 +83,27 @@ db.exec(`
     id         TEXT    PRIMARY KEY,
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
+    expires_at INTEGER NOT NULL,
+    last_activity INTEGER NOT NULL DEFAULT 0
   );
 `);
 
 db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)');
+
+// Rolling idle timeout: every session gets a last_activity stamp on creation.
+// The 10-minute inactivity window is enforced in getSessionUser (auth.js).
+try { db.exec('ALTER TABLE sessions ADD COLUMN last_activity INTEGER NOT NULL DEFAULT 0'); } catch {}
+
+// Backfill pre-existing rows so they don't get instantly invalidated by the
+// new idle check. A session's creation time is the earliest activity we can
+// legitimately claim for it; anything older than the 10-minute window was
+// already idle and should be re-authenticated.
+try {
+  db.prepare('UPDATE sessions SET last_activity = created_at WHERE last_activity = 0 OR last_activity IS NULL').run();
+} catch {
+  /* best-effort: a brand-new DB has nothing to backfill */
+}
 
 // Signed session cookies cannot be "deleted" server-side, so a logout records
 // the token hash here. Rows expire with the session itself.
@@ -301,8 +321,19 @@ export async function hydrateUserBoardsFromConvex(userId) {
     const remoteBoards = await fetchBoardsFromConvex(userId);
     if (!Array.isArray(remoteBoards)) return;
     const stmt = db.prepare(`
-      INSERT OR IGNORE INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
+      INSERT INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        title = CASE WHEN excluded.updated_at >= boards.updated_at THEN excluded.title ELSE boards.title END,
+        category = CASE WHEN excluded.updated_at >= boards.updated_at THEN excluded.category ELSE boards.category END,
+        starred = CASE WHEN excluded.updated_at >= boards.updated_at THEN excluded.starred ELSE boards.starred END,
+        state_json = CASE
+          WHEN excluded.state_json != '{}' AND (boards.state_json = '{}' OR excluded.updated_at >= boards.updated_at)
+          THEN excluded.state_json
+          ELSE boards.state_json
+        END,
+        updated_at = MAX(boards.updated_at, excluded.updated_at)
+      WHERE boards.user_id = excluded.user_id
     `);
     for (const rb of remoteBoards) {
       if (!rb || !rb.id) continue;
@@ -327,16 +358,23 @@ export async function hydrateBoardFromConvex(id, userId) {
   if (!id || userId == null || config.isTest) return null;
   try {
     const internalId = scopeBoardId(id, userId);
-    const rb = await fetchBoardFromConvex(internalId, userId);
+    let rb = await fetchBoardFromConvex(internalId, userId);
+    if (!rb && internalId !== String(id)) {
+      rb = await fetchBoardFromConvex(String(id), userId);
+    }
     if (!rb) return null;
     db.prepare(`
       INSERT INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
-        title = excluded.title,
-        category = excluded.category,
-        starred = excluded.starred,
-        state_json = CASE WHEN excluded.state_json != '{}' THEN excluded.state_json ELSE boards.state_json END,
+        title = CASE WHEN excluded.updated_at >= boards.updated_at THEN excluded.title ELSE boards.title END,
+        category = CASE WHEN excluded.updated_at >= boards.updated_at THEN excluded.category ELSE boards.category END,
+        starred = CASE WHEN excluded.updated_at >= boards.updated_at THEN excluded.starred ELSE boards.starred END,
+        state_json = CASE
+          WHEN excluded.state_json != '{}' AND (boards.state_json = '{}' OR excluded.updated_at >= boards.updated_at)
+          THEN excluded.state_json
+          ELSE boards.state_json
+        END,
         updated_at = MAX(boards.updated_at, excluded.updated_at)
       WHERE boards.user_id = excluded.user_id
     `).run(
@@ -382,27 +420,49 @@ export async function hydrateBoardFromConvex(id, userId) {
   `).run(owner.id);
 })();
 
-/** The caller's boards only. `userId` is required: there is no unscoped listing. */
+/** The caller's own boards plus any boards shared with them via board_members or workspace_members. */
 export function listBoards({ query = '', starredOnly = false, userId } = {}) {
   if (userId == null) throw forbidden();
   ensureUserBlankBoard(userId);
 
-  let sql = 'SELECT id, user_id, title, category, starred, state_json, created_at, updated_at FROM boards';
-  const clauses = ['user_id = ?'];
-  const params = [userId];
+  let sql = `
+    SELECT b.id, b.user_id, b.title, b.category, b.starred, b.state_json, b.created_at, b.updated_at,
+           bm.permission AS board_perm,
+           wm.permission AS ws_perm,
+           u.name AS owner_name,
+           u.email AS owner_email
+      FROM boards b
+      LEFT JOIN board_members bm
+        ON bm.board_id = b.id AND bm.member_user_id = ? AND bm.status = 'active'
+      LEFT JOIN workspace_members wm
+        ON wm.owner_user_id = b.user_id AND wm.member_user_id = ? AND wm.status = 'active'
+      LEFT JOIN users u ON u.id = b.user_id
+  `;
+  const clauses = ['(b.user_id = ? OR bm.id IS NOT NULL OR wm.id IS NOT NULL)'];
+  const params = [userId, userId, userId];
   if (starredOnly) {
-    clauses.push('starred = 1');
+    clauses.push('b.starred = 1');
   }
   if (query) {
-    clauses.push('(title LIKE ? OR category LIKE ?)');
+    clauses.push('(b.title LIKE ? OR b.category LIKE ?)');
     params.push(`%${query}%`, `%${query}%`);
   }
   sql += ' WHERE ' + clauses.join(' AND ');
-  sql += ' ORDER BY updated_at DESC';
-  return db.prepare(sql).all(...params).map(row => {
+  sql += ' ORDER BY b.updated_at DESC';
+
+  const seen = new Set();
+  const results = [];
+  for (const row of db.prepare(sql).all(...params)) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    // Do not expose another user's private blank workspace template copy via workspace_members
+    if (row.user_id !== userId && USER_SCOPED_BOARD_IDS.has(publicBoardId(row.id)) && !row.board_perm) {
+      continue;
+    }
     const state = parseStateJson(row.state_json);
     const activeModule = state.activeModule || (state.workspaceMode === 'project-planning' ? 'project-planning' : '');
-    return {
+    const permission = row.user_id === userId ? 'owner' : (row.board_perm || row.ws_perm || 'viewer');
+    results.push({
       id: publicBoardId(row.id),
       title: row.title,
       category: row.category,
@@ -410,19 +470,62 @@ export function listBoards({ query = '', starredOnly = false, userId } = {}) {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       activeModule,
-      hasSavedState: Boolean(row.state_json && row.state_json !== '{}')
-    };
-  });
+      hasSavedState: Boolean(row.state_json && row.state_json !== '{}'),
+      permission,
+      isShared: row.user_id !== userId,
+      ownerName: row.owner_name || '',
+      ownerEmail: row.owner_email || ''
+    });
+  }
+  return results;
 }
 
-/** A board the caller owns, or null. Someone else's board looks like a missing one. */
-export function getBoardById(id, userId) {
+/** Resolve a board and the caller's permission (owned, board-shared, or workspace-shared). */
+export function resolveBoardAccess(id, userId) {
   if (userId == null) return null;
   if (USER_SCOPED_BOARD_IDS.has(String(id || ''))) {
     ensureUserBlankBoard(userId);
   }
-  const row = db.prepare('SELECT * FROM boards WHERE id = ?').get(scopeBoardId(id, userId));
-  if (!ownsRow(row, userId)) return null;
+  const scoped = scopeBoardId(id, userId);
+  let row = db.prepare('SELECT * FROM boards WHERE id = ?').get(scoped);
+  if (row && ownsRow(row, userId)) {
+    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole('owner') };
+  }
+
+  // Look up by raw board id for shared boards owned by another user
+  const rawId = String(id || '');
+  row = db.prepare('SELECT * FROM boards WHERE id = ?').get(rawId);
+  if (!row) return null;
+  if (ownsRow(row, userId)) {
+    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole('owner') };
+  }
+
+  const bm = db.prepare(`
+    SELECT permission FROM board_members
+     WHERE board_id = ? AND member_user_id = ? AND status = 'active'
+     LIMIT 1
+  `).get(row.id, userId);
+  if (bm) {
+    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole(bm.permission) };
+  }
+
+  const wm = db.prepare(`
+    SELECT permission FROM workspace_members
+     WHERE owner_user_id = ? AND member_user_id = ? AND status = 'active'
+     LIMIT 1
+  `).get(row.user_id, userId);
+  if (wm && !USER_SCOPED_BOARD_IDS.has(publicBoardId(row.id))) {
+    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole(wm.permission) };
+  }
+
+  return null;
+}
+
+/** A board the caller owns or has been granted access to, or null. */
+export function getBoardById(id, userId) {
+  const access = resolveBoardAccess(id, userId);
+  if (!access) return null;
+  const row = access.row;
   let state = null;
   try {
     state = row.state_json ? JSON.parse(row.state_json) : null;
@@ -437,6 +540,9 @@ export function getBoardById(id, userId) {
     starred: Boolean(row.starred),
     version: row.version || 1,
     state,
+    permission: access.role,
+    capabilities: capabilitiesForRole(access.role),
+    isShared: row.user_id !== userId,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -454,18 +560,15 @@ export function slugify(text) {
 }
 
 /**
- * Resolve a pretty URL slug back to the board it belongs to. Titles are the
- * human-readable identity, so the newest / starred board wins a tie.
+ * Resolve a pretty URL slug back to the board it belongs to (owned or shared).
  */
 export function findBoardBySlug(slug, userId) {
   const target = slugify(slug);
   if (!target || userId == null) return null;
   ensureUserBlankBoard(userId);
-  const row = db
-    .prepare('SELECT id, title FROM boards WHERE user_id = ? ORDER BY starred DESC, updated_at DESC')
-    .all(userId)
-    .find((candidate) => slugify(candidate.title) === target);
-  return row ? getBoardById(publicBoardId(row.id), userId) : null;
+  const candidates = listBoards({ userId });
+  const match = candidates.find((candidate) => slugify(candidate.title) === target);
+  return match ? getBoardById(match.id, userId) : null;
 }
 
 /**
@@ -504,9 +607,20 @@ function parseStateJson(raw) {
 export function upsertBoard({ id, userId, title, category, starred, state, expectedVersion }) {
   if (userId == null) throw forbidden();
   const now = Date.now();
-  const internalId = scopeBoardId(id, userId);
-  const existing = db.prepare('SELECT * FROM boards WHERE id = ?').get(internalId);
-  if (existing && !ownsRow(existing, userId)) throw forbidden();
+  const access = resolveBoardAccess(id, userId);
+  const internalId = access ? access.internalId : scopeBoardId(id, userId);
+  const existing = access ? access.row : db.prepare('SELECT * FROM boards WHERE id = ?').get(internalId);
+
+  if (existing) {
+    if (!access || !access.canEdit) {
+      const err = new Error('You do not have edit permission for this board.');
+      err.status = 403;
+      throw err;
+    }
+  }
+
+  const ownerUserId = existing ? existing.user_id : userId;
+
   if (!existing) {
     const stateStr = stateJsonFor(internalId, state);
     db.prepare(`
@@ -514,7 +628,7 @@ export function upsertBoard({ id, userId, title, category, starred, state, expec
       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
     `).run(
       internalId,
-      userId,
+      ownerUserId,
       title || 'Untitled Board',
       category || 'Strategy & Planning',
       starred ? 1 : 0,
@@ -540,10 +654,10 @@ export function upsertBoard({ id, userId, title, category, starred, state, expec
       UPDATE boards
       SET title = ?, category = ?, starred = ?, state_json = ?, version = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
-    `).run(nextTitle, nextCategory, nextStarred, nextStateStr, currentVersion + 1, now, internalId, userId);
+    `).run(nextTitle, nextCategory, nextStarred, nextStateStr, currentVersion + 1, now, internalId, ownerUserId);
   }
   const saved = getBoardById(id, userId);
-  const syncPromise = syncBoardToConvex(saved, userId, internalId);
+  const syncPromise = syncBoardToConvex(saved, ownerUserId, internalId);
   if (saved && syncPromise) {
     Object.defineProperty(saved, '_convexSyncPromise', {
       value: syncPromise,
@@ -555,15 +669,22 @@ export function upsertBoard({ id, userId, title, category, starred, state, expec
 
 export async function removeBoard(id, userId) {
   if (userId == null) throw forbidden();
-  const internalId = scopeBoardId(id, userId);
-  const removed = db.prepare('DELETE FROM boards WHERE id = ? AND user_id = ?').run(internalId, userId).changes > 0;
+  const access = resolveBoardAccess(id, userId);
+  if (!access) return { removed: false, convex: false };
+  if (!access.canDelete) {
+    const err = new Error('Only the board Owner or Admin can delete this board.');
+    err.status = 403;
+    throw err;
+  }
+  const internalId = access.internalId;
+  const ownerUserId = access.ownerUserId;
+  const removed = db.prepare('DELETE FROM boards WHERE id = ? AND user_id = ?').run(internalId, ownerUserId).changes > 0;
   if (!removed) return { removed: false, convex: false };
 
-  db.prepare('DELETE FROM project_plans WHERE board_id = ? AND user_id = ?').run(internalId, userId);
-  // Await the mirror so the caller can report, rather than a delete that looks
-  // complete while Convex still holds the rows.
-  const boardGone = await deleteBoardFromConvex(internalId, userId);
-  const planGone = await deleteProjectPlanFromConvex(internalId, userId);
+  db.prepare('DELETE FROM project_plans WHERE board_id = ? AND user_id = ?').run(internalId, ownerUserId);
+  db.prepare('DELETE FROM board_members WHERE board_id = ?').run(internalId);
+  const boardGone = await deleteBoardFromConvex(internalId, ownerUserId);
+  const planGone = await deleteProjectPlanFromConvex(internalId, ownerUserId);
   return { removed: true, convex: Boolean(boardGone && planGone) };
 }
 
@@ -721,12 +842,26 @@ export function updateUserPassword(id, passwordHash) {
   return db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id).changes > 0;
 }
 
+/**
+ * Purge sessions that are expired (absolute wall-clock) or idle beyond the
+ * 10-minute inactivity window. The idle check is also enforced on-demand in
+ * getSessionUser (auth.js) so a live request never reads a stale session,
+ * but this sweep keeps the sessions table from filling up with rows that a
+ * browser never bothered to delete.
+ */
 export function purgeExpiredSessions(now = Date.now()) {
   let changes = db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now).changes;
   try {
     changes += db.prepare('DELETE FROM revoked_sessions WHERE expires_at <= ?').run(now).changes;
   } catch {
     /* table not created yet on an older database */
+  }
+  try {
+    // Idle-expired rows: last_activity older than the rolling window. The
+    // constant lives in auth.js (IDLE_TIMEOUT_MS); keep them in sync.
+    changes += db.prepare('DELETE FROM sessions WHERE last_activity <= ?').run(now - 600000).changes;
+  } catch {
+    /* column may not exist on an older schema */
   }
   return changes;
 }
@@ -925,6 +1060,118 @@ function ensureUserFilesAndFoldersSeeded(userId) {
   }
 }
 
+function attachConvexSync(target, promise) {
+  if (target && promise && typeof target === 'object') {
+    Object.defineProperty(target, '_convexSyncPromise', {
+      value: promise,
+      enumerable: false
+    });
+  }
+  return target;
+}
+
+export async function hydrateUserFilesAndFoldersFromConvex(userId) {
+  if (userId == null || config.isTest) return;
+  try {
+    const [remoteFolders, remoteFiles] = await Promise.all([
+      fetchFoldersFromConvex(userId),
+      fetchFilesFromConvex(userId)
+    ]);
+    if (Array.isArray(remoteFolders) && remoteFolders.length) {
+      const folderStmt = db.prepare(`
+        INSERT INTO user_folders (id, user_id, name, parent_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          name = CASE WHEN excluded.updated_at >= user_folders.updated_at THEN excluded.name ELSE user_folders.name END,
+          parent_id = CASE WHEN excluded.updated_at >= user_folders.updated_at THEN excluded.parent_id ELSE user_folders.parent_id END,
+          updated_at = MAX(user_folders.updated_at, excluded.updated_at)
+        WHERE user_folders.user_id = excluded.user_id
+      `);
+      for (const rf of remoteFolders) {
+        if (!rf || !rf.folderId) continue;
+        folderStmt.run(
+          String(rf.folderId),
+          userId,
+          String(rf.name || 'Folder'),
+          rf.parentId ? String(rf.parentId) : null,
+          Number(rf.createdAt || Date.now()),
+          Number(rf.updatedAt || Date.now())
+        );
+      }
+    }
+    if (Array.isArray(remoteFiles) && remoteFiles.length) {
+      const fileStmt = db.prepare(`
+        INSERT INTO user_files (id, user_id, folder_id, name, mime_type, size, extension, url, public_id, resource_type, visibility, uploaded_by, data_base64, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          folder_id = excluded.folder_id,
+          name = excluded.name,
+          mime_type = excluded.mime_type,
+          size = excluded.size,
+          extension = excluded.extension,
+          url = CASE WHEN excluded.url != '' THEN excluded.url ELSE user_files.url END,
+          public_id = CASE WHEN excluded.public_id != '' THEN excluded.public_id ELSE user_files.public_id END,
+          resource_type = excluded.resource_type,
+          visibility = excluded.visibility,
+          uploaded_by = excluded.uploaded_by
+        WHERE user_files.user_id = excluded.user_id
+      `);
+      for (const rf of remoteFiles) {
+        if (!rf || !rf.fileId) continue;
+        fileStmt.run(
+          String(rf.fileId),
+          userId,
+          rf.folderId ? String(rf.folderId) : null,
+          String(rf.name || 'Untitled'),
+          String(rf.mimeType || 'application/octet-stream'),
+          Number(rf.size || 0),
+          String(rf.extension || ''),
+          String(rf.url || ''),
+          String(rf.publicId || ''),
+          String(rf.resourceType || 'image'),
+          String(rf.visibility || 'coordinators'),
+          String(rf.uploadedBy || ''),
+          Number(rf.createdAt || Date.now())
+        );
+      }
+    }
+  } catch (err) {
+    console.warn('[db] convex files/folders hydration failed:', err.message);
+  }
+}
+
+export async function hydrateUserFileOrderFromConvex(userId, folderId = 'root') {
+  if (userId == null || config.isTest) return;
+  try {
+    const fid = String(folderId || 'root').trim() || 'root';
+    const remote = await fetchFileOrderFromConvex(userId, fid);
+    if (!remote) return;
+    db.prepare(`
+      INSERT INTO user_file_orders (user_id, folder_id, order_json, updated_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id, folder_id) DO UPDATE SET
+        order_json = excluded.order_json,
+        updated_at = MAX(user_file_orders.updated_at, excluded.updated_at)
+    `).run(userId, fid, JSON.stringify(remote), Date.now());
+  } catch {}
+}
+
+export async function hydrateUserPreferencesFromConvex(userId) {
+  if (userId == null || config.isTest) return;
+  try {
+    const remote = await fetchPreferencesFromConvex(userId);
+    if (!remote) return;
+    db.prepare(`
+      INSERT INTO user_preferences (user_id, files_view_mode, files_sort_by, updated_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET
+        files_view_mode = excluded.files_view_mode,
+        files_sort_by = excluded.files_sort_by,
+        updated_at = MAX(user_preferences.updated_at, excluded.updated_at)
+    `).run(userId, remote.filesViewMode, remote.filesSortBy, Date.now());
+  } catch {}
+}
+
 export function listUserFolders(userId) {
   if (userId == null) return [];
   ensureUserFilesAndFoldersSeeded(userId);
@@ -976,8 +1223,7 @@ export function saveUserFolder(userId, { key, name, parentId = null }) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
-  syncFolderToConvex(folderObj, userId).catch(() => {});
-  return folderObj;
+  return attachConvexSync(folderObj, syncFolderToConvex(folderObj, userId).catch(() => null));
 }
 
 export function deleteUserFolder(userId, key) {
@@ -992,8 +1238,7 @@ export function deleteUserFolder(userId, key) {
   db.prepare('UPDATE user_files SET folder_id = ? WHERE folder_id = ? AND user_id = ?')
     .run(parentId, cleanKey, userId);
   db.prepare('DELETE FROM user_folders WHERE id = ? AND user_id = ?').run(cleanKey, userId);
-  deleteFolderFromConvex(cleanKey, userId).catch(() => {});
-  return { deleted: true };
+  return attachConvexSync({ deleted: true }, deleteFolderFromConvex(cleanKey, userId).catch(() => false));
 }
 
 function toPublicUserFile(r) {
@@ -1044,13 +1289,16 @@ export function createUserFile(userId, file) {
   const row = db.prepare('SELECT id, folder_id, name, mime_type, size, visibility, uploaded_by, url, created_at FROM user_files WHERE id = ? AND user_id = ?').get(id, userId);
   const publicFile = row ? toPublicUserFile(row) : null;
   if (publicFile) {
-    syncFileToConvex({
-      ...publicFile,
-      extension: file.extension || '',
-      publicId: file.publicId || '',
-      resourceType: file.resourceType || 'image',
-      updatedAt: now
-    }, userId).catch(() => {});
+    attachConvexSync(
+      publicFile,
+      syncFileToConvex({
+        ...publicFile,
+        extension: file.extension || '',
+        publicId: file.publicId || '',
+        resourceType: file.resourceType || 'image',
+        updatedAt: now
+      }, userId).catch(() => null)
+    );
   }
   return publicFile;
 }
@@ -1065,10 +1313,11 @@ export function moveUserFile(userId, fileId, folderId) {
   const dest = folderId ? String(folderId).trim() : null;
   const changes = db.prepare('UPDATE user_files SET folder_id = ? WHERE id = ? AND user_id = ?')
     .run(dest, String(fileId || ''), userId).changes;
+  const result = { moved: changes > 0, fileId, folderId: dest };
   if (changes > 0) {
-    moveFileInConvex(fileId, dest, userId).catch(() => {});
+    attachConvexSync(result, moveFileInConvex(fileId, dest, userId).catch(() => null));
   }
-  return { moved: changes > 0, fileId, folderId: dest };
+  return result;
 }
 
 export function deleteUserFile(userId, fileId) {
@@ -1077,13 +1326,13 @@ export function deleteUserFile(userId, fileId) {
     .get(String(fileId || ''), userId);
   if (!existing) return null;
   db.prepare('DELETE FROM user_files WHERE id = ? AND user_id = ?').run(existing.id, userId);
-  deleteFileFromConvex(existing.id, userId).catch(() => {});
-  return {
+  const result = {
     id: existing.id,
     name: existing.name,
     publicId: existing.public_id || '',
     resourceType: existing.resource_type || 'image'
   };
+  return attachConvexSync(result, deleteFileFromConvex(existing.id, userId).catch(() => false));
 }
 
 /* ---------- Custom File Ordering & User Preferences ---------- */
@@ -1130,8 +1379,7 @@ export function saveUserFileOrder(userId, folderId = 'root', orderObj = {}) {
     VALUES (?, ?, ?, ?)
     ON CONFLICT(user_id, folder_id) DO UPDATE SET order_json = excluded.order_json, updated_at = excluded.updated_at
   `).run(userId, fid, JSON.stringify(clean), now);
-  syncFileOrderToConvex(userId, fid, clean).catch(() => {});
-  return clean;
+  return attachConvexSync(clean, syncFileOrderToConvex(userId, fid, clean).catch(() => null));
 }
 
 export function getUserPreferences(userId) {
@@ -1157,8 +1405,7 @@ export function saveUserPreferences(userId, prefs = {}) {
     ON CONFLICT(user_id) DO UPDATE SET files_view_mode = excluded.files_view_mode, files_sort_by = excluded.files_sort_by, updated_at = excluded.updated_at
   `).run(userId, filesViewMode, filesSortBy, now);
   const next = { filesViewMode, filesSortBy };
-  syncPreferencesToConvex(userId, next).catch(() => {});
-  return next;
+  return attachConvexSync(next, syncPreferencesToConvex(userId, next).catch(() => null));
 }
 
 
@@ -1235,6 +1482,7 @@ export async function saveUserQuotation(userId, data) {
   return { updatedAt: now, convexSynced };
 }
 
+
 /* ---------- Invoice (one working document per user) ---------- */
 
 db.exec(`
@@ -1307,6 +1555,7 @@ export async function saveUserInvoice(userId, data) {
   return { updatedAt: now, convexSynced };
 }
 
+
 /* ---------- Note Pad (typed & drawn notes per user) ---------- */
 
 db.exec(`
@@ -1375,4 +1624,627 @@ export async function saveUserNotepad(userId, notes) {
   }
 
   return { updatedAt: now, convexSynced };
+}
+
+/* ==========================================================================
+   Email-Based Member Collaboration, Invitations & Owner RBAC
+   ========================================================================== */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS workspace_members (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    member_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    email          TEXT    NOT NULL COLLATE NOCASE,
+    permission     TEXT    NOT NULL DEFAULT 'viewer',
+    status         TEXT    NOT NULL DEFAULT 'pending',
+    invited_by     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL,
+    UNIQUE(owner_user_id, email)
+  );
+  CREATE INDEX IF NOT EXISTS idx_ws_members_owner  ON workspace_members(owner_user_id);
+  CREATE INDEX IF NOT EXISTS idx_ws_members_member ON workspace_members(member_user_id);
+  CREATE INDEX IF NOT EXISTS idx_ws_members_email  ON workspace_members(email);
+
+  CREATE TABLE IF NOT EXISTS board_members (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    board_id       TEXT    NOT NULL,
+    owner_user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    member_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    email          TEXT    NOT NULL COLLATE NOCASE,
+    permission     TEXT    NOT NULL DEFAULT 'viewer',
+    status         TEXT    NOT NULL DEFAULT 'pending',
+    invited_by     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL,
+    UNIQUE(board_id, email)
+  );
+  CREATE INDEX IF NOT EXISTS idx_board_members_board  ON board_members(board_id);
+  CREATE INDEX IF NOT EXISTS idx_board_members_member ON board_members(member_user_id);
+  CREATE INDEX IF NOT EXISTS idx_board_members_email  ON board_members(email);
+
+  CREATE TABLE IF NOT EXISTS invitations (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    token            TEXT    NOT NULL UNIQUE,
+    scope            TEXT    NOT NULL DEFAULT 'workspace',
+    owner_user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    board_id         TEXT,
+    email            TEXT    NOT NULL COLLATE NOCASE,
+    permission       TEXT    NOT NULL DEFAULT 'viewer',
+    status           TEXT    NOT NULL DEFAULT 'pending',
+    invited_by       INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    accepted_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at       INTEGER NOT NULL,
+    expires_at       INTEGER NOT NULL,
+    accepted_at      INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(email);
+  CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
+`);
+
+export const VALID_MEMBER_PERMISSIONS = ['admin', 'editor', 'commenter', 'viewer'];
+const ROLE_RANK = { owner: 5, admin: 4, editor: 3, commenter: 2, viewer: 1 };
+const ROLE_LABELS = {
+  owner: 'Owner',
+  admin: 'Admin',
+  editor: 'Editor',
+  commenter: 'Commenter',
+  viewer: 'Viewer'
+};
+
+export function normalizePermission(value, fallback = 'viewer') {
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw === 'can edit' || raw === 'edit') return 'editor';
+  if (raw === 'can comment' || raw === 'comment') return 'commenter';
+  if (raw === 'can view' || raw === 'view' || raw === 'read') return 'viewer';
+  if (VALID_MEMBER_PERMISSIONS.includes(raw)) return raw;
+  return fallback;
+}
+
+export function capabilitiesForRole(rawRole) {
+  const role = ROLE_RANK[String(rawRole || '').toLowerCase()] ? String(rawRole).toLowerCase() : 'viewer';
+  return {
+    role,
+    label: ROLE_LABELS[role] || 'Viewer',
+    canView: true,
+    canComment: role === 'owner' || role === 'admin' || role === 'editor' || role === 'commenter',
+    canEdit: role === 'owner' || role === 'admin' || role === 'editor',
+    canManageMembers: role === 'owner' || role === 'admin',
+    canDelete: role === 'owner' || role === 'admin',
+    canManageAdminFolders: role === 'owner' || role === 'admin'
+  };
+}
+
+export function getEffectiveWorkspaceRole(user) {
+  if (!user) return 'viewer';
+  if (user.role === 'owner') return 'owner';
+  // Check if user has been invited into an owner's workspace
+  const memberships = db.prepare(`
+    SELECT permission FROM workspace_members
+     WHERE member_user_id = ? AND status = 'active'
+  `).all(user.id);
+  if (memberships.length > 0) {
+    let best = 'viewer';
+    for (const m of memberships) {
+      const p = normalizePermission(m.permission, 'viewer');
+      if ((ROLE_RANK[p] || 0) > (ROLE_RANK[best] || 0)) best = p;
+    }
+    return best;
+  }
+  // Check if user has any board-level collaborator permissions
+  const boardShares = db.prepare(`
+    SELECT permission FROM board_members
+     WHERE member_user_id = ? AND status = 'active'
+  `).all(user.id);
+  if (boardShares.length > 0) {
+    let best = 'viewer';
+    for (const b of boardShares) {
+      const p = normalizePermission(b.permission, 'viewer');
+      if ((ROLE_RANK[p] || 0) > (ROLE_RANK[best] || 0)) best = p;
+    }
+    return best;
+  }
+  // Standalone account owner of their own workspace
+  return user.role === 'admin' ? 'admin' : 'owner';
+}
+
+export function isWorkspaceAdminOrOwner(user) {
+  if (!user) return false;
+  if (user.role === 'owner' || user.role === 'admin') return true;
+  const adminMembership = db.prepare(`
+    SELECT id FROM workspace_members
+     WHERE member_user_id = ? AND status = 'active' AND permission = 'admin'
+     LIMIT 1
+  `).get(user.id);
+  return Boolean(adminMembership);
+}
+
+/** Auto-accept all pending workspace and board invitations matching a user's email. */
+export function acceptPendingInvitationsForUser(user) {
+  if (!user || !user.id || !user.email) return { accepted: 0 };
+  const email = String(user.email).trim().toLowerCase();
+  const now = Date.now();
+
+  const wsChanges = db.prepare(`
+    UPDATE workspace_members
+       SET member_user_id = ?, status = 'active', updated_at = ?
+     WHERE LOWER(email) = ? AND (status = 'pending' OR member_user_id IS NULL)
+  `).run(user.id, now, email).changes;
+
+  const boardChanges = db.prepare(`
+    UPDATE board_members
+       SET member_user_id = ?, status = 'active', updated_at = ?
+     WHERE LOWER(email) = ? AND (status = 'pending' OR member_user_id IS NULL)
+  `).run(user.id, now, email).changes;
+
+  const invChanges = db.prepare(`
+    UPDATE invitations
+       SET status = 'accepted', accepted_user_id = ?, accepted_at = ?
+     WHERE LOWER(email) = ? AND status = 'pending' AND expires_at > ?
+  `).run(user.id, now, email, now).changes;
+
+  return { accepted: wsChanges + boardChanges + invChanges };
+}
+
+function parseEmailList(input) {
+  const rawList = Array.isArray(input)
+    ? input
+    : String(input || '').split(/[\s,;]+/);
+  const seen = new Set();
+  const valid = [];
+  const invalid = [];
+  for (const item of rawList) {
+    const email = String(item || '').trim().toLowerCase();
+    if (!email) continue;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      invalid.push(email);
+      continue;
+    }
+    if (!seen.has(email)) {
+      seen.add(email);
+      valid.push(email);
+    }
+  }
+  return { valid, invalid };
+}
+
+/** Resolve which workspace owner_user_id a caller manages (their own, or the workspace where they are Admin). */
+function resolveManagedWorkspaceOwnerId(actorUserId) {
+  const actor = db.prepare('SELECT id, role FROM users WHERE id = ?').get(actorUserId);
+  if (!actor) return { ownerUserId: actorUserId, actorRole: 'viewer' };
+  const asAdmin = db.prepare(`
+    SELECT owner_user_id FROM workspace_members
+     WHERE member_user_id = ? AND status = 'active' AND permission = 'admin'
+     ORDER BY created_at ASC LIMIT 1
+  `).get(actorUserId);
+  if (actor.role !== 'owner' && asAdmin) {
+    return { ownerUserId: asAdmin.owner_user_id, actorRole: 'admin' };
+  }
+  return { ownerUserId: actorUserId, actorRole: 'owner' };
+}
+
+export function listWorkspaceMembers(actorUserId) {
+  const actor = db.prepare('SELECT id, email, name, role, avatar_url FROM users WHERE id = ?').get(actorUserId);
+  if (!actor) throw forbidden();
+
+  const effectiveRole = getEffectiveWorkspaceRole(actor);
+  // If user is invited into an owner's workspace, show that workspace's roster; otherwise their own.
+  const membership = db.prepare(`
+    SELECT owner_user_id, permission FROM workspace_members
+     WHERE member_user_id = ? AND status = 'active'
+     ORDER BY created_at ASC LIMIT 1
+  `).get(actorUserId);
+
+  const ownerUserId = (actor.role !== 'owner' && membership) ? membership.owner_user_id : actorUserId;
+  const owner = db.prepare('SELECT id, email, name, role, avatar_url FROM users WHERE id = ?').get(ownerUserId);
+
+  const rows = db.prepare(`
+    SELECT wm.id, wm.owner_user_id, wm.member_user_id, wm.email, wm.permission, wm.status,
+           wm.created_at, wm.updated_at,
+           u.name AS user_name, u.avatar_url AS user_avatar,
+           inv.token AS invite_token
+      FROM workspace_members wm
+      LEFT JOIN users u ON u.id = wm.member_user_id
+      LEFT JOIN invitations inv
+        ON inv.scope = 'workspace' AND inv.owner_user_id = wm.owner_user_id
+       AND LOWER(inv.email) = LOWER(wm.email) AND inv.status = 'pending'
+     WHERE wm.owner_user_id = ?
+     ORDER BY CASE WHEN wm.status = 'active' THEN 0 ELSE 1 END, wm.created_at DESC
+  `).all(ownerUserId);
+
+  const members = [];
+  if (owner) {
+    members.push({
+      id: `owner-${owner.id}`,
+      userId: owner.id,
+      email: owner.email,
+      name: owner.name || owner.email,
+      avatarUrl: owner.avatar_url || '',
+      permission: 'owner',
+      permissionLabel: 'Owner',
+      status: 'active',
+      isOwner: true
+    });
+  }
+  for (const r of rows) {
+    const perm = normalizePermission(r.permission, 'viewer');
+    members.push({
+      id: r.id,
+      userId: r.member_user_id || null,
+      email: r.email,
+      name: r.user_name || r.email.split('@')[0],
+      avatarUrl: r.user_avatar || '',
+      permission: perm,
+      permissionLabel: ROLE_LABELS[perm] || 'Viewer',
+      status: r.status === 'active' ? 'active' : 'pending',
+      inviteToken: r.status === 'pending' ? (r.invite_token || null) : null,
+      isOwner: false,
+      createdAt: r.created_at
+    });
+  }
+
+  const canManage = ownerUserId === actorUserId || (membership && membership.permission === 'admin');
+  return {
+    ownerUserId,
+    effectiveRole,
+    effectiveRoleLabel: ROLE_LABELS[effectiveRole] || 'Owner',
+    canManage,
+    members
+  };
+}
+
+export function inviteWorkspaceMembers({ actorUserId, emails, permission = 'editor' }) {
+  const { ownerUserId, actorRole } = resolveManagedWorkspaceOwnerId(actorUserId);
+  if (!capabilitiesForRole(actorRole).canManageMembers) {
+    throw forbidden('Only the Owner or an Admin can invite workspace members.');
+  }
+
+  const perm = normalizePermission(permission, '');
+  if (!perm) {
+    const err = new Error('Invalid permission. Choose Admin, Can Edit, Can Comment, or Can View.');
+    err.status = 400;
+    throw err;
+  }
+
+  const { valid, invalid } = parseEmailList(emails);
+  if (!valid.length) {
+    const err = new Error(invalid.length ? `Invalid email address: ${invalid[0]}` : 'Please enter at least one valid email address.');
+    err.status = 400;
+    throw err;
+  }
+
+  const owner = db.prepare('SELECT id, email FROM users WHERE id = ?').get(ownerUserId);
+  const now = Date.now();
+  const expiresAt = now + 14 * 24 * 60 * 60 * 1000;
+  const results = [];
+
+  for (const email of valid) {
+    if (owner && String(owner.email || '').toLowerCase() === email) {
+      results.push({ email, skipped: true, reason: 'Already workspace owner.' });
+      continue;
+    }
+
+    const existingUser = db.prepare('SELECT id, email, name, avatar_url FROM users WHERE LOWER(email) = ?').get(email);
+    const status = existingUser ? 'active' : 'pending';
+    const memberUserId = existingUser ? existingUser.id : null;
+
+    db.prepare(`
+      INSERT INTO workspace_members (owner_user_id, member_user_id, email, permission, status, invited_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(owner_user_id, email) DO UPDATE SET
+        member_user_id = COALESCE(excluded.member_user_id, workspace_members.member_user_id),
+        permission = excluded.permission,
+        status = excluded.status,
+        invited_by = excluded.invited_by,
+        updated_at = excluded.updated_at
+    `).run(ownerUserId, memberUserId, email, perm, status, actorUserId, now, now);
+
+    const row = db.prepare('SELECT id FROM workspace_members WHERE owner_user_id = ? AND LOWER(email) = ?').get(ownerUserId, email);
+    let inviteToken = null;
+    if (!existingUser) {
+      inviteToken = 'inv_' + crypto.randomBytes(16).toString('hex');
+      db.prepare(`
+        DELETE FROM invitations WHERE scope = 'workspace' AND owner_user_id = ? AND LOWER(email) = ? AND status = 'pending'
+      `).run(ownerUserId, email);
+      db.prepare(`
+        INSERT INTO invitations (token, scope, owner_user_id, board_id, email, permission, status, invited_by, created_at, expires_at)
+        VALUES (?, 'workspace', ?, NULL, ?, ?, 'pending', ?, ?, ?)
+      `).run(inviteToken, ownerUserId, email, perm, actorUserId, now, expiresAt);
+    }
+
+    results.push({
+      id: row.id,
+      email,
+      userId: memberUserId,
+      name: existingUser ? existingUser.name : email.split('@')[0],
+      permission: perm,
+      permissionLabel: ROLE_LABELS[perm],
+      status,
+      inviteToken
+    });
+  }
+
+  return { invited: results, invalid, workspace: listWorkspaceMembers(actorUserId) };
+}
+
+export function updateWorkspaceMemberRole({ actorUserId, memberId, permission }) {
+  const { ownerUserId, actorRole } = resolveManagedWorkspaceOwnerId(actorUserId);
+  if (!capabilitiesForRole(actorRole).canManageMembers) {
+    throw forbidden('Only the Owner or an Admin can update member permissions.');
+  }
+  const perm = normalizePermission(permission, '');
+  if (!perm) {
+    const err = new Error('Invalid permission level.');
+    err.status = 400;
+    throw err;
+  }
+  const existing = db.prepare('SELECT * FROM workspace_members WHERE id = ? AND owner_user_id = ?').get(Number(memberId), ownerUserId);
+  if (!existing) {
+    const err = new Error('Member not found.');
+    err.status = 404;
+    throw err;
+  }
+  const now = Date.now();
+  db.prepare('UPDATE workspace_members SET permission = ?, updated_at = ? WHERE id = ?').run(perm, now, existing.id);
+  db.prepare(`
+    UPDATE invitations SET permission = ?
+     WHERE scope = 'workspace' AND owner_user_id = ? AND LOWER(email) = ? AND status = 'pending'
+  `).run(perm, ownerUserId, String(existing.email).toLowerCase());
+  return { ok: true, workspace: listWorkspaceMembers(actorUserId) };
+}
+
+export function removeWorkspaceMember({ actorUserId, memberId }) {
+  const { ownerUserId, actorRole } = resolveManagedWorkspaceOwnerId(actorUserId);
+  if (!capabilitiesForRole(actorRole).canManageMembers) {
+    throw forbidden('Only the Owner or an Admin can remove workspace members.');
+  }
+  const existing = db.prepare('SELECT * FROM workspace_members WHERE id = ? AND owner_user_id = ?').get(Number(memberId), ownerUserId);
+  if (!existing) {
+    const err = new Error('Member not found.');
+    err.status = 404;
+    throw err;
+  }
+  db.prepare('DELETE FROM workspace_members WHERE id = ?').run(existing.id);
+  db.prepare(`
+    DELETE FROM invitations
+     WHERE scope = 'workspace' AND owner_user_id = ? AND LOWER(email) = ? AND status = 'pending'
+  `).run(ownerUserId, String(existing.email).toLowerCase());
+  return { ok: true, workspace: listWorkspaceMembers(actorUserId) };
+}
+
+/* ---------- Board-level sharing & collaborators ---------- */
+
+export function listBoardMembers({ boardId, actorUserId }) {
+  const access = resolveBoardAccess(boardId, actorUserId);
+  if (!access) {
+    const err = new Error('Board not found.');
+    err.status = 404;
+    throw err;
+  }
+  const owner = db.prepare('SELECT id, email, name, avatar_url FROM users WHERE id = ?').get(access.ownerUserId);
+  const rows = db.prepare(`
+    SELECT bm.id, bm.board_id, bm.member_user_id, bm.email, bm.permission, bm.status, bm.created_at,
+           u.name AS user_name, u.avatar_url AS user_avatar,
+           inv.token AS invite_token
+      FROM board_members bm
+      LEFT JOIN users u ON u.id = bm.member_user_id
+      LEFT JOIN invitations inv
+        ON inv.scope = 'board' AND inv.board_id = bm.board_id
+       AND LOWER(inv.email) = LOWER(bm.email) AND inv.status = 'pending'
+     WHERE bm.board_id = ?
+     ORDER BY CASE WHEN bm.status = 'active' THEN 0 ELSE 1 END, bm.created_at DESC
+  `).all(access.internalId);
+
+  const members = [];
+  if (owner) {
+    members.push({
+      id: `owner-${owner.id}`,
+      userId: owner.id,
+      email: owner.email,
+      name: owner.name || owner.email,
+      avatarUrl: owner.avatar_url || '',
+      permission: 'owner',
+      permissionLabel: 'Owner',
+      status: 'active',
+      isOwner: true
+    });
+  }
+  for (const r of rows) {
+    const perm = normalizePermission(r.permission, 'viewer');
+    members.push({
+      id: r.id,
+      userId: r.member_user_id || null,
+      email: r.email,
+      name: r.user_name || r.email.split('@')[0],
+      avatarUrl: r.user_avatar || '',
+      permission: perm,
+      permissionLabel: ROLE_LABELS[perm] || 'Viewer',
+      status: r.status === 'active' ? 'active' : 'pending',
+      inviteToken: r.status === 'pending' ? (r.invite_token || null) : null,
+      isOwner: false,
+      createdAt: r.created_at
+    });
+  }
+
+  return {
+    boardId: publicBoardId(access.internalId),
+    permission: access.role,
+    capabilities: capabilitiesForRole(access.role),
+    canManage: access.canManageMembers,
+    members,
+    presence: listBoardPresence(access.internalId)
+  };
+}
+
+export function inviteBoardMembers({ boardId, actorUserId, emails, permission = 'editor' }) {
+  const access = resolveBoardAccess(boardId, actorUserId);
+  if (!access) {
+    const err = new Error('Board not found.');
+    err.status = 404;
+    throw err;
+  }
+  if (!access.canManageMembers) {
+    throw forbidden('Only the board Owner or an Admin can invite collaborators.');
+  }
+
+  const perm = normalizePermission(permission, '');
+  if (!perm) {
+    const err = new Error('Invalid permission level.');
+    err.status = 400;
+    throw err;
+  }
+
+  const { valid, invalid } = parseEmailList(emails);
+  if (!valid.length) {
+    const err = new Error(invalid.length ? `Invalid email address: ${invalid[0]}` : 'Please enter at least one valid email address.');
+    err.status = 400;
+    throw err;
+  }
+
+  const owner = db.prepare('SELECT id, email FROM users WHERE id = ?').get(access.ownerUserId);
+  const now = Date.now();
+  const expiresAt = now + 14 * 24 * 60 * 60 * 1000;
+  const invited = [];
+
+  for (const email of valid) {
+    if (owner && String(owner.email || '').toLowerCase() === email) {
+      invited.push({ email, skipped: true, reason: 'Already board owner.' });
+      continue;
+    }
+
+    const existingUser = db.prepare('SELECT id, email, name FROM users WHERE LOWER(email) = ?').get(email);
+    const status = existingUser ? 'active' : 'pending';
+    const memberUserId = existingUser ? existingUser.id : null;
+
+    db.prepare(`
+      INSERT INTO board_members (board_id, owner_user_id, member_user_id, email, permission, status, invited_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(board_id, email) DO UPDATE SET
+        member_user_id = COALESCE(excluded.member_user_id, board_members.member_user_id),
+        permission = excluded.permission,
+        status = excluded.status,
+        invited_by = excluded.invited_by,
+        updated_at = excluded.updated_at
+    `).run(access.internalId, access.ownerUserId, memberUserId, email, perm, status, actorUserId, now, now);
+
+    const row = db.prepare('SELECT id FROM board_members WHERE board_id = ? AND LOWER(email) = ?').get(access.internalId, email);
+    let inviteToken = null;
+    if (!existingUser) {
+      inviteToken = 'inv_' + crypto.randomBytes(16).toString('hex');
+      db.prepare(`
+        DELETE FROM invitations WHERE scope = 'board' AND board_id = ? AND LOWER(email) = ? AND status = 'pending'
+      `).run(access.internalId, email);
+      db.prepare(`
+        INSERT INTO invitations (token, scope, owner_user_id, board_id, email, permission, status, invited_by, created_at, expires_at)
+        VALUES (?, 'board', ?, ?, ?, ?, 'pending', ?, ?, ?)
+      `).run(inviteToken, access.ownerUserId, access.internalId, email, perm, actorUserId, now, expiresAt);
+    }
+
+    invited.push({
+      id: row.id,
+      email,
+      userId: memberUserId,
+      name: existingUser ? existingUser.name : email.split('@')[0],
+      permission: perm,
+      permissionLabel: ROLE_LABELS[perm],
+      status,
+      inviteToken
+    });
+  }
+
+  return { invited, invalid, ...listBoardMembers({ boardId, actorUserId }) };
+}
+
+export function updateBoardMemberRole({ boardId, actorUserId, memberId, permission }) {
+  const access = resolveBoardAccess(boardId, actorUserId);
+  if (!access) {
+    const err = new Error('Board not found.');
+    err.status = 404;
+    throw err;
+  }
+  if (!access.canManageMembers) {
+    throw forbidden('Only the board Owner or an Admin can update collaborator permissions.');
+  }
+  const perm = normalizePermission(permission, '');
+  if (!perm) {
+    const err = new Error('Invalid permission level.');
+    err.status = 400;
+    throw err;
+  }
+  const existing = db.prepare('SELECT * FROM board_members WHERE id = ? AND board_id = ?').get(Number(memberId), access.internalId);
+  if (!existing) {
+    const err = new Error('Collaborator not found.');
+    err.status = 404;
+    throw err;
+  }
+  db.prepare('UPDATE board_members SET permission = ?, updated_at = ? WHERE id = ?').run(perm, Date.now(), existing.id);
+  db.prepare(`
+    UPDATE invitations SET permission = ?
+     WHERE scope = 'board' AND board_id = ? AND LOWER(email) = ? AND status = 'pending'
+  `).run(perm, access.internalId, String(existing.email).toLowerCase());
+  return { ok: true, ...listBoardMembers({ boardId, actorUserId }) };
+}
+
+export function removeBoardMember({ boardId, actorUserId, memberId }) {
+  const access = resolveBoardAccess(boardId, actorUserId);
+  if (!access) {
+    const err = new Error('Board not found.');
+    err.status = 404;
+    throw err;
+  }
+  if (!access.canManageMembers) {
+    throw forbidden('Only the board Owner or an Admin can remove collaborators.');
+  }
+  const existing = db.prepare('SELECT * FROM board_members WHERE id = ? AND board_id = ?').get(Number(memberId), access.internalId);
+  if (!existing) {
+    const err = new Error('Collaborator not found.');
+    err.status = 404;
+    throw err;
+  }
+  db.prepare('DELETE FROM board_members WHERE id = ?').run(existing.id);
+  db.prepare(`
+    DELETE FROM invitations
+     WHERE scope = 'board' AND board_id = ? AND LOWER(email) = ? AND status = 'pending'
+  `).run(access.internalId, String(existing.email).toLowerCase());
+  return { ok: true, ...listBoardMembers({ boardId, actorUserId }) };
+}
+
+/* ---------- Live Board Collaborator Presence (in-memory 30s TTL) ---------- */
+const presenceStore = new Map();
+const PRESENCE_TTL_MS = 30 * 1000;
+
+export function recordBoardPresence(internalBoardId, user, role) {
+  if (!internalBoardId || !user || !user.id) return [];
+  const key = String(internalBoardId);
+  let room = presenceStore.get(key);
+  if (!room) {
+    room = new Map();
+    presenceStore.set(key, room);
+  }
+  const now = Date.now();
+  room.set(user.id, {
+    userId: user.id,
+    name: user.name || user.email || 'User',
+    email: user.email || '',
+    avatarUrl: user.avatar_url || '',
+    role: role || 'viewer',
+    lastSeen: now
+  });
+  return listBoardPresence(key);
+}
+
+export function listBoardPresence(internalBoardId) {
+  const room = presenceStore.get(String(internalBoardId || ''));
+  if (!room) return [];
+  const cutoff = Date.now() - PRESENCE_TTL_MS;
+  const active = [];
+  for (const [uid, entry] of room.entries()) {
+    if (entry.lastSeen < cutoff) {
+      room.delete(uid);
+    } else {
+      active.push(entry);
+    }
+  }
+  return active;
 }

@@ -30,8 +30,8 @@
   if (!viewport || !world) return;
 
   /* ---------- Hierarchical Path Router (Parent: /app, Child: /:slug/:code/:template) ---------- */
-  var KNOWN_TEMPLATES = ['project-planning', 'mindmap', 'flow', 'kanban', 'perspective', 'retro', 'brainstorm', 'swot', 'journey', 'blank'];
-  var PROJECT_MODULES = ['project-planning', 'mindmap', 'kanban', 'perspective', 'brainstorm'];
+  var KNOWN_TEMPLATES = ['whiteboard', 'project-planning', 'mindmap', 'flow', 'kanban', 'perspective', 'retro', 'brainstorm', 'swot', 'journey', 'blank'];
+  var PROJECT_MODULES = ['whiteboard', 'project-planning', 'mindmap', 'kanban', 'perspective', 'brainstorm'];
   var DEFAULT_WORKSPACE_MODULE = 'project-planning';
   var currentActiveModule = DEFAULT_WORKSPACE_MODULE;
   /* The module saved in the board's own state, as distinct from the one the
@@ -48,6 +48,13 @@
   var enabledModules = [];
 
   var WORKSPACE_META = {
+    'whiteboard': {
+      label: 'Whiteboarding',
+      blurb: 'Visual workspace with smart stickies, layers, AI, workflows & dashboards',
+      tint: '#eef2ff',
+      ink: '#4f46e5',
+      icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>'
+    },
     'project-planning': {
       label: 'Project Planning',
       blurb: 'Gantt, WBS, Kanban, timesheets and RAID in one plan',
@@ -266,7 +273,7 @@
   var isHydratingBoard = true;
 
   function hasCanvasItems() {
-    var count = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').length;
+    var count = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc').length;
     var hasPaths = drawingsGroup && drawingsGroup.children.length > 0;
     return count > 0 || Boolean(hasPaths);
   }
@@ -284,7 +291,7 @@
 
   function clearCanvasElementsOnly() {
     selectElement(null);
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
+    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc').forEach(function (el) {
       el.remove();
     });
     connectors = [];
@@ -450,14 +457,14 @@
     world.querySelectorAll('.canvas-frame').forEach(function (frame) {
       if (!frame.dataset.id) frame.dataset.id = nextId('frame');
       ensureResizeHandle(frame);
-      var children = frame.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-icon, .canvas-clipart, .canvas-table');
+      var children = frame.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc');
       children.forEach(function (child) {
         if (!child.dataset.id) child.dataset.id = nextId('item');
         world.appendChild(child);
       });
     });
 
-    world.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
+    world.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc').forEach(function (el) {
       if (!el.dataset.id) el.dataset.id = nextId('item');
       bindInteractiveElement(el);
     });
@@ -589,6 +596,20 @@
       // top .xl-ribbon bar (outside buttons) moves the table on the canvas.
       if (el.classList.contains('canvas-table')) {
         if (e.target.closest('.canvas-table__scroll, .xl-formulabar, .xl-ribbon__btn')) {
+          e.stopPropagation();
+          return;
+        }
+      }
+
+      // Word / Confluence-like Document: clicking inside the formatting toolbar,
+      // outline sidebar, page surface, or status bar interacts with the document.
+      // Dragging the top .doc-ribbon bar (outside buttons/status/inputs) moves it.
+      if (el.classList.contains('canvas-doc')) {
+        if (el.classList.contains('is-fullscreen')) {
+          e.stopPropagation();
+          return;
+        }
+        if (e.target.closest('.doc-toolbar, .doc-workspace, .doc-statusbar, .doc-ribbon__btn, .doc-status-pill, .doc-ribbon__title')) {
           e.stopPropagation();
           return;
         }
@@ -1457,6 +1478,561 @@
     return el;
   }
 
+  function createDoc(x, y, docData, w, h, customId) {
+    var data = (docData && typeof docData === 'object') ? docData : {};
+    var docTitle = typeof data.title === 'string' && data.title.trim() ? data.title : 'Untitled Document';
+    var docIcon = typeof data.icon === 'string' && data.icon ? data.icon : '📄';
+    var docStatus = typeof data.status === 'string' && data.status ? data.status : 'Draft';
+    var docWide = Boolean(data.wide);
+    var outlineOpen = data.outlineOpen !== undefined ? Boolean(data.outlineOpen) : false;
+
+    var DEFAULT_DOC_HTML =
+      '<div class="doc-callout doc-callout--info" data-callout="info">' +
+        '<span class="doc-callout__icon" contenteditable="false">ℹ️</span>' +
+        '<div class="doc-callout__body"><strong>Summary:</strong> Capture objectives, decisions, specs, or meeting notes in this live Confluence &amp; Word-style page.</div>' +
+      '</div>' +
+      '<h2>Overview</h2>' +
+      '<p>Write your opening summary, project context, and goals here. Use the toolbar above for headings, tables, callouts, checklists, alignment, and Word export.</p>' +
+      '<h2>Key Decisions</h2>' +
+      '<ul>' +
+        '<li>Define scope, owners, and target launch date.</li>' +
+        '<li>Align stakeholders on open questions and trade-offs.</li>' +
+      '</ul>' +
+      '<h2>Action Items</h2>' +
+      '<div class="doc-check-item"><input type="checkbox" class="doc-check-input"><span>Finalize architecture spec and share for review</span></div>' +
+      '<div class="doc-check-item"><input type="checkbox" class="doc-check-input"><span>Confirm delivery milestones with engineering &amp; design</span></div>' +
+      '<h2>Milestones</h2>' +
+      '<table class="doc-inline-table"><thead><tr><th>Milestone</th><th>Owner</th><th>Target Date</th></tr></thead>' +
+      '<tbody><tr><td>Discovery &amp; PRD</td><td>Product</td><td>Week 1</td></tr>' +
+      '<tr><td>Build &amp; QA</td><td>Engineering</td><td>Week 3</td></tr></tbody></table>';
+
+    var docHtml = typeof data.html === 'string' ? data.html : DEFAULT_DOC_HTML;
+
+    var el = document.createElement('div');
+    el.className = 'canvas-doc' + (docWide ? ' is-wide' : '');
+    el.dataset.id = customId || nextId('doc');
+    el.dataset.docIcon = docIcon;
+    el.dataset.docStatus = docStatus;
+    el.dataset.docWide = docWide ? '1' : '0';
+    el.style.left = Math.round(x) + 'px';
+    el.style.top = Math.round(y) + 'px';
+    el.style.width = Math.max(540, Math.round(w || 780)) + 'px';
+    el.style.height = Math.max(440, Math.round(h || 660)) + 'px';
+
+    var DOC_ICONS = ['📄', '📋', '📝', '📘', '🚀', '💡', '✅', '📊', '📌', '🗂️'];
+    var DOC_STATUSES = ['Draft', 'In Review', 'Approved'];
+
+    function statusClass(st) {
+      if (st === 'Approved') return 'doc-status-pill--approved';
+      if (st === 'In Review') return 'doc-status-pill--review';
+      return 'doc-status-pill--draft';
+    }
+
+    // 1. Word / Confluence Header Ribbon (draggable handle)
+    var ribbon = document.createElement('div');
+    ribbon.className = 'doc-ribbon';
+    ribbon.innerHTML =
+      '<div class="doc-ribbon__left">' +
+        '<span class="doc-ribbon__badge" aria-hidden="true">W</span>' +
+        '<span class="doc-ribbon__title" data-doc-ribbon-title></span>' +
+        '<button type="button" class="doc-status-pill ' + statusClass(docStatus) + '" data-doc-status title="Click to change document status"></button>' +
+      '</div>' +
+      '<div class="doc-ribbon__actions">' +
+        '<button type="button" class="doc-ribbon__btn' + (outlineOpen ? ' is-active' : '') + '" data-doc-outline title="Toggle Table of Contents outline">Outline</button>' +
+        '<button type="button" class="doc-ribbon__btn" data-doc-fullscreen title="Expand to full-page Word / Confluence editor">⤢ Full page</button>' +
+        '<button type="button" class="doc-ribbon__btn" data-doc-export-word title="Download as Microsoft Word (.doc)">.doc</button>' +
+        '<button type="button" class="doc-ribbon__btn" data-doc-print title="Print or Save as PDF">Print</button>' +
+      '</div>';
+
+    var ribbonTitleEl = ribbon.querySelector('[data-doc-ribbon-title]');
+    var statusBtn = ribbon.querySelector('[data-doc-status]');
+    ribbonTitleEl.textContent = docTitle;
+    statusBtn.textContent = docStatus;
+
+    // 2. Rich Word-Processing Formatting Toolbar
+    var toolbar = document.createElement('div');
+    toolbar.className = 'doc-toolbar';
+    toolbar.innerHTML =
+      '<select class="doc-tb-select" data-doc-block title="Paragraph style" aria-label="Paragraph style">' +
+        '<option value="P">Normal text</option>' +
+        '<option value="H1">Heading 1</option>' +
+        '<option value="H2">Heading 2</option>' +
+        '<option value="H3">Heading 3</option>' +
+        '<option value="BLOCKQUOTE">Quote</option>' +
+        '<option value="PRE">Code block</option>' +
+      '</select>' +
+      '<select class="doc-tb-select doc-tb-select--font" data-doc-font title="Font family" aria-label="Font family">' +
+        '<option value="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">Sans</option>' +
+        '<option value="Georgia, Cambria, Times New Roman, serif">Serif</option>' +
+        '<option value="Consolas, Monaco, Courier New, monospace">Mono</option>' +
+      '</select>' +
+      '<select class="doc-tb-select doc-tb-select--size" data-doc-size title="Font size" aria-label="Font size">' +
+        '<option value="2">12px</option>' +
+        '<option value="3" selected>14px</option>' +
+        '<option value="4">18px</option>' +
+        '<option value="5">24px</option>' +
+      '</select>' +
+      '<span class="doc-tb-sep"></span>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="italic" title="Italic (Ctrl+I)"><em>I</em></button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>' +
+      '<label class="doc-tb-color" title="Text color"><span>A</span><input type="color" data-doc-forecolor value="#0f172a" aria-label="Text color"></label>' +
+      '<button type="button" class="doc-tb-btn" data-doc-highlight title="Highlight text">🖍</button>' +
+      '<span class="doc-tb-sep"></span>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="justifyLeft" title="Align left">≡</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="justifyCenter" title="Align center">≣</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="justifyRight" title="Align right">⫤</button>' +
+      '<span class="doc-tb-sep"></span>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="insertUnorderedList" title="Bullet list">• List</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="insertOrderedList" title="Numbered list">1. List</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-insert="checklist" title="Insert checklist item">☑ Check</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="outdent" title="Decrease indent">⇤</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="indent" title="Increase indent">⇥</button>' +
+      '<span class="doc-tb-sep"></span>' +
+      '<button type="button" class="doc-tb-btn" data-doc-insert="callout" title="Insert Confluence info callout">ⓘ Callout</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-insert="table" title="Insert 3×3 table">⊞ Table</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="insertHorizontalRule" title="Insert divider">—</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-insert="link" title="Insert hyperlink">🔗</button>' +
+      '<span class="doc-tb-sep"></span>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="undo" title="Undo (Ctrl+Z)">↶</button>' +
+      '<button type="button" class="doc-tb-btn" data-doc-cmd="redo" title="Redo (Ctrl+Y)">↷</button>';
+
+    // 3. Workspace: Optional Confluence Outline Sidebar + Paper Page Surface
+    var workspace = document.createElement('div');
+    workspace.className = 'doc-workspace';
+
+    var outlineEl = document.createElement('aside');
+    outlineEl.className = 'doc-outline';
+    outlineEl.hidden = !outlineOpen;
+    outlineEl.innerHTML =
+      '<div class="doc-outline__head">Outline</div>' +
+      '<nav class="doc-outline__list" data-doc-outline-list></nav>';
+
+    var scrollWrap = document.createElement('div');
+    scrollWrap.className = 'doc-scroll';
+
+    var page = document.createElement('article');
+    page.className = 'doc-page';
+
+    var pageHeader = document.createElement('header');
+    pageHeader.className = 'doc-page__header';
+    pageHeader.innerHTML =
+      '<div class="doc-page__title-row">' +
+        '<button type="button" class="doc-page__icon" data-doc-icon-btn title="Click to change page icon"></button>' +
+        '<h1 class="doc-page__title" contenteditable="true" data-placeholder="Untitled Document"></h1>' +
+      '</div>' +
+      '<div class="doc-page__meta">' +
+        '<span class="doc-page__meta-item" data-doc-meta-author>QuantalFlow Doc</span>' +
+        '<span class="doc-page__meta-dot">•</span>' +
+        '<span class="doc-page__meta-item" data-doc-meta-updated>Edited just now</span>' +
+      '</div>';
+
+    var iconBtn = pageHeader.querySelector('[data-doc-icon-btn]');
+    var pageTitleEl = pageHeader.querySelector('.doc-page__title');
+    iconBtn.textContent = docIcon;
+    pageTitleEl.textContent = docTitle;
+
+    var editor = document.createElement('div');
+    editor.className = 'doc-editor';
+    editor.contentEditable = 'true';
+    editor.setAttribute('role', 'textbox');
+    editor.setAttribute('aria-multiline', 'true');
+    editor.setAttribute('aria-label', 'Document content');
+    editor.innerHTML = docHtml;
+
+    page.appendChild(pageHeader);
+    page.appendChild(editor);
+    scrollWrap.appendChild(page);
+    workspace.appendChild(outlineEl);
+    workspace.appendChild(scrollWrap);
+
+    // 4. Bottom Word-style Status Bar
+    var statusBar = document.createElement('div');
+    statusBar.className = 'doc-statusbar';
+    statusBar.innerHTML =
+      '<div class="doc-statusbar__left">' +
+        '<span data-doc-words>0 words</span>' +
+        '<span class="doc-statusbar__sep">·</span>' +
+        '<span data-doc-chars>0 chars</span>' +
+        '<span class="doc-statusbar__sep">·</span>' +
+        '<span data-doc-readtime>1 min read</span>' +
+      '</div>' +
+      '<div class="doc-statusbar__right">' +
+        '<button type="button" class="doc-statusbar__btn" data-doc-width-toggle title="Toggle Standard / Full width page">' +
+          (docWide ? 'Full width' : 'Standard width') +
+        '</button>' +
+      '</div>';
+
+    el.appendChild(ribbon);
+    el.appendChild(toolbar);
+    el.appendChild(workspace);
+    el.appendChild(statusBar);
+
+    var wordsEl = statusBar.querySelector('[data-doc-words]');
+    var charsEl = statusBar.querySelector('[data-doc-chars]');
+    var readTimeEl = statusBar.querySelector('[data-doc-readtime]');
+    var widthBtn = statusBar.querySelector('[data-doc-width-toggle]');
+    var outlineListEl = outlineEl.querySelector('[data-doc-outline-list]');
+    var metaUpdatedEl = pageHeader.querySelector('[data-doc-meta-updated]');
+    var fullscreenBtn = ribbon.querySelector('[data-doc-fullscreen]');
+    var outlineBtn = ribbon.querySelector('[data-doc-outline]');
+
+    function syncStatsAndOutline() {
+      var rawText = ((pageTitleEl.textContent || '') + ' ' + (editor.innerText || '')).trim();
+      var words = rawText ? rawText.split(/\s+/).filter(Boolean).length : 0;
+      var chars = (editor.innerText || '').replace(/\n/g, '').length;
+      var mins = Math.max(1, Math.ceil(words / 220));
+      wordsEl.textContent = words + (words === 1 ? ' word' : ' words');
+      charsEl.textContent = chars + ' chars';
+      readTimeEl.textContent = mins + ' min read';
+
+      // Build Confluence-style Outline from H1/H2/H3 headings
+      if (outlineListEl) {
+        outlineListEl.innerHTML = '';
+        var headings = editor.querySelectorAll('h1, h2, h3');
+        if (!headings.length) {
+          var empty = document.createElement('div');
+          empty.className = 'doc-outline__empty';
+          empty.textContent = 'Add H1–H3 headings to build an outline.';
+          outlineListEl.appendChild(empty);
+        } else {
+          headings.forEach(function (h, idx) {
+            var txt = (h.textContent || '').trim();
+            if (!txt) return;
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'doc-outline__item doc-outline__item--' + h.tagName.toLowerCase();
+            btn.textContent = txt;
+            btn.addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            outlineListEl.appendChild(btn);
+          });
+        }
+      }
+    }
+
+    function updateToolbarStates() {
+      ['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList', 'justifyLeft', 'justifyCenter', 'justifyRight'].forEach(function (cmd) {
+        var btn = toolbar.querySelector('[data-doc-cmd="' + cmd + '"]');
+        if (!btn) return;
+        try {
+          btn.classList.toggle('is-active', document.queryCommandState(cmd));
+        } catch (_) {}
+      });
+    }
+
+    function markEdited() {
+      if (metaUpdatedEl) {
+        var now = new Date();
+        var hh = String(now.getHours()).padStart(2, '0');
+        var mm = String(now.getMinutes()).padStart(2, '0');
+        metaUpdatedEl.textContent = 'Saved ' + hh + ':' + mm;
+      }
+      syncStatsAndOutline();
+      scheduleSave();
+    }
+
+    // Keep checkboxes serialized as attributes in innerHTML
+    editor.addEventListener('change', function (e) {
+      if (e.target && e.target.classList.contains('doc-check-input')) {
+        if (e.target.checked) e.target.setAttribute('checked', 'checked');
+        else e.target.removeAttribute('checked');
+        var row = e.target.closest('.doc-check-item');
+        if (row) row.classList.toggle('is-checked', e.target.checked);
+        markEdited();
+      }
+    });
+
+    // Hydrate checked classes on load
+    editor.querySelectorAll('.doc-check-input').forEach(function (cb) {
+      var row = cb.closest('.doc-check-item');
+      if (row) row.classList.toggle('is-checked', cb.checked || cb.hasAttribute('checked'));
+    });
+
+    pageTitleEl.addEventListener('input', function () {
+      var t = (pageTitleEl.textContent || '').trim() || 'Untitled Document';
+      ribbonTitleEl.textContent = t;
+      markEdited();
+    });
+
+    pageTitleEl.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        editor.focus();
+      }
+    });
+
+    editor.addEventListener('input', markEdited);
+    editor.addEventListener('keyup', updateToolbarStates);
+    editor.addEventListener('mouseup', updateToolbarStates);
+    editor.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        document.execCommand(e.shiftKey ? 'outdent' : 'indent', false, null);
+        markEdited();
+      }
+    });
+
+    // Smooth vertical scroll inside the document without panning the canvas
+    scrollWrap.addEventListener('wheel', function (e) {
+      if (!e.ctrlKey && !e.metaKey) {
+        e.stopPropagation();
+      }
+    }, { passive: true });
+    outlineEl.addEventListener('wheel', function (e) {
+      if (!e.ctrlKey && !e.metaKey) e.stopPropagation();
+    }, { passive: true });
+
+    // Prevent toolbar buttons from stealing text selection
+    toolbar.addEventListener('mousedown', function (e) {
+      if (e.target.closest('button')) {
+        e.preventDefault();
+      }
+      e.stopPropagation();
+    });
+
+    toolbar.addEventListener('click', function (e) {
+      var cmdBtn = e.target.closest('[data-doc-cmd]');
+      if (cmdBtn) {
+        e.stopPropagation();
+        if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+        editor.focus();
+        document.execCommand(cmdBtn.dataset.docCmd, false, null);
+        updateToolbarStates();
+        markEdited();
+        return;
+      }
+
+      var hlBtn = e.target.closest('[data-doc-highlight]');
+      if (hlBtn) {
+        e.stopPropagation();
+        if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+        editor.focus();
+        var cur = '';
+        try { cur = document.queryCommandValue('hiliteColor') || ''; } catch (_) {}
+        var isLit = cur && cur !== 'transparent' && cur !== 'rgba(0, 0, 0, 0)' && cur !== 'rgb(255, 255, 255)';
+        document.execCommand('hiliteColor', false, isLit ? 'transparent' : '#fef08a');
+        markEdited();
+        return;
+      }
+
+      var insBtn = e.target.closest('[data-doc-insert]');
+      if (insBtn) {
+        e.stopPropagation();
+        if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+        editor.focus();
+        var kind = insBtn.dataset.docInsert;
+        if (kind === 'callout') {
+          document.execCommand('insertHTML', false,
+            '<div class="doc-callout doc-callout--info" data-callout="info">' +
+              '<span class="doc-callout__icon" contenteditable="false">💡</span>' +
+              '<div class="doc-callout__body"><strong>Note:</strong> Highlight key context, risks, or decisions here.</div>' +
+            '</div><p><br></p>');
+        } else if (kind === 'table') {
+          document.execCommand('insertHTML', false,
+            '<table class="doc-inline-table"><thead><tr><th>Column 1</th><th>Column 2</th><th>Column 3</th></tr></thead>' +
+            '<tbody><tr><td>Item A</td><td>Owner</td><td>Status</td></tr>' +
+            '<tr><td>Item B</td><td>Owner</td><td>Status</td></tr></tbody></table><p><br></p>');
+        } else if (kind === 'checklist') {
+          document.execCommand('insertHTML', false,
+            '<div class="doc-check-item"><input type="checkbox" class="doc-check-input"><span>New action item</span></div>');
+        } else if (kind === 'link') {
+          var url = window.prompt('Enter URL (https://...)', 'https://');
+          if (url && /^https?:\/\//i.test(url.trim())) {
+            document.execCommand('createLink', false, url.trim());
+          }
+        }
+        markEdited();
+      }
+    });
+
+    toolbar.querySelector('[data-doc-block]')?.addEventListener('change', function (e) {
+      e.stopPropagation();
+      if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+      editor.focus();
+      document.execCommand('formatBlock', false, '<' + e.target.value + '>');
+      markEdited();
+    });
+
+    toolbar.querySelector('[data-doc-font]')?.addEventListener('change', function (e) {
+      e.stopPropagation();
+      if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+      editor.focus();
+      document.execCommand('fontName', false, e.target.value);
+      markEdited();
+    });
+
+    toolbar.querySelector('[data-doc-size]')?.addEventListener('change', function (e) {
+      e.stopPropagation();
+      if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+      editor.focus();
+      document.execCommand('fontSize', false, e.target.value);
+      markEdited();
+    });
+
+    toolbar.querySelector('[data-doc-forecolor]')?.addEventListener('input', function (e) {
+      e.stopPropagation();
+      if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+      editor.focus();
+      document.execCommand('foreColor', false, e.target.value);
+      markEdited();
+    });
+
+    // Cycle Confluence page icon
+    iconBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+      var curIdx = DOC_ICONS.indexOf(el.dataset.docIcon || '📄');
+      var nextIcon = DOC_ICONS[(curIdx + 1) % DOC_ICONS.length];
+      el.dataset.docIcon = nextIcon;
+      iconBtn.textContent = nextIcon;
+      scheduleSave();
+    });
+
+    // Cycle Document status pill
+    statusBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+      var idx = DOC_STATUSES.indexOf(el.dataset.docStatus || 'Draft');
+      var next = DOC_STATUSES[(idx + 1) % DOC_STATUSES.length];
+      el.dataset.docStatus = next;
+      statusBtn.textContent = next;
+      statusBtn.className = 'doc-status-pill ' + statusClass(next);
+      scheduleSave();
+    });
+
+    // Toggle Outline sidebar
+    outlineBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      outlineEl.hidden = !outlineEl.hidden;
+      outlineBtn.classList.toggle('is-active', !outlineEl.hidden);
+      syncStatsAndOutline();
+    });
+
+    // Toggle Standard / Full width page
+    widthBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var isWide = el.classList.toggle('is-wide');
+      el.dataset.docWide = isWide ? '1' : '0';
+      widthBtn.textContent = isWide ? 'Full width' : 'Standard width';
+      scheduleSave();
+    });
+
+    // Full-page Focus Mode (portals to document.body so canvas transform doesn't clip fixed overlay)
+    var savedRect = null;
+    function setFullscreen(open) {
+      if (open && !el.classList.contains('is-fullscreen')) {
+        savedRect = {
+          left: el.style.left,
+          top: el.style.top,
+          width: el.style.width,
+          height: el.style.height
+        };
+        document.body.appendChild(el);
+        el.classList.add('is-fullscreen');
+        el.style.left = '';
+        el.style.top = '';
+        el.style.width = '';
+        el.style.height = '';
+        fullscreenBtn.textContent = '⤡ Back to canvas';
+        fullscreenBtn.classList.add('is-active');
+        outlineEl.hidden = false;
+        outlineBtn.classList.add('is-active');
+        syncStatsAndOutline();
+        editor.focus();
+      } else if (!open && el.classList.contains('is-fullscreen')) {
+        el.classList.remove('is-fullscreen');
+        if (savedRect) {
+          el.style.left = savedRect.left;
+          el.style.top = savedRect.top;
+          el.style.width = savedRect.width;
+          el.style.height = savedRect.height;
+        }
+        world.appendChild(el);
+        fullscreenBtn.textContent = '⤢ Full page';
+        fullscreenBtn.classList.remove('is-active');
+        updateMinimap();
+      }
+    }
+
+    fullscreenBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setFullscreen(!el.classList.contains('is-fullscreen'));
+    });
+
+    // Export as Microsoft Word (.doc)
+    function buildExportHtml() {
+      var safeTitle = (pageTitleEl.textContent || 'Untitled Document').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return (
+        '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+        'xmlns:w="urn:schemas-microsoft-com:office:word" ' +
+        'xmlns="http://www.w3.org/TR/REC-html40">' +
+        '<head><meta charset="utf-8"><title>' + safeTitle + '</title>' +
+        '<style>' +
+        'body{font-family:Calibri,Segoe UI,Arial,sans-serif;color:#111827;line-height:1.65;max-width:760px;margin:32px auto;padding:0 24px;}' +
+        'h1{font-size:26pt;margin:0 0 12px;color:#0f172a;}' +
+        'h2{font-size:16pt;margin:22px 0 8px;color:#1e293b;border-bottom:1px solid #e2e8f0;padding-bottom:4px;}' +
+        'h3{font-size:13pt;margin:16px 0 6px;color:#334155;}' +
+        'table{border-collapse:collapse;width:100%;margin:14px 0;}' +
+        'th,td{border:1px solid #cbd5e1;padding:7px 10px;text-align:left;}' +
+        'th{background:#f1f5f9;font-weight:700;}' +
+        'blockquote{border-left:3px solid #2563eb;margin:12px 0;padding:6px 14px;color:#475569;background:#f8fafc;}' +
+        '.doc-callout{background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 14px;margin:12px 0;}' +
+        'pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:6px;font-family:Consolas,monospace;}' +
+        '</style></head><body>' +
+        '<h1>' + (el.dataset.docIcon || '') + ' ' + safeTitle + '</h1>' +
+        editor.innerHTML +
+        '</body></html>'
+      );
+    }
+
+    ribbon.querySelector('[data-doc-export-word]')?.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var htmlDoc = buildExportHtml();
+      var blob = new Blob(['\ufeff', htmlDoc], { type: 'application/msword' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var slug = ((pageTitleEl.textContent || 'document').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'document');
+      a.href = url;
+      a.download = slug + '.doc';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded ' + slug + '.doc');
+    });
+
+    ribbon.querySelector('[data-doc-print]')?.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var win = window.open('', '_blank', 'width=900,height=720');
+      if (!win) { showToast('Allow popups to print document'); return; }
+      win.document.open();
+      win.document.write(buildExportHtml());
+      win.document.close();
+      setTimeout(function () { win.focus(); win.print(); }, 250);
+    });
+
+    // Respect board read-only / viewer permissions
+    if (currentBoardCaps && !currentBoardCaps.canEdit) {
+      pageTitleEl.contentEditable = 'false';
+      editor.contentEditable = 'false';
+    }
+
+    el._exitFullscreen = function () { setFullscreen(false); };
+    syncStatsAndOutline();
+
+    world.appendChild(el);
+    bindInteractiveElement(el);
+    updateMinimap();
+    syncEmptyBoardStarter();
+    return el;
+  }
+
   function createFrame(x, y, title, w, h, customId) {
     var el = document.createElement('div');
     el.className = 'canvas-frame';
@@ -2208,7 +2784,7 @@
     var boxBottom = boxTop + height;
 
     var hits = [];
-    world.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-frame').forEach(function (item) {
+    world.querySelectorAll('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc, .canvas-frame').forEach(function (item) {
       var r = item.getBoundingClientRect();
       var intersects = !(r.right < boxLeft || r.left > boxRight || r.bottom < boxTop || r.top > boxBottom);
       if (intersects) hits.push(item);
@@ -2386,6 +2962,14 @@
         });
       });
       clone = createTable(x, y, tblCells);
+    } else if (el.classList.contains('canvas-doc')) {
+      clone = createDoc(x, y, {
+        title: el.querySelector('.doc-page__title')?.textContent || 'Untitled Document',
+        icon: el.dataset.docIcon || '📄',
+        status: el.dataset.docStatus || 'Draft',
+        wide: el.dataset.docWide === '1',
+        html: el.querySelector('.doc-editor')?.innerHTML || ''
+      }, el.offsetWidth, el.offsetHeight);
     } else if (el.classList.contains('canvas-frame')) {
       var fTitle = el.querySelector('.canvas-frame__title')?.textContent || 'Copied Frame';
       clone = createFrame(x, y, fTitle, el.offsetWidth, el.offsetHeight);
@@ -2547,7 +3131,7 @@
   }
 
   function fitToScreen() {
-    var items = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table');
+    var items = world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc');
     if (!items.length) return resetZoom();
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     items.forEach(function (el) {
@@ -2593,7 +3177,14 @@
       return loadedStateRef;
     }
     var items = [];
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart').forEach(function (el) {
+    // Include any fullscreen doc currently portaled to document.body alongside world items
+    var nodeList = Array.prototype.slice.call(
+      world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc')
+    );
+    document.querySelectorAll('body > .canvas-doc.is-fullscreen').forEach(function (fsDoc) {
+      if (nodeList.indexOf(fsDoc) === -1) nodeList.push(fsDoc);
+    });
+    nodeList.forEach(function (el) {
       var type = 'sticky';
       if (el.classList.contains('canvas-frame')) type = 'frame';
       else if (el.classList.contains('canvas-shape')) type = 'shape';
@@ -2602,6 +3193,7 @@
       else if (el.classList.contains('canvas-icon')) type = 'icon';
       else if (el.classList.contains('canvas-clipart')) type = 'clipart';
       else if (el.classList.contains('canvas-table')) type = 'table';
+      else if (el.classList.contains('canvas-doc')) type = 'doc';
 
       var text = '';
       if (type === 'frame') text = el.querySelector('.canvas-frame__title')?.textContent || '';
@@ -2609,6 +3201,14 @@
       else if (type === 'shape') text = el.querySelector('.canvas-shape__text')?.innerHTML || '';
       else if (type === 'text') text = el.querySelector('.canvas-text__content')?.innerHTML || '';
       else if (type === 'comment') text = el.querySelector('.canvas-comment__body')?.innerHTML || '';
+
+      var docPayload = type === 'doc' ? {
+        title: el.querySelector('.doc-page__title')?.textContent || 'Untitled Document',
+        icon: el.dataset.docIcon || '📄',
+        status: el.dataset.docStatus || 'Draft',
+        wide: el.dataset.docWide === '1',
+        html: el.querySelector('.doc-editor')?.innerHTML || ''
+      } : undefined;
 
       var votes = Number(el.querySelector('.vote-pill')?.dataset.votes) || 0;
 
@@ -2630,6 +3230,7 @@
               });
             })
           : undefined,
+        doc: docPayload,
         text: text,
         votes: votes
       });
@@ -2654,6 +3255,11 @@
     };
 
     if (currentActiveModule && currentActiveModule !== 'project-planning') {
+      var prevWb = (boardModules[currentActiveModule] && boardModules[currentActiveModule].whiteboardState) ? boardModules[currentActiveModule].whiteboardState : undefined;
+      if (currentActiveModule === 'whiteboard' && window.WhiteboardSuite && window.WhiteboardSuite.isOpen()) {
+        prevWb = window.WhiteboardSuite.getState();
+      }
+      if (prevWb) canvasSnapshot.whiteboardState = prevWb;
       boardModules[currentActiveModule] = canvasSnapshot;
     }
 
@@ -2677,7 +3283,8 @@
     isRestoringHistory = true;
     selectElement(null);
 
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
+    document.querySelectorAll('body > .canvas-doc.is-fullscreen').forEach(function (el) { el.remove(); });
+    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc').forEach(function (el) {
       el.remove();
     });
     if (drawingsGroup) drawingsGroup.innerHTML = '';
@@ -2701,6 +3308,8 @@
         createClipart(item.x, item.y, item.clipartId, item.w, item.id);
       } else if (item.type === 'table') {
         createTable(item.x, item.y, item.cells, item.id);
+      } else if (item.type === 'doc') {
+        createDoc(item.x, item.y, item.doc, item.w, item.h, item.id);
       }
     });
 
@@ -2779,13 +3388,25 @@
     }
   }
 
+  var currentBoardRole = 'owner';
+  var currentBoardCaps = { canView: true, canComment: true, canEdit: true, canManageMembers: true, canDelete: true };
+  var boardDirty = false;
+
   function scheduleSave() {
+    if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+    boardDirty = true;
     setSaveStatus('saving');
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(persistBoardNow, 500);
   }
 
   async function persistBoardNow() {
+    if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    boardDirty = false;
     var payload = {
       title: titleInput ? titleInput.value.trim() : 'New Collaborative Board',
       starred: starBtn ? starBtn.classList.contains('is-starred') : false,
@@ -2802,6 +3423,11 @@
         credentials: 'same-origin',
         body: JSON.stringify(payload)
       });
+      if (res.status === 403) {
+        pollBoardAccess();
+        showToast('Read-only access: your changes were not saved.');
+        return;
+      }
       if (res.status === 409) {
         var conflict = await res.json().catch(function () { return null; });
         if (conflict && conflict.serverBoard) {
@@ -2814,6 +3440,7 @@
         return;
       }
       if (!res.ok) {
+        boardDirty = true;
         setSaveStatus('error');
         return;
       }
@@ -2823,9 +3450,42 @@
       }
       setSaveStatus('saved');
     } catch (e) {
+      boardDirty = true;
       setSaveStatus('error');
     }
   }
+
+  function flushBoardOnUnload() {
+    if (currentBoardCaps && !currentBoardCaps.canEdit) return;
+    if (window.WhiteboardSuite && typeof window.WhiteboardSuite.flush === 'function') {
+      window.WhiteboardSuite.flush();
+    }
+    if (!boardDirty && !saveTimer) return;
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    boardDirty = false;
+    try {
+      var body = JSON.stringify({
+        title: titleInput ? titleInput.value.trim() : 'New Collaborative Board',
+        starred: starBtn ? starBtn.classList.contains('is-starred') : false,
+        state: serializeBoardState()
+      });
+      fetch('/api/boards/' + encodeURIComponent(boardId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        keepalive: true,
+        body: body
+      });
+    } catch (e) {}
+  }
+
+  window.addEventListener('pagehide', flushBoardOnUnload);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') flushBoardOnUnload();
+  });
 
   /* A board may be requested by id (/app/assap/002c5f) or by its pretty slug
      (/app/data-quantals-plan). Try the id first, then fall back to a slug lookup
@@ -3116,6 +3776,26 @@
     });
   }
 
+  function openWhiteboardSuiteForCurrentBoard(boardTitle) {
+    if (!window.WhiteboardSuite) return false;
+    starterDismissedByUser = true;
+    syncEmptyBoardStarter();
+    if (window.ProjectPlanningSuite) window.ProjectPlanningSuite.close();
+    var existingWb = (boardModules.whiteboard && boardModules.whiteboard.whiteboardState) ? boardModules.whiteboard.whiteboardState : null;
+    window.WhiteboardSuite.open(boardId, boardTitle || 'Visual Strategy Workspace', existingWb, {
+      getCaps: function () { return currentBoardCaps; },
+      onToast: function (msg) { showToast(msg); },
+      onSave: function (wbState) {
+        if (!boardModules.whiteboard || typeof boardModules.whiteboard !== 'object') {
+          boardModules.whiteboard = { version: 2, items: [], connectors: [], paths: [] };
+        }
+        boardModules.whiteboard.whiteboardState = wbState;
+        scheduleSave();
+      }
+    });
+    return true;
+  }
+
   function switchWorkspaceModule(targetMod, pushHistoryEntry) {
     var normalized = String(targetMod || DEFAULT_WORKSPACE_MODULE).toLowerCase();
     if (PROJECT_MODULES.indexOf(normalized) === -1) {
@@ -3126,12 +3806,16 @@
     // the canvas actually belongs to the module we are leaving. During a URL
     // override view the canvas is not the board's own content.
     if (currentActiveModule && currentActiveModule !== 'project-planning' && currentActiveModule === savedActiveModule) {
+      var keepWb = (currentActiveModule === 'whiteboard' && window.WhiteboardSuite && window.WhiteboardSuite.isOpen())
+        ? window.WhiteboardSuite.getState()
+        : (boardModules[currentActiveModule] && boardModules[currentActiveModule].whiteboardState);
       boardModules[currentActiveModule] = {
         version: 2,
         items: serializeBoardState().items,
         connectors: JSON.parse(JSON.stringify(connectors)),
         paths: serializeBoardState().paths
       };
+      if (keepWb) boardModules[currentActiveModule].whiteboardState = keepWb;
     }
 
     currentActiveModule = normalized;
@@ -3151,12 +3835,16 @@
     } catch (e) {}
 
     if (currentActiveModule === 'project-planning') {
+      if (window.WhiteboardSuite) window.WhiteboardSuite.close();
       starterDismissedByUser = true;
       syncEmptyBoardStarter();
       if (window.ProjectPlanningSuite) {
         window.ProjectPlanningSuite.open(boardId, currentTitle || 'Project Planning Workspace');
       }
+    } else if (currentActiveModule === 'whiteboard' && openWhiteboardSuiteForCurrentBoard(currentTitle || 'Visual Strategy Workspace')) {
+      // Mounted Whiteboarding Visual Workspace
     } else {
+      if (window.WhiteboardSuite) window.WhiteboardSuite.close();
       if (window.ProjectPlanningSuite) {
         window.ProjectPlanningSuite.close();
       }
@@ -3273,6 +3961,7 @@
           syncUrlToTitle(board.title, currentActiveModule);
 
           if (currentActiveModule === 'project-planning') {
+            if (window.WhiteboardSuite) window.WhiteboardSuite.close();
             starterDismissedByUser = true;
             syncEmptyBoardStarter();
             if (window.ProjectPlanningSuite) {
@@ -3281,6 +3970,11 @@
             return;
           }
 
+          if (currentActiveModule === 'whiteboard' && openWhiteboardSuiteForCurrentBoard(board.title || 'Visual Strategy Workspace')) {
+            return;
+          }
+
+          if (window.WhiteboardSuite) window.WhiteboardSuite.close();
           if (window.ProjectPlanningSuite) {
             window.ProjectPlanningSuite.close();
           }
@@ -3324,12 +4018,18 @@
       syncWorkspaceSwitcherUI(currentActiveModule);
 
       if (currentActiveModule === 'project-planning' && window.ProjectPlanningSuite) {
+        if (window.WhiteboardSuite) window.WhiteboardSuite.close();
         starterDismissedByUser = true;
         syncEmptyBoardStarter();
         window.ProjectPlanningSuite.open(boardId, (titleInput && titleInput.value) || 'Project Planning Workspace');
         return;
       }
 
+      if (currentActiveModule === 'whiteboard' && openWhiteboardSuiteForCurrentBoard((titleInput && titleInput.value) || 'Visual Strategy Workspace')) {
+        return;
+      }
+
+      if (window.WhiteboardSuite) window.WhiteboardSuite.close();
       if (window.ProjectPlanningSuite) {
         window.ProjectPlanningSuite.close();
       }
@@ -3599,7 +4299,7 @@
     if (!minimap || minimap.hidden || !minimapStage) return;
     minimapStage.querySelectorAll('.minimap-dot').forEach(function (d) { d.remove(); });
     var scale = 0.085;
-    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table').forEach(function (el) {
+    world.querySelectorAll('.canvas-frame, .canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc').forEach(function (el) {
       var b = getElementBounds(el);
       var dot = document.createElement('div');
       dot.className = 'minimap-dot';
@@ -3699,6 +4399,252 @@
   setupModal('btn-templates', 'modal-templates', ['modal-templates-close', 'modal-templates-done']);
   setupModal('btn-ai', 'modal-ai', ['modal-ai-close', 'modal-ai-cancel']);
   setupModal('btn-shortcuts', 'modal-shortcuts', ['modal-shortcuts-close', 'modal-shortcuts-done']);
+
+  /* ---------- Board Collaboration: Share Modal, RBAC Locks & Live Presence ---------- */
+  var shareMembersState = { canManage: false, members: [] };
+
+  function escapeCollabHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function applyBoardPermissionState(role, caps) {
+    var prevRole = currentBoardRole;
+    currentBoardRole = role || 'owner';
+    currentBoardCaps = caps || { canView: true, canComment: true, canEdit: true, canManageMembers: true, canDelete: true };
+
+    var appRoot = document.getElementById('quantalflow-app') || document.body;
+    var isViewer = !currentBoardCaps.canEdit && !currentBoardCaps.canComment;
+    var isCommenter = !currentBoardCaps.canEdit && currentBoardCaps.canComment;
+
+    appRoot.classList.toggle('is-readonly', isViewer);
+    appRoot.classList.toggle('is-commenter', isCommenter);
+
+    if (titleInput) titleInput.readOnly = !currentBoardCaps.canEdit;
+    document.querySelectorAll('.canvas-doc .doc-page__title, .canvas-doc .doc-editor').forEach(function (node) {
+      node.contentEditable = currentBoardCaps.canEdit ? 'true' : 'false';
+    });
+    if (window.WhiteboardSuite) {
+      window.WhiteboardSuite.setCapabilities(currentBoardCaps);
+    }
+    var permBadge = document.getElementById('board-perm-badge');
+    if (permBadge) {
+      if (isViewer) {
+        permBadge.textContent = 'View only';
+        permBadge.hidden = false;
+      } else if (isCommenter) {
+        permBadge.textContent = 'Can comment';
+        permBadge.hidden = false;
+      } else {
+        permBadge.hidden = true;
+      }
+    }
+
+    if (prevRole && prevRole !== currentBoardRole) {
+      var labelMap = { owner: 'Owner', admin: 'Admin', editor: 'Can Edit', commenter: 'Can Comment', viewer: 'Can View' };
+      showToast('Your access changed to ' + (labelMap[currentBoardRole] || currentBoardRole));
+    }
+  }
+
+  function renderPresenceAvatars(presenceList) {
+    var mount = document.getElementById('collab-presence');
+    if (!mount) return;
+    var list = Array.isArray(presenceList) ? presenceList : [];
+    if (!list.length) {
+      mount.innerHTML = '';
+      return;
+    }
+    var visible = list.slice(0, 5);
+    var html = visible.map(function (p) {
+      var initial = escapeCollabHtml((p.name || p.email || 'U').charAt(0).toUpperCase());
+      var tip = escapeCollabHtml((p.name || p.email || 'Collaborator') + ' (' + (p.role || 'member') + ')');
+      var inner = p.avatarUrl
+        ? '<img src="' + escapeCollabHtml(p.avatarUrl) + '" alt="" />'
+        : initial;
+      return '<span class="collab-avatar" title="' + tip + '">' + inner + '</span>';
+    }).join('');
+    if (list.length > 5) {
+      html += '<span class="collab-avatar collab-avatar--more">+' + (list.length - 5) + '</span>';
+    }
+    mount.innerHTML = html;
+  }
+
+  function setShareStatus(msg, isError) {
+    var el = document.getElementById('share-invite-status');
+    if (!el) return;
+    if (!msg) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = msg;
+    el.className = 'share-invite-status ' + (isError ? 'is-error' : 'is-success');
+  }
+
+  function renderShareMembers() {
+    var listEl = document.getElementById('share-members-list');
+    var formEl = document.getElementById('share-invite-form');
+    if (!listEl) return;
+    if (formEl) formEl.hidden = !shareMembersState.canManage;
+
+    var members = shareMembersState.members || [];
+    if (!members.length) {
+      listEl.innerHTML = '<div style="font-size:13px; color:var(--ink-soft); padding:8px 0;">Only you have access to this board.</div>';
+      return;
+    }
+    listEl.innerHTML = members.map(function (m) {
+      var initial = escapeCollabHtml((m.name || m.email || 'U').charAt(0).toUpperCase());
+      var av = m.avatarUrl ? '<img src="' + escapeCollabHtml(m.avatarUrl) + '" alt="" />' : initial;
+      var badge = m.status === 'pending'
+        ? '<span class="team-status-pill is-pending">Pending</span>'
+        : '<span class="team-status-pill is-active">Active</span>';
+      var rightHtml = '';
+      if (m.isOwner) {
+        rightHtml = '<span class="team-role-pill">Owner</span>';
+      } else if (shareMembersState.canManage) {
+        rightHtml =
+          '<select class="team-perm-select" data-board-member-perm="' + escapeCollabHtml(m.id) + '" aria-label="Permission for ' + escapeCollabHtml(m.email) + '">' +
+            '<option value="admin"' + (m.permission === 'admin' ? ' selected' : '') + '>Admin</option>' +
+            '<option value="editor"' + (m.permission === 'editor' ? ' selected' : '') + '>Can Edit</option>' +
+            '<option value="commenter"' + (m.permission === 'commenter' ? ' selected' : '') + '>Can Comment</option>' +
+            '<option value="viewer"' + (m.permission === 'viewer' ? ' selected' : '') + '>Can View</option>' +
+          '</select>' +
+          '<button class="team-remove-btn" data-board-member-remove="' + escapeCollabHtml(m.id) + '" type="button" aria-label="Remove ' + escapeCollabHtml(m.email) + '">&times;</button>';
+      } else {
+        rightHtml = '<span class="team-role-pill">' + escapeCollabHtml(m.permissionLabel || m.permission) + '</span>';
+      }
+      return '<div class="share-member-row">' +
+        '<div class="team-member-info">' +
+          '<span class="team-member-avatar" aria-hidden="true">' + av + '</span>' +
+          '<div class="team-member-text">' +
+            '<div class="team-member-name">' + escapeCollabHtml(m.name || m.email) + ' ' + badge + '</div>' +
+            '<div class="team-member-email">' + escapeCollabHtml(m.email) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="team-member-controls">' + rightHtml + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  async function loadShareMembers() {
+    if (!boardId) return;
+    try {
+      var res = await fetch('/api/boards/' + encodeURIComponent(boardId) + '/members', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      var data = await res.json();
+      shareMembersState = { canManage: Boolean(data.canManage), members: data.members || [] };
+      applyBoardPermissionState(data.permission, data.capabilities);
+      renderPresenceAvatars(data.presence);
+      renderShareMembers();
+    } catch (e) {}
+  }
+
+  async function pollBoardAccess() {
+    if (!boardId) return;
+    try {
+      var res = await fetch('/api/boards/' + encodeURIComponent(boardId) + '/access', { credentials: 'same-origin' });
+      if (res.status === 403) {
+        var errData = await res.json().catch(function () { return {}; });
+        if (errData && errData.revoked) {
+          alert('Your access to this board was removed by the Owner.');
+          window.location.replace('/dashboard/');
+        }
+        return;
+      }
+      if (!res.ok) return;
+      var data = await res.json();
+      if (data && data.permission) {
+        applyBoardPermissionState(data.permission, data.capabilities);
+      }
+      if (data && data.presence) {
+        renderPresenceAvatars(data.presence);
+      }
+    } catch (e) {}
+  }
+
+  document.getElementById('btn-share')?.addEventListener('click', function () {
+    setShareStatus('', false);
+    loadShareMembers();
+  });
+
+  document.getElementById('share-invite-form')?.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!boardId) return;
+    var emailInput = document.getElementById('share-email-input');
+    var permSelect = document.getElementById('share-permission-select');
+    var inviteBtn = document.getElementById('btn-share-invite');
+    if (!emailInput || !permSelect) return;
+    var emails = emailInput.value.trim();
+    if (!emails) return;
+
+    if (inviteBtn) { inviteBtn.disabled = true; inviteBtn.textContent = 'Inviting\u2026'; }
+    setShareStatus('', false);
+    try {
+      var res = await fetch('/api/boards/' + encodeURIComponent(boardId) + '/invitations', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: emails, permission: permSelect.value || 'editor' })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || 'Could not invite collaborator.');
+      shareMembersState = { canManage: Boolean(data.canManage), members: data.members || [] };
+      renderShareMembers();
+      emailInput.value = '';
+      var summary = (data.invited || []).filter(function (x) { return !x.skipped; }).map(function (x) {
+        return x.email + ' (' + (x.status === 'active' ? 'Active' : 'Pending signup') + ')';
+      }).join(', ');
+      setShareStatus(summary ? 'Added: ' + summary : 'Permissions updated.', false);
+    } catch (err) {
+      setShareStatus(err.message || 'Invite failed.', true);
+    } finally {
+      if (inviteBtn) { inviteBtn.disabled = false; inviteBtn.textContent = 'Invite'; }
+    }
+  });
+
+  document.getElementById('share-members-list')?.addEventListener('change', async function (e) {
+    var sel = e.target.closest('[data-board-member-perm]');
+    if (!sel || !boardId) return;
+    var memberId = sel.getAttribute('data-board-member-perm');
+    try {
+      var res = await fetch('/api/boards/' + encodeURIComponent(boardId) + '/members/' + encodeURIComponent(memberId), {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permission: sel.value })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || 'Failed to update permission.');
+      shareMembersState = { canManage: Boolean(data.canManage), members: data.members || [] };
+      renderShareMembers();
+      setShareStatus('Permission updated in real time.', false);
+    } catch (err) {
+      setShareStatus(err.message, true);
+      loadShareMembers();
+    }
+  });
+
+  document.getElementById('share-members-list')?.addEventListener('click', async function (e) {
+    var btn = e.target.closest('[data-board-member-remove]');
+    if (!btn || !boardId) return;
+    var memberId = btn.getAttribute('data-board-member-remove');
+    try {
+      var res = await fetch('/api/boards/' + encodeURIComponent(boardId) + '/members/' + encodeURIComponent(memberId), {
+        method: 'DELETE',
+        credentials: 'same-origin'
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || 'Failed to remove collaborator.');
+      shareMembersState = { canManage: Boolean(data.canManage), members: data.members || [] };
+      renderShareMembers();
+      setShareStatus('Collaborator removed.', false);
+    } catch (err) {
+      setShareStatus(err.message, true);
+    }
+  });
+
+  setTimeout(pollBoardAccess, 1200);
+  setInterval(function () {
+    if (document.visibilityState === 'visible') pollBoardAccess();
+  }, 8000);
+  window.addEventListener('focus', pollBoardAccess);
 
   var btnAddWs = document.getElementById('btn-add-workspace');
   var modalAddWs = document.getElementById('modal-add-workspace');
@@ -4110,16 +5056,13 @@
       createSticky(sx + 445, sy + 305, 'Revisit later…', 'pink');
       createText(sx + 450, sy + 545, '<strong>EFFORT &rarr;</strong>');
     } else if (type === 'doc') {
-      // Doc: long-form document panel with headings and paragraph slots
-      createFrame(sx - 50, sy - 55, 'Document', 780, 560);
-      var docTitle = createText(sx + 25, sy + 15, '<strong>Document Title</strong>');
-      if (docTitle) docTitle.style.fontSize = '22px';
-      createText(sx + 25, sy + 90, 'Write the opening summary here. Click to edit…');
-      createText(sx + 25, sy + 180, '<strong>Section 1</strong>');
-      createText(sx + 25, sy + 240, 'Supporting detail, decisions, and links to stickies or frames…');
-      createText(sx + 25, sy + 335, '<strong>Section 2</strong>');
-      createText(sx + 25, sy + 395, 'Supporting detail, owners, and next steps…');
-      focusNode = docTitle;
+      // Doc: real Word / Confluence-style rich document editor on the canvas
+      var docEl = createDoc(sx - 40, sy - 40, {
+        title: 'Untitled Document',
+        icon: '📄',
+        status: 'Draft'
+      }, 820, 680);
+      focusNode = docEl;
     } else if (type === 'slides') {
       // Slides: two 16:9 deck frames ready to present
       createFrame(sx - 50, sy - 40, 'Slide 1 · Title &amp; Hook', 500, 300);
@@ -4221,6 +5164,9 @@
     var isEditingText = tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable;
 
     if (e.key === 'Escape') {
+      document.querySelectorAll('body > .canvas-doc.is-fullscreen').forEach(function (fsDoc) {
+        if (typeof fsDoc._exitFullscreen === 'function') fsDoc._exitFullscreen();
+      });
       closeAllModals();
       toggleMoreTools(false);
       selectElement(null);
@@ -4235,7 +5181,7 @@
 
     if (isEditingText) return;
 
-    if (e.key === 'Tab' && selectedEl && !selectedEl.classList.contains('canvas-frame')) {
+    if (e.key === 'Tab' && selectedEl && !selectedEl.classList.contains('canvas-frame') && !selectedEl.classList.contains('canvas-doc')) {
       e.preventDefault();
       addChildBranch(selectedEl);
       return;

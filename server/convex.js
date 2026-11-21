@@ -352,6 +352,41 @@ export function deleteProjectPlanFromConvex(boardId, userId) {
  * Files, Folders, Custom Ordering & Preferences
  * ------------------------------------------------------------------ */
 
+export async function fetchFoldersFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  return await convexQuery('userFiles:listFolders', { userId: String(userId) });
+}
+
+export async function fetchFilesFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  return await convexQuery('userFiles:listFiles', { userId: String(userId) });
+}
+
+export async function fetchFileOrderFromConvex(userId, folderId = 'root') {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('userFiles:getFileOrder', {
+    userId: String(userId),
+    folderId: String(folderId || 'root')
+  });
+  if (!doc || !doc.orderJson) return null;
+  try {
+    const parsed = JSON.parse(doc.orderJson);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPreferencesFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('userFiles:getPreferences', { userId: String(userId) });
+  if (!doc) return null;
+  return {
+    filesViewMode: doc.filesViewMode === 'list' ? 'list' : 'grid',
+    filesSortBy: doc.filesSortBy || 'date-desc'
+  };
+}
+
 export function syncFolderToConvex(folder, userId) {
   if (!folder || !userId || config.isTest) return Promise.resolve(null);
   return convexMutation('userFiles:upsertFolder', {

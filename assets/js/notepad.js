@@ -378,7 +378,8 @@
     }, 600);
   }
 
-  function flushSave() {
+  function flushSave(opts) {
+    var keepalive = Boolean(opts && opts.keepalive);
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;
@@ -387,19 +388,24 @@
     if (cloudSyncTimer) {
       clearTimeout(cloudSyncTimer);
       cloudSyncTimer = null;
-      syncToCloud();
+      syncToCloud({ keepalive: keepalive });
+    } else if (keepalive && localDirty) {
+      syncToCloud({ keepalive: true });
     }
   }
 
-  function syncToCloud() {
+  function syncToCloud(opts) {
     if (!window.ConvexNotes || typeof window.ConvexNotes.save !== 'function') return;
     if (window.ConvexNotes.isAvailable && !window.ConvexNotes.isAvailable()) return;
     return window.ConvexNotes
-      .save(notes)
-      .then(() => updateSaveStatus('Synced to Convex', 'synced'))
+      .save(notes, opts)
+      .then(() => {
+        localDirty = false;
+        updateSaveStatus('Synced to cloud', 'synced');
+      })
       .catch((err) => {
         console.warn('[Note Pad] Cloud sync failed:', err.message);
-        showAlert('Could not sync to Convex. Your note is kept on this device.', 'error');
+        showAlert('Could not sync. Your note is kept on this device.', 'error');
       });
   }
 
@@ -410,7 +416,11 @@
     cloudSyncTimer = setTimeout(() => {
       cloudSyncTimer = null;
       syncToCloud();
-    }, 2500);
+    }, 800);
+  }
+
+  function hasNonEmptyLocalNotes() {
+    return notes.some((n) => n && ((n.title && n.title.trim()) || (n.text && n.text.trim()) || n.ink));
   }
 
   async function loadFromCloud() {
@@ -422,12 +432,12 @@
       const remote = await window.ConvexNotes.load();
       if (remote === null) return; // Convex unreachable; keep the local cache
       cloudLoaded = true;
-      if (remote.length === 0 && notes.length > 0) {
+      if (remote.length === 0 && hasNonEmptyLocalNotes()) {
         // Server has no notes yet: push the local cache up instead of wiping it.
         syncToCloud();
         return;
       }
-      if (!localDirty) {
+      if (!localDirty && remote.length > 0) {
         notes = remote;
         if (!activeNoteId || !notes.some((n) => n.id === activeNoteId)) {
           activeNoteId = notes.length ? notes[0].id : null;
@@ -810,9 +820,10 @@
     }
 
     // Persist pending edits even if the user never lets the debounce fire.
-    window.addEventListener('beforeunload', flushSave);
+    window.addEventListener('pagehide', () => flushSave({ keepalive: true }));
+    window.addEventListener('beforeunload', () => flushSave({ keepalive: true }));
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') flushSave();
+      if (document.visibilityState === 'hidden') flushSave({ keepalive: true });
     });
   }
 

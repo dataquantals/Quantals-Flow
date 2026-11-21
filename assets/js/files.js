@@ -91,14 +91,16 @@
     list.forEach(function (f) {
       const card = document.createElement('div');
       card.className = 'file-card';
-      const imgHtml = isImage(f.mime, f.name)
+      const mime = f.mimeType || f.mime || '';
+      const createdAt = f.createdAt || f.created_at || Date.now();
+      const imgHtml = isImage(mime, f.name)
         ? '<img class="file-card__thumb" src="' + f.url + '" alt="" loading="lazy" />'
-        : '<div class="file-card__icon">' + fileIcon(f.mime, f.name) + '</div>';
+        : '<div class="file-card__icon">' + fileIcon(mime, f.name) + '</div>';
       card.innerHTML =
         imgHtml +
         '<div class="file-card__body">' +
           '<div class="file-card__name" title="' + (f.name || '') + '">' + (f.name || 'Untitled') + '</div>' +
-          '<div class="file-card__meta">' + humanSize(f.size) + ' · ' + formatDate(f.created_at) + '</div>' +
+          '<div class="file-card__meta">' + humanSize(f.size) + ' · ' + formatDate(createdAt) + '</div>' +
         '</div>' +
         '<div class="file-card__actions">' +
           '<a class="file-card__btn" href="' + f.url + '" target="_blank" rel="noopener" title="Open">Open</a>' +
