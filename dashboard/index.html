@@ -2,23 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Dashboard | QuantalFlow</title>
   <meta name="description" content="Your QuantalFlow workspace hub. Create, search, and collaborate on intelligent boards." />
   <meta name="robots" content="noindex" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/css/styles.css?v=f37597e7" />
-  <link rel="stylesheet" href="/assets/css/pages.css?v=a500bd00" />
-  <link rel="stylesheet" href="/assets/css/folder.css" />
-  <link rel="stylesheet" href="/assets/css/project-planning.css?v=d3b3fc76" />
-  <link rel="stylesheet" href="/assets/css/whiteboard-suite.css" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=98259fce" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=05ba3441" />
+  <link rel="stylesheet" href="/assets/css/folder.css?v=57a2c866" />
+  <link rel="stylesheet" href="/assets/css/project-planning.css?v=18e59eab" />
+  <link rel="stylesheet" href="/assets/css/project-os.css?v=d070eb29" />
+  <link rel="stylesheet" href="/assets/css/whiteboard-suite.css?v=b695c494" />
   <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
   <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
   <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
-  <script src="/assets/js/save-state.js?v=94cf0ad9"></script>
+  <script src="/assets/js/save-state.js?v=d063b18d"></script>
 </head>
 <body class="dash-body">
 
@@ -65,6 +66,11 @@
           <span>Note Pad</span>
         </a>
 
+        <a class="dash-nav__item" id="nav-knowledge" href="/dashboard/knowledge/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M12 18v-5"/></svg>
+          <span>Knowledge Hub</span>
+        </a>
+
         <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
 
         <a class="dash-nav__item" id="nav-whiteboard" data-create-framework="whiteboard" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
@@ -101,6 +107,11 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           <span>Templates</span>
                   </a>
+
+        <a class="dash-nav__item" id="nav-documents" href="/dashboard/documents/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <span>Document Generation</span>
+        </a>
 
         <div class="dash-sidebar__section-label">Other Services</div>
 
@@ -418,23 +429,23 @@
 
   <!-- Starter Frameworks & Project Details Modal -->
   <div class="quantalflow-modal-backdrop" id="modal-create-board" hidden style="display: none;">
-    <div class="quantalflow-modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-heading" aria-describedby="modal-create-subtitle" style="max-width: 760px;">
+    <div class="quantalflow-modal" role="dialog" aria-modal="true" aria-labelledby="modal-create-heading" aria-describedby="modal-create-subtitle">
       <button class="quantalflow-modal__close" id="modal-create-close" type="button" aria-label="Close modal">&times;</button>
-      <div class="modal-service-header" id="modal-service-header">
-        <span class="modal-service-pill" id="modal-service-pill">Project Planning &bull; WBS</span>
-      </div>
-      <h3 id="modal-create-heading">Create New Project Workspace</h3>
-      <p id="modal-create-subtitle">Enter your project details and pick a suggested template for this service to get started.</p>
+      <h3 id="modal-create-heading">New workspace</h3>
+      <p id="modal-create-subtitle">Pick a type and a starting point. You can change both later.</p>
 
-      <div class="create-board-service-tabs" id="create-board-frameworks" role="radiogroup" aria-label="Workspace service"></div>
+      <div class="create-board-field-group">
+        <span class="create-board-section-label">Type</span>
+        <div class="create-board-service-tabs" id="create-board-frameworks" role="radiogroup" aria-label="Workspace type"></div>
+      </div>
 
       <div class="create-board-details-row">
         <div class="create-board-name">
-          <label for="new-board-title" id="new-board-title-label">Project name</label>
-          <input type="text" id="new-board-title" value="New Collaborative Board" placeholder="e.g. Q4 Product Launch" autocomplete="off" />
+          <label for="new-board-title" id="new-board-title-label">Name</label>
+          <input type="text" id="new-board-title" value="Visual Strategy Workspace" placeholder="e.g. Q4 Product Launch" autocomplete="off" />
         </div>
         <div class="create-board-name">
-          <label for="new-board-category">Team Space</label>
+          <label for="new-board-category">Team space</label>
           <select id="new-board-category">
             <option value="Strategy &amp; Planning">Strategy &amp; Planning</option>
             <option value="AI &amp; Product Strategy">AI &amp; Product Strategy</option>
@@ -445,34 +456,31 @@
       </div>
 
       <div class="create-board-name">
-        <label for="new-board-description" id="new-board-desc-label">Project description / goal</label>
-        <input type="text" id="new-board-description" placeholder="Optional brief description or project goal…" autocomplete="off" />
+        <label for="new-board-description" id="new-board-desc-label">Goal <span class="create-board-optional">(optional)</span></label>
+        <input type="text" id="new-board-description" placeholder="What should your team decide or produce here?" autocomplete="off" />
       </div>
 
       <div class="create-board-templates-section">
         <div class="create-board-templates-header">
-          <span class="create-board-templates-title" id="modal-templates-heading">Suggested Templates</span>
-          <span class="create-board-templates-hint" id="modal-templates-hint">Choose a starter structure tailored to this service</span>
+          <span class="create-board-templates-title" id="modal-templates-heading">Start from</span>
         </div>
-        <div class="template-modal-grid" id="create-board-templates" role="radiogroup" aria-label="Suggested service templates"></div>
+        <div class="template-modal-grid" id="create-board-templates" role="radiogroup" aria-label="Starting point"></div>
       </div>
 
       <div class="create-board-footer">
-        <span class="create-board-space" id="create-board-space">Strategy &amp; Planning</span>
-        <div style="display:flex; gap:10px;">
-          <button class="btn btn--ghost" id="modal-create-cancel" type="button">Cancel</button>
-          <button class="btn btn--blue" id="modal-create-submit" type="button">Create Project &rarr;</button>
-        </div>
+        <span class="create-board-space" id="create-board-space" hidden>Strategy &amp; Planning</span>
+        <button class="btn btn--ghost create-board-cancel-btn" id="modal-create-cancel" type="button">Cancel</button>
+        <button class="btn btn--blue create-board-submit-btn" id="modal-create-submit" type="button">Create workspace</button>
       </div>
     </div>
   </div>
 
-<script src="/assets/js/workspace-nav.js"></script>
-  <script src="/assets/js/workspace-router.js"></script>
+<script src="/assets/js/workspace-nav.js?v=26169050"></script>
+  <script src="/assets/js/workspace-router.js?v=8af64ec7"></script>
   <script src="/assets/js/workspace-frameworks.js?v=1a2e2a33"></script>
-  <script src="/assets/js/folder.js"></script>
-  <script src="/assets/js/new-folder.js"></script>
-  <script src="/assets/js/dashboard-files.js"></script>
-  <script src="/assets/js/dashboard.js?v=badf449a"></script>
+  <script src="/assets/js/folder.js?v=5365b162"></script>
+  <script src="/assets/js/new-folder.js?v=324e2807"></script>
+  <script src="/assets/js/dashboard-files.js?v=90e083da"></script>
+  <script src="/assets/js/dashboard.js?v=5f92c225"></script>
 </body>
 </html>

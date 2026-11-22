@@ -338,9 +338,8 @@
       var selected = f.id === selectedFrameworkId;
       return '<button class="service-tab-chip' + (selected ? ' is-selected' : '') + '"' +
         ' data-framework="' + f.id + '" type="button" role="radio" aria-checked="' + (selected ? 'true' : 'false') + '">' +
-        '<span class="service-tab-chip__icon" style="background:' + f.tint + '; color:' + f.ink + ';" aria-hidden="true">' + f.icon + '</span>' +
+        '<span class="service-tab-chip__icon" aria-hidden="true">' + f.icon + '</span>' +
         '<span class="service-tab-chip__label">' + escapeHtml(f.label) + '</span>' +
-        (f.badge ? '<span class="service-tab-chip__badge" style="background:' + (f.badgeBg || f.tint) + '; color:' + (f.badgeColor || f.ink) + ';">' + escapeHtml(f.badge) + '</span>' : '') +
       '</button>';
     }).join('');
   }
@@ -348,7 +347,7 @@
   function renderSuggestedTemplates() {
     if (!templatesGrid) return;
     var f = selectedFramework();
-    var list = (f && Array.isArray(f.templates)) ? f.templates : [];
+    var list = (f && Array.isArray(f.templates)) ? f.templates.slice(0, 3) : [];
     if (!list.length) {
       templatesGrid.innerHTML = '';
       return;
@@ -358,45 +357,45 @@
     templatesGrid.innerHTML = list.map(function (tpl) {
       var selected = tpl.id === activeId;
       var previewHtml = tpl.previewSvg ||
-        '<div style="width:100%;height:100%;display:grid;place-items:center;background:' + (f.tint || '#eef2ff') + ';color:' + (f.ink || '#4262ff') + ';">' + (f.icon || '') + '</div>';
+        '<div style="width:100%;height:100%;display:grid;place-items:center;background:#f3f4f6;color:#2563eb;">' + (f.icon || '') + '</div>';
 
       return '<button class="template-pick-card template-pick-card--visual' + (selected ? ' is-selected' : '') + '"' +
         ' data-suggested-template="' + escapeHtml(tpl.id) + '" type="button" role="radio" aria-checked="' + (selected ? 'true' : 'false') + '" aria-label="' + escapeHtml(tpl.label) + '" title="' + escapeHtml(tpl.label) + '">' +
-        '<div class="template-pick-card__preview">' + previewHtml + '</div>' +
+        '<div class="template-pick-card__preview">' +
+          previewHtml +
+          '<span class="template-pick-card__check" aria-hidden="true"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5 6.5 11.5 12.5 5"/></svg></span>' +
+        '</div>' +
+        '<span class="template-pick-card__label">' + escapeHtml(tpl.label) + '</span>' +
       '</button>';
     }).join('');
   }
 
   function updateModalCopyForService(f) {
     if (!f) return;
-    if (modalServicePillEl) {
-      modalServicePillEl.textContent = f.label + (f.badge ? ' \u2022 ' + f.badge : '');
-      modalServicePillEl.style.background = f.badgeBg || f.tint || '#eef2ff';
-      modalServicePillEl.style.color = f.badgeColor || f.ink || '#4262ff';
-    }
+    var shortName = String(f.label || 'workspace').toLowerCase();
     if (modalHeadingEl) {
-      modalHeadingEl.textContent = f.heading || ('Create ' + f.label + ' Workspace');
+      modalHeadingEl.textContent = 'New ' + shortName;
     }
     if (modalSubtitleEl) {
-      modalSubtitleEl.textContent = f.subtitle || ('Enter your ' + f.label + ' details and choose a suggested template to get started.');
+      modalSubtitleEl.textContent = 'Pick a type and a starting point. You can change both later.';
     }
     if (newBoardTitleLabelEl) {
-      newBoardTitleLabelEl.textContent = f.label + ' project name';
+      newBoardTitleLabelEl.textContent = 'Name';
     }
     if (newBoardTitleInput && f.namePlaceholder) {
       newBoardTitleInput.placeholder = f.namePlaceholder;
     }
     if (newBoardDescLabelEl) {
-      newBoardDescLabelEl.textContent = f.label + ' description / goal';
+      newBoardDescLabelEl.innerHTML = 'Goal <span class="create-board-optional">(optional)</span>';
     }
-    if (newBoardDescInput && f.descPlaceholder) {
-      newBoardDescInput.placeholder = f.descPlaceholder;
+    if (newBoardDescInput) {
+      newBoardDescInput.placeholder = 'What should your team decide or produce here?';
     }
     if (modalTemplatesHeadingEl) {
-      modalTemplatesHeadingEl.textContent = 'Suggested ' + f.label + ' Templates';
+      modalTemplatesHeadingEl.textContent = 'Start from';
     }
     if (modalSubmitBtnEl) {
-      modalSubmitBtnEl.textContent = f.submitLabel || ('Create ' + f.label + ' \u2192');
+      modalSubmitBtnEl.textContent = 'Create ' + shortName;
     }
   }
 

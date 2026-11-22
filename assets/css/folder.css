@@ -1908,3 +1908,71 @@
   .files-toolbar-actions { width: 100%; }
   .files-pick-btn { width: 100%; }
 }
+
+
+/* ==========================================================================
+   Files Page Standalone Layout, 100dvh, Pointer Safety & Touch Targets
+   ========================================================================== */
+.files-body { min-height: 100vh; min-height: 100dvh; background: var(--bg-soft, #f7f8fb); }
+.files-layout {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: calc(100vh - 64px);
+  min-height: calc(100dvh - 64px);
+}
+.files-main {
+  padding: clamp(18px, 3vw, 32px);
+  min-width: 0;
+  max-width: 100%;
+}
+.files-hero { margin-bottom: 20px; }
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 16px;
+}
+.files-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--ink-soft);
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+}
+
+/* Closed 3D folder sheets must never intercept taps while hidden */
+.f3d:not(.is-open) .f3d-sheet { pointer-events: none; }
+
+/* 100dvh modal fallbacks */
+.modal-card { max-height: 90vh; max-height: 90dvh; }
+#file-reader-modal .file-reader-card { height: min(90vh, 940px); height: min(90dvh, 940px); }
+.file-reader-pdf-frame { min-height: 72vh; min-height: 72dvh; }
+.modal-header { gap: 10px; }
+.modal-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 960px) {
+  .files-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .files-newfolder { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
+  .files-sort-select,
+  .files-newfolder-btn,
+  .files-refresh-btn,
+  .files-row-btn,
+  .modal-close-btn,
+  .segmented-btn,
+  .files-crumb,
+  .files-folder-open,
+  .files-folder-tool,
+  .apple-context-item,
+  .apple-menu-item,
+  .files-newfolder-cancel,
+  .files-newfolder-create {
+    min-height: 44px;
+  }
+  .modal-close-btn, .files-newfolder-clear, .files-folder-tool { min-width: 44px; }
+  .files-sort-select, .files-newfolder input { font-size: 16px; }
+}
+@media (max-width: 560px) {
+  .files-folders-grid, .f3d-grid { justify-items: center; }
+}

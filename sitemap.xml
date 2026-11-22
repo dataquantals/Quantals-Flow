@@ -2,6 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://quantalflow.com/app/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/dashboard/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://quantalflow.com/documents/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/enterprise/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/enterprise/contact/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/enterprise/guard/</loc><changefreq>weekly</changefreq></url>
@@ -11,6 +12,7 @@
   <url><loc>https://quantalflow.com/get-started/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/invoice/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://quantalflow.com/knowledge/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/login/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/notepad/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://quantalflow.com/pricing/</loc><changefreq>weekly</changefreq></url>

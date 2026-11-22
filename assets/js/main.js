@@ -65,11 +65,13 @@
     };
 
     if (canHover) {
-      item.addEventListener('mouseenter', function () {
+      item.addEventListener('pointerenter', function (e) {
+        if (e.pointerType === 'touch') return;
         open();
         item._hoverOpened = true;
       });
-      item.addEventListener('mouseleave', function () {
+      item.addEventListener('pointerleave', function (e) {
+        if (e.pointerType === 'touch') return;
         close();
         item._hoverOpened = false;
       });

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * Static site builder.
  *
@@ -43,22 +43,37 @@ const SITE = 'https://quantalflow.com';
 const ASSETS = [
   '/assets/css/styles.css',
   '/assets/css/pages.css',
+  '/assets/css/folder.css',
+  '/assets/css/notepad.css',
   '/assets/css/project-planning.css',
+  '/assets/css/project-os.css',
+  '/assets/css/whiteboard-suite.css',
   '/assets/css/quotation.css',
   '/assets/js/save-state.js',
   '/assets/js/main.js',
+  '/assets/js/tool-pages.js',
   '/assets/js/login.js',
   '/assets/js/dashboard.js',
+  '/assets/js/dashboard-files.js',
+  '/assets/js/folder.js',
+  '/assets/js/new-folder.js',
+  '/assets/js/workspace-nav.js',
+  '/assets/js/workspace-router.js',
   '/assets/js/workspace-frameworks.js',
   '/assets/js/canvas-icons.js',
   '/assets/js/canvas-clipart.js',
+  '/assets/js/whiteboard-suite.js',
   '/assets/js/app.js',
   '/assets/js/wbs-tree-diagram.js',
+  '/assets/js/project-os-views.js',
   '/assets/js/project-planning.js',
   '/assets/js/profile.js',
   '/assets/js/files.js',
   '/assets/js/html2pdf.bundle.min.js',
   '/assets/js/quotation.js',
+  '/assets/js/invoice.js',
+  '/assets/js/notepad.js',
+  '/assets/js/notepad-page.js',
   '/assets/js/dash-shell.js',
   '/assets/img/logo.png',
   '/assets/img/quotation-logo.jpg',
@@ -134,7 +149,8 @@ function render(page) {
     .replace(/\{\{TITLE\}\}/g, meta.title || 'QuantalFlow')
     .replace(/\{\{DESCRIPTION\}\}/g, meta.description || '')
     .replace(/\{\{CANONICAL\}\}/g, SITE + route)
-    .replace(/\{\{BODY_CLASS\}\}/g, meta.body_class || '');
+    .replace(/\{\{BODY_CLASS\}\}/g, meta.body_class || '')
+    .replace(/\{\{VIEWPORT\}\}/g, meta.viewport || 'width=device-width, initial-scale=1.0, viewport-fit=cover');
 
     html = versionAssets(html);
 

@@ -672,3 +672,33 @@
     transition: none;
   }
 }
+
+
+/* ==========================================================================
+   Notepad Mobile Touch Targets & Fluid Wrapping
+   ========================================================================== */
+.notepad-tool-group,
+.notepad-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 768px) {
+  .notepad-mode-btn,
+  .notepad-tool-btn,
+  .notepad-main .btn-ghost,
+  .notepad-main .btn-primary {
+    min-height: 44px;
+  }
+  .notepad-color-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .notepad-main input,
+  .notepad-main textarea,
+  .notepad-main select {
+    font-size: 16px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .notepad-canvas-wrap { max-height: 62dvh; }
+}

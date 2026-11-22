@@ -336,3 +336,53 @@
   .quote-table tr.is-blank { display: none; }
   .quote-table select { appearance: none; -webkit-appearance: none; }
 }
+
+
+/* ==========================================================================
+   Quotation & Invoice Mobile Touch & Fluidity Hardening
+   ========================================================================== */
+.quote-brand { flex: 1 1 min(100%, 340px); flex-wrap: wrap; }
+.quote-dialog-card {
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+@media (hover: none) {
+  .quote-logo-btn { border-color: rgba(66, 98, 255, 0.35); }
+  .quote-logo-overlay {
+    opacity: 1;
+    top: auto;
+    height: 22px;
+    flex-direction: row;
+    font-size: 10px;
+    background: rgba(15, 23, 42, 0.72);
+  }
+}
+@media (max-width: 768px) {
+  .quote-sheet input,
+  .quote-sheet select,
+  .quote-sheet textarea,
+  .quote-dialog-input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .quote-rm {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  .quote-actions .btn,
+  .quote-dialog-actions .btn {
+    min-height: 44px;
+  }
+  .quote-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+@media (max-width: 480px) {
+  .quote-brand { flex-direction: column; align-items: stretch; }
+  .quote-strip { grid-template-columns: 1fr; }
+  .quote-strip > div { border-right: 0; }
+  .quote-tot { grid-template-columns: auto 1fr; }
+  .quote-tot .v { min-width: 0; }
+}

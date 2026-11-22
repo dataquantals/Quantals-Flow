@@ -65,7 +65,7 @@ for (const dir of ASSET_DIRS.concat(routeDirs())) {
 
 /* Materialise hierarchical /dashboard/<child>/ static pages so static hosts
    (Vercel, Netlify, etc.) serve them directly without rewrite ambiguity. */
-for (const child of ['notepad', 'quotation', 'invoice']) {
+for (const child of ['notepad', 'quotation', 'invoice', 'knowledge', 'documents']) {
   const srcHtml = path.join(outDir, child, 'index.html');
   if (fs.existsSync(srcHtml)) {
     const destDir = path.join(outDir, 'dashboard', child);

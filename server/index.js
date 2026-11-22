@@ -31,7 +31,10 @@ const DASHBOARD_NESTED_ROUTE_RE = /^\/dashboard\/(?:starred|recent|files|team|sp
 const DASHBOARD_CHILD_PAGES = {
   notepad: path.join(config.root, 'notepad', 'index.html'),
   quotation: path.join(config.root, 'quotation', 'index.html'),
-  invoice: path.join(config.root, 'invoice', 'index.html')
+  invoice: path.join(config.root, 'invoice', 'index.html'),
+  knowledge: path.join(config.root, 'knowledge', 'index.html'),
+  documents: path.join(config.root, 'documents', 'index.html'),
+  os: path.join(config.root, 'documents', 'index.html')
 };
 
 // Sweep expired sessions hourly so the table does not grow without bound.
@@ -205,6 +208,10 @@ export async function handleApi(req, res) {
   if (pathname === '/api/invoice/logo' && req.method === 'POST') return api.uploadInvoiceLogoApi(req, res);
   if (pathname === '/api/notepad' && req.method === 'GET') return api.getNotepadApi(req, res);
   if (pathname === '/api/notepad' && req.method === 'PUT') return api.saveNotepadApi(req, res);
+  if (pathname === '/api/knowledge' && req.method === 'GET') return api.getKnowledgeHubApi(req, res);
+  if (pathname === '/api/knowledge' && req.method === 'PUT') return api.saveKnowledgeHubApi(req, res);
+  if (pathname === '/api/os' && req.method === 'GET') return api.getOsWorkspaceApi(req, res);
+  if (pathname === '/api/os' && req.method === 'PUT') return api.saveOsWorkspaceApi(req, res);
   if (pathname === '/api/preferences' && req.method === 'GET') return api.getPreferencesApi(req, res);
   if (pathname === '/api/preferences' && (req.method === 'PATCH' || req.method === 'PUT')) {
     return api.savePreferencesApi(req, res);
@@ -238,7 +245,7 @@ export async function handleApi(req, res) {
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
 // session, so gate it here rather than letting the page flash and bounce.
-const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad'];
+const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad', '/knowledge', '/documents', '/os'];
 
 function isProtected(pathname) {
   return protectedRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -310,8 +317,8 @@ const server = http.createServer(async (req, res) => {
       if (isNavigation && APP_NESTED_ROUTE_RE.test(pathname) && fs.existsSync(appShellPage)) {
         return sendFile(res, appShellPage);
       }
-      // Dedicated child modules under /dashboard/<module>/ (notepad, quotation, invoice)
-      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice)(\/)?$/);
+      // Dedicated child modules under /dashboard/<module>/ (notepad, quotation, invoice, knowledge, documents, os)
+      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice|knowledge|documents|os)(\/)?$/);
       if (dashChildMatch) {
         const childKey = dashChildMatch[1];
         const childFile = DASHBOARD_CHILD_PAGES[childKey];

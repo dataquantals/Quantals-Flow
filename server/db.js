@@ -1627,6 +1627,203 @@ export async function saveUserNotepad(userId, notes) {
 }
 
 /* ==========================================================================
+   Knowledge Management Hub (Organisational Brain) Persistence & Ecosystem Sync
+   ========================================================================== */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS knowledge_hub (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    state_json TEXT    NOT NULL DEFAULT '{}',
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+export function getUserKnowledgeHub(userId) {
+  if (userId == null) return null;
+  const row = db.prepare('SELECT state_json, updated_at FROM knowledge_hub WHERE user_id = ?').get(userId);
+  if (!row) return null;
+  try {
+    const state = JSON.parse(row.state_json);
+    if (state && typeof state === 'object') {
+      return { state, updatedAt: row.updated_at };
+    }
+  } catch {}
+  return null;
+}
+
+export function saveUserKnowledgeHub(userId, state) {
+  if (userId == null) throw forbidden();
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    const err = new Error('Knowledge Hub state must be a JSON object.');
+    err.status = 400;
+    throw err;
+  }
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO knowledge_hub (user_id, state_json, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at
+  `).run(userId, JSON.stringify(state), now);
+  return { updatedAt: now };
+}
+
+/* ==========================================================================
+   QuantalFlow Organisational OS 2.0 — Unified Data Model Persistence
+   ========================================================================== */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS os_workspace (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    state_json TEXT    NOT NULL DEFAULT '{}',
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+export function getUserOsWorkspace(userId) {
+  if (userId == null) return null;
+  const row = db.prepare('SELECT state_json, updated_at FROM os_workspace WHERE user_id = ?').get(userId);
+  if (!row) return null;
+  try {
+    const state = JSON.parse(row.state_json);
+    if (state && typeof state === 'object') {
+      return { state, updatedAt: row.updated_at };
+    }
+  } catch {}
+  return null;
+}
+
+export function saveUserOsWorkspace(userId, state) {
+  if (userId == null) throw forbidden();
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    const err = new Error('Organisational OS state must be a JSON object.');
+    err.status = 400;
+    throw err;
+  }
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO os_workspace (user_id, state_json, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at
+  `).run(userId, JSON.stringify(state), now);
+  return { updatedAt: now };
+}
+
+export function getKnowledgeEcosystemSnapshot(userId) {
+  const boards = [];
+  const projects = [];
+  const files = [];
+  const notes = [];
+  const members = [];
+
+  try {
+    const boardRows = db.prepare(
+      'SELECT id, title, category, starred, state_json, created_at, updated_at FROM boards WHERE user_id = ? OR user_id IS NULL ORDER BY updated_at DESC LIMIT 80'
+    ).all(userId);
+    for (const r of boardRows) {
+      let mode = 'whiteboard';
+      try {
+        const parsed = JSON.parse(r.state_json || '{}');
+        if (parsed.workspaceMode) mode = String(parsed.workspaceMode);
+        else if (parsed.module) mode = String(parsed.module);
+        else if (parsed.template) mode = String(parsed.template);
+      } catch {}
+      boards.push({
+        id: r.id,
+        title: r.title || 'Untitled Board',
+        category: r.category || 'Workspace',
+        mode,
+        starred: Boolean(r.starred),
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      });
+    }
+  } catch {}
+
+  try {
+    const planRows = db.prepare(
+      'SELECT board_id, plan_json, created_at, updated_at FROM project_plans ORDER BY updated_at DESC LIMIT 30'
+    ).all();
+    for (const r of planRows) {
+      try {
+        const plan = JSON.parse(r.plan_json || '{}');
+        const title = (plan.meta && plan.meta.title) || plan.title || r.board_id;
+        const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
+        const wikiPages = Array.isArray(plan.wikiPages) ? plan.wikiPages : [];
+        const raid = Array.isArray(plan.raidItems) ? plan.raidItems : [];
+        projects.push({
+          id: r.board_id,
+          title,
+          status: (plan.meta && plan.meta.status) || 'Active',
+          taskCount: tasks.length,
+          wikiCount: wikiPages.length,
+          riskCount: raid.length,
+          tasks: tasks.slice(0, 12).map((t) => ({
+            id: t.id || '',
+            title: t.title || t.name || 'Task',
+            status: t.status || 'todo',
+            assignee: t.assignee || t.owner || ''
+          })),
+          wikiPages: wikiPages.slice(0, 10).map((w) => ({
+            id: w.id || '',
+            title: w.title || 'Wiki Page',
+            content: String(w.content || '').slice(0, 300)
+          })),
+          updatedAt: r.updated_at
+        });
+      } catch {}
+    }
+  } catch {}
+
+  try {
+    const fileRows = db.prepare(
+      'SELECT id, name, mime_type, size_bytes, secure_url, folder_id, created_at FROM files WHERE user_id = ? ORDER BY created_at DESC LIMIT 60'
+    ).all(userId);
+    for (const f of fileRows) {
+      files.push({
+        id: f.id,
+        name: f.name || 'Untitled File',
+        mimeType: f.mime_type || 'application/octet-stream',
+        sizeBytes: f.size_bytes || 0,
+        url: f.secure_url || '',
+        folderId: f.folder_id || '',
+        createdAt: f.created_at
+      });
+    }
+  } catch {}
+
+  try {
+    const noteRow = db.prepare('SELECT notes_json, updated_at FROM user_notepads WHERE user_id = ?').get(userId);
+    if (noteRow && noteRow.notes_json) {
+      const parsed = JSON.parse(noteRow.notes_json);
+      if (Array.isArray(parsed)) {
+        for (const n of parsed.slice(0, 30)) {
+          notes.push({
+            id: n.id || '',
+            title: n.title || 'Note Pad Entry',
+            body: String(n.text || n.content || '').slice(0, 280),
+            updatedAt: n.updatedAt || noteRow.updated_at
+          });
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    const userRows = db.prepare('SELECT id, name, email, role, title, company FROM users LIMIT 40').all();
+    for (const u of userRows) {
+      members.push({
+        id: u.id,
+        name: u.name || u.email,
+        email: u.email,
+        role: u.role || 'member',
+        title: u.title || '',
+        company: u.company || ''
+      });
+    }
+  } catch {}
+
+  return { boards, projects, files, notes, members, syncedAt: Date.now() };
+}
+
+/* ==========================================================================
    Email-Based Member Collaboration, Invitations & Owner RBAC
    ========================================================================== */
 

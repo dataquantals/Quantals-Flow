@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Document Generation | QuantalFlow</title>
+  <meta name="description" content="Intelligent Document Factory — turn boards, mind maps, projects, and meetings into business documents." />
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=98259fce" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=05ba3441" />
+  <link rel="stylesheet" href="/assets/css/folder.css?v=57a2c866" />
+  <link rel="stylesheet" href="/assets/css/project-planning.css?v=18e59eab" />
+  <link rel="stylesheet" href="/assets/css/project-os.css?v=d070eb29" />
+  <link rel="stylesheet" href="/assets/css/whiteboard-suite.css?v=b695c494" />
+  <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
+  <script src="/assets/js/save-state.js?v=d063b18d"></script>
+</head>
+<body class="dash-body docgen-body">
+
+  <link rel="stylesheet" href="/assets/css/documents.css" />
+
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png?v=d12f8ae3" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+
+    <div class="dash-search-bar">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="docgen-top-search" placeholder="Search documents, sources, or templates…" aria-label="Search documents" />
+    </div>
+
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span id="dash-profile-name">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <!-- Left Workspace Sidebar — unified with dashboard, notepad, knowledge, quotation & invoice -->
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="btn btn--blue dash-sidebar__create" href="/app/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </a>
+
+      <nav class="dash-nav" aria-label="Primary">
+        <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>All Boards</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/starred/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred Boards</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-notepad" href="/dashboard/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-knowledge" href="/dashboard/knowledge/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M12 18v-5"/></svg>
+          <span>Knowledge Hub</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>
+          <span>Whiteboarding</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
+          <span>Project Planning</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
+          <span>Mind Map</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+          <span>Kanban Board</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Perspective</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
+          <span>Brainstorm</span>
+        </a>
+
+        <a class="dash-nav__item" href="/resources/templates/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+        </a>
+
+        <a class="dash-nav__item is-active" id="nav-documents" href="/dashboard/documents/" aria-current="page" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <span>Document Generation</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Other Services</div>
+
+        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/quotation/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Quotation</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Team Members</span>
+        </a>
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Profile &amp; Settings</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Document Generation Workspace -->
+    <main class="dash docgen-main" id="docgen-app">
+      <section class="dg-panel">
+        <div class="dg-page-head">
+          <div class="dg-page-title">
+            <div class="dg-ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+            </div>
+            <div>
+              <h1>Document Generation</h1>
+              <p>Intelligent Document Factory: turn boards, maps, projects and meetings into business documents</p>
+            </div>
+          </div>
+          <button type="button" class="dg-btn dg-btn--primary" id="dg-btn-new-doc">+ New Document</button>
+        </div>
+
+        <div class="dg-tabs" id="dg-tabs" role="tablist" aria-label="Document Generation views">
+          <button type="button" class="is-on" role="tab" aria-selected="true" data-dg-tab="gen">Generate</button>
+          <button type="button" role="tab" aria-selected="false" data-dg-tab="docs">My Documents <span id="dg-count-docs"></span></button>
+          <button type="button" role="tab" aria-selected="false" data-dg-tab="rev">Reviews &amp; Approvals</button>
+        </div>
+
+        <!-- TAB 1: GENERATE -->
+        <div class="dg-view is-on" id="dg-v-gen" role="tabpanel">
+          <div class="dg-gen-grid">
+            <div>
+              <div class="dg-step">
+                <h3><span class="dg-n">1</span>Choose a source</h3>
+                <div class="dg-chips" id="dg-src-chips"></div>
+                <div class="dg-field" style="margin-top:12px;margin-bottom:0">
+                  <label>Items from the selected source</label>
+                  <div class="dg-srclist" id="dg-src-list"></div>
+                </div>
+              </div>
+
+              <div class="dg-step">
+                <h3><span class="dg-n">2</span>Choose a document type</h3>
+                <div class="dg-chips" id="dg-type-chips"></div>
+              </div>
+
+              <div class="dg-step">
+                <h3><span class="dg-n">3</span>Set options</h3>
+                <div class="dg-field">
+                  <label for="dg-opt-title">Document title</label>
+                  <input id="dg-opt-title" placeholder="For example: QuantalFlow Mobile Payments Project Charter" />
+                </div>
+                <div class="dg-row2">
+                  <div class="dg-field">
+                    <label for="dg-opt-aud">Audience</label>
+                    <select id="dg-opt-aud">
+                      <option>Executive team</option>
+                      <option>Project team</option>
+                      <option>Clients</option>
+                      <option>Board or funders</option>
+                      <option>Staff and trainees</option>
+                    </select>
+                  </div>
+                  <div class="dg-field">
+                    <label for="dg-opt-len">Length</label>
+                    <select id="dg-opt-len">
+                      <option value="1">Brief</option>
+                      <option value="2" selected>Standard</option>
+                      <option value="3">Detailed</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="dg-field">
+                  <label for="dg-opt-notes">Instructions for the AI writer</label>
+                  <textarea id="dg-opt-notes" placeholder="Add context, constraints or points to stress."></textarea>
+                </div>
+                <button type="button" class="dg-btn dg-btn--primary" style="width:100%" id="dg-btn-generate">Generate Document</button>
+              </div>
+            </div>
+
+            <div class="dg-doc-card">
+              <div class="dg-doc-bar">
+                <div class="dg-tools">
+                  <button type="button" data-dg-cmd="bold" title="Bold"><b>B</b></button>
+                  <button type="button" data-dg-cmd="italic" title="Italic"><i>I</i></button>
+                  <button type="button" data-dg-cmd="formatBlock" data-dg-val="h2" title="Heading 2">H2</button>
+                  <button type="button" data-dg-cmd="insertUnorderedList" title="Bullet list">List</button>
+                  <button type="button" data-dg-ai="Rewrite shorter">AI: Shorten</button>
+                  <button type="button" data-dg-ai="Expand section">AI: Expand</button>
+                  <button type="button" data-dg-ai="Fix grammar">AI: Grammar</button>
+                </div>
+                <span class="dg-status dg-st-Draft" id="dg-cur-status">Draft</span>
+              </div>
+
+              <div id="dg-editor-empty" class="dg-empty">
+                <div>
+                  <b>No document yet</b>
+                  Select a source and a document type, then choose Generate Document.
+                </div>
+              </div>
+
+              <div id="dg-editor" style="display:none">
+                <input class="dg-doc-title" id="dg-doc-title" placeholder="Document title" aria-label="Document title" />
+                <div class="dg-doc-body" id="dg-doc-body" contenteditable="true" aria-label="Document body"></div>
+              </div>
+
+              <div class="dg-doc-foot">
+                <div class="dg-versions" id="dg-ver-info">Version history appears after the first save.</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button type="button" class="dg-btn dg-btn--small" id="dg-btn-save">Save version</button>
+                  <button type="button" class="dg-btn dg-btn--small" id="dg-btn-advance">Send for review</button>
+                </div>
+              </div>
+
+              <div class="dg-doc-foot dg-doc-foot--exports">
+                <div class="dg-exports">
+                  <button type="button" class="dg-btn dg-btn--small" data-dg-export="pdf">PDF</button>
+                  <button type="button" class="dg-btn dg-btn--small" data-dg-export="docx">DOCX</button>
+                  <button type="button" class="dg-btn dg-btn--small" data-dg-export="pptx">PPTX</button>
+                  <button type="button" class="dg-btn dg-btn--small" data-dg-export="html">HTML</button>
+                  <button type="button" class="dg-btn dg-btn--small" data-dg-export="md">Markdown</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: MY DOCUMENTS -->
+        <div class="dg-view" id="dg-v-docs" role="tabpanel">
+          <div id="dg-docs-table"></div>
+        </div>
+
+        <!-- TAB 3: REVIEWS & APPROVALS -->
+        <div class="dg-view" id="dg-v-rev" role="tabpanel">
+          <div id="dg-rev-table"></div>
+        </div>
+      </section>
+
+      <div class="dg-toast" id="dg-toast" role="status" aria-live="polite"></div>
+    </main>
+  </div>
+
+<script src="/assets/js/workspace-nav.js?v=26169050"></script>
+  <script src="/assets/js/workspace-router.js?v=8af64ec7"></script>
+  <script src="/assets/js/documents.js"></script>
+</body>
+</html>

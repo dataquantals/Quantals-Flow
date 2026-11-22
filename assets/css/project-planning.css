@@ -2131,3 +2131,90 @@
   color: #0d529a;
   background: rgba(13, 82, 154, 0.04);
 }
+
+
+/* ==========================================================================
+   Project Planning Mobile Fluidity, 100dvh & Drawer Cascade Fix
+   ========================================================================== */
+.pp-main {
+  height: 100vh;
+  height: 100dvh;
+}
+.pp-table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.pp-gantt-bar { touch-action: none; }
+
+/* Preserve the crisp white mobile navigation drawer from pages.css on <= 960px */
+@media (max-width: 960px) {
+  .dash-sidebar {
+    background: #ffffff !important;
+    border-right: 0 !important;
+    color: var(--ink) !important;
+    padding: 0 !important;
+  }
+  .dash-sidebar .dash-nav__item { color: var(--ink-2); }
+  .dash-sidebar .dash-nav__item.is-active { background: #eef2ff; color: var(--blue); box-shadow: none; }
+  .dash-sidebar__section-label { color: var(--muted); }
+
+  /* Collapse Project Planning 240px sidebar cleanly into top scrollable nav bar on phones/tablets */
+  .pp-workspace {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+    height: 100dvh;
+  }
+  .pp-sidebar {
+    width: 100% !important;
+    height: auto !important;
+    flex-direction: row !important;
+    align-items: center;
+    overflow-x: auto;
+    padding: 8px 12px !important;
+    gap: 8px;
+  }
+  .pp-sidebar__nav {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 6px;
+    overflow-x: auto;
+  }
+  .pp-nav__btn {
+    white-space: nowrap;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+  .pp-main { height: auto; min-height: 0; }
+  .pp-topbar { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+  .pp-viewport { padding: 14px; }
+  .pp-section-bar { flex-wrap: wrap; gap: 8px; }
+  .pp-gantt-container {
+    grid-template-columns: 1fr !important;
+    overflow-x: auto;
+  }
+  .pp-kanban-grid {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 12px;
+    padding-bottom: 8px;
+  }
+  .pp-kanban-grid > * { min-width: 260px; flex: 0 0 260px; }
+}
+
+@media (max-width: 640px) {
+  .template-pick-card--clean,
+  .template-pick-card--featured {
+    grid-column: span 1 !important;
+  }
+  .pp-btn, .pp-icon-btn, .pp-drawer__close, .pp-seg-btn, .wbs-btn-add-item {
+    min-height: 44px;
+  }
+  .pp-icon-btn, .pp-drawer__close { min-width: 44px; }
+  .pp-workspace input, .pp-workspace select, .pp-workspace textarea {
+    font-size: 16px;
+  }
+}
+
+@media (hover: none) {
+  .wbs-pillar-delete { opacity: 1 !important; min-width: 36px; min-height: 36px; }
+  .pp-gantt-dep-path { opacity: 0.45; }
+}

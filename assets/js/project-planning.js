@@ -37,14 +37,14 @@
      needs to render its base layout. Demo content lives in createSampleState()
      and is only ever loaded on explicit request. */
   function createEmptyState(projectTitle) {
-    return {
+    var base = {
       workspaceMode: 'project-planning',
       stateVersion: STATE_VERSION,
       projectName: projectTitle || 'Untitled Project',
       projectCode: '',
       activeSprint: '',
       baseBudget: 0,
-      activeModule: 'gantt', // gantt | tasks | resources | collab | reporting | risk
+      activeModule: 'dashboard', // dashboard | kanban | gantt | calendar | table | mindmap | whiteboard | team | dependencies | docs | risks | automations | analytics | universe | portal
       ganttScale: 'days', // days | weeks | months | quarters
       taskSubView: 'wbs', // wbs | kanban | backlog
       activeDrawerTab: 'details', // details | comments | wiki | files
@@ -63,6 +63,7 @@
       raidItems: [],
       changeRequests: []
     };
+    return window.ProjectOSViews ? window.ProjectOSViews.ensureOSState(base) : base;
   }
 
   /* Master Reference WBS Tree Plan (Construction of a House / Data Quantals Master Plan) */
@@ -952,15 +953,19 @@
 
     var backLabel = (document.referrer && !document.referrer.includes('/app/')) ? 'Back to previous page' : 'Back to Dashboard';
 
+    var aiChipsHtml = (window.ProjectOSViews ? window.ProjectOSViews.AI_COMMANDS : []).map(function (c) {
+      return '<button class="pos-ai-chip" type="button" data-ai-cmd="' + c + '">' + c + '</button>';
+    }).join('');
+
     wrapper.innerHTML =
-      '<!-- Left Navigation Sidebar -->' +
-      '<aside class="pp-sidebar">' +
+      '<!-- Left Navigation Sidebar (Swiss Architectural + Apple HIG 2-Level) -->' +
+      '<aside class="pp-sidebar" aria-label="Project Operating System Navigation">' +
         '<div class="pp-sidebar__brand">' +
           '<div class="pp-sidebar__logo">' +
-            '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M3 9h18"/></svg>' +
-            '<span>Project Suite</span>' +
+            '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>' +
+            '<span>Project OS</span>' +
           '</div>' +
-          '<span class="pp-sidebar__suite-tag">Agile</span>' +
+          '<span class="pp-sidebar__suite-tag">QuantalFlow</span>' +
         '</div>' +
 
         '<div class="pp-sidebar__back-wrap">' +
@@ -972,37 +977,30 @@
 
         '<button class="pp-sidebar__quick-create" id="pp-btn-quick-task" type="button">' +
           '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>' +
-          '<span>New Deliverable</span>' +
+          '<span>New Task</span>' +
         '</button>' +
 
-        '<div class="pp-sidebar__section-title">Navigation</div>' +
-        '<nav class="pp-nav" role="tablist">' +
-          '<button class="pp-nav__btn is-active" data-pp-nav="gantt" type="button" role="tab">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="6" y1="18" x2="14" y2="18"/></svg>' +
-            '<span>Gantt &amp; Timelines</span>' +
-          '</button>' +
-          '<button class="pp-nav__btn" data-pp-nav="tasks" type="button" role="tab">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' +
-            '<span>WBS &amp; Kanban</span>' +
-            '<span class="pp-nav__badge" id="pp-nav-count-tasks" hidden></span>' +
-          '</button>' +
-          '<button class="pp-nav__btn" data-pp-nav="resources" type="button" role="tab">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>' +
-            '<span>Resource Capacity</span>' +
-          '</button>' +
-          '<button class="pp-nav__btn" data-pp-nav="collab" type="button" role="tab">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
-            '<span>Collaboration &amp; Wiki</span>' +
-          '</button>' +
-          '<button class="pp-nav__btn" data-pp-nav="reporting" type="button" role="tab">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>' +
-            '<span>Executive Digest</span>' +
-          '</button>' +
-          '<button class="pp-nav__btn" data-pp-nav="risk" type="button" role="tab">' +
-            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
-            '<span>RAID &amp; Change Control</span>' +
-            '<span class="pp-nav__badge" id="pp-nav-count-risk" hidden></span>' +
-          '</button>' +
+        '<div class="pp-sidebar__section-title">Synchronized Views</div>' +
+        '<nav class="pp-nav" role="tablist" aria-label="Synchronized Views">' +
+          '<button class="pp-nav__btn is-active" data-pp-nav="dashboard" type="button" role="tab"><span>Dashboard</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="kanban" type="button" role="tab"><span>Kanban</span><span class="pp-nav__badge" id="pp-nav-count-tasks" hidden></span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="gantt" type="button" role="tab"><span>Timeline (Gantt)</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="calendar" type="button" role="tab"><span>Calendar</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="table" type="button" role="tab"><span>Table</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="mindmap" type="button" role="tab"><span>Mind Map</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="whiteboard" type="button" role="tab"><span>Whiteboard</span></button>' +
+        '</nav>' +
+
+        '<div class="pp-sidebar__section-title">Operating System</div>' +
+        '<nav class="pp-nav" role="tablist" aria-label="Operating System Modules">' +
+          '<button class="pp-nav__btn" data-pp-nav="team" type="button" role="tab"><span>Team &amp; Workload</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="dependencies" type="button" role="tab"><span>Dependencies &amp; Graph</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="docs" type="button" role="tab"><span>Docs &amp; Decisions</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="risks" type="button" role="tab"><span>Risk &amp; Heatmap</span><span class="pp-nav__badge" id="pp-nav-count-risk" hidden></span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="automations" type="button" role="tab"><span>Automations</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="analytics" type="button" role="tab"><span>Analytics</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="universe" type="button" role="tab"><span>Project Universe</span></button>' +
+          '<button class="pp-nav__btn" data-pp-nav="portal" type="button" role="tab"><span>Client Portal</span></button>' +
         '</nav>' +
 
         '<div class="pp-sidebar__danger">' +
@@ -1014,25 +1012,64 @@
       '<div class="pp-main">' +
         '<header class="pp-topbar">' +
           '<div class="pp-topbar__title-group">' +
-            '<div class="pp-topbar__title" id="pp-header-title">Project Planning</div>' +
+            '<button class="pos-sidebar-toggle" id="pos-toggle-sidebar" type="button" aria-label="Toggle sidebar" title="Toggle sidebar">' +
+              '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>' +
+            '</button>' +
+            '<div class="pp-topbar__title" id="pp-header-title">Project Operating System</div>' +
             '<div class="topbar-ws-dropdown" id="pp-ws-dropdown">' +
               '<button class="topbar-ws-dropdown__btn" id="pp-ws-dropdown-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="Switch or add workspace">' +
                 '<span class="quantalflow-topbar__status-dot"></span>' +
                 '<span class="topbar-ws-dropdown__icon" id="pp-ws-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg></span>' +
-                '<span class="topbar-ws-dropdown__label" id="pp-ws-label">Project Planning</span>' +
+                '<span class="topbar-ws-dropdown__label" id="pp-ws-label">Project OS</span>' +
                 '<svg class="topbar-ws-dropdown__caret" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
               '</button>' +
               '<div class="topbar-ws-dropdown__menu" id="pp-ws-dropdown-menu" role="menu" hidden></div>' +
             '</div>' +
           '</div>' +
           '<div class="pp-topbar__actions">' +
+            '<button class="pos-btn pos-btn--sm pos-btn--ai" id="pos-btn-ai-pm" type="button">AI Project Manager</button>' +
             '<button class="pp-btn pp-btn--sm" id="pp-btn-export-report" type="button">Export Digest</button>' +
-            '<button class="pp-btn pp-btn--sm pp-btn--primary" id="pp-btn-top-new-task" type="button">+ Add Deliverable</button>' +
+            '<button class="pp-btn pp-btn--sm pp-btn--primary" id="pp-btn-top-new-task" type="button">+ New Task</button>' +
           '</div>' +
         '</header>' +
 
+        '<div class="pos-hierarchy-bar">' +
+          '<div class="pos-breadcrumbs" aria-label="Project hierarchy">' +
+            '<button class="pos-crumb is-current" type="button" data-pp-nav="dashboard">Project</button>' +
+            '<span class="pos-crumb-sep">/</span>' +
+            '<button class="pos-crumb" type="button" data-pp-nav="mindmap">Objectives</button>' +
+            '<span class="pos-crumb-sep">/</span>' +
+            '<button class="pos-crumb" type="button" data-pp-nav="gantt">Milestones</button>' +
+            '<span class="pos-crumb-sep">/</span>' +
+            '<button class="pos-crumb" type="button" data-pp-nav="table">Tasks &amp; Subtasks</button>' +
+          '</div>' +
+          '<div class="pos-view-strip" role="tablist" aria-label="Quick view switcher">' +
+            '<button class="pos-view-pill is-active" data-pp-nav="dashboard" type="button">Dashboard</button>' +
+            '<button class="pos-view-pill" data-pp-nav="kanban" type="button">Kanban</button>' +
+            '<button class="pos-view-pill" data-pp-nav="gantt" type="button">Timeline</button>' +
+            '<button class="pos-view-pill" data-pp-nav="calendar" type="button">Calendar</button>' +
+            '<button class="pos-view-pill" data-pp-nav="table" type="button">Table</button>' +
+            '<button class="pos-view-pill" data-pp-nav="mindmap" type="button">Mind Map</button>' +
+            '<button class="pos-view-pill" data-pp-nav="whiteboard" type="button">Whiteboard</button>' +
+          '</div>' +
+        '</div>' +
+
         '<main class="pp-viewport">' +
-          '<section class="pp-pane is-active" id="pp-pane-gantt" data-pane="gantt"></section>' +
+          '<section class="pp-pane is-active" id="pp-pane-dashboard" data-pane="dashboard"></section>' +
+          '<section class="pp-pane" id="pp-pane-kanban" data-pane="kanban"></section>' +
+          '<section class="pp-pane" id="pp-pane-gantt" data-pane="gantt"></section>' +
+          '<section class="pp-pane" id="pp-pane-calendar" data-pane="calendar"></section>' +
+          '<section class="pp-pane" id="pp-pane-table" data-pane="table"></section>' +
+          '<section class="pp-pane" id="pp-pane-mindmap" data-pane="mindmap"></section>' +
+          '<section class="pp-pane" id="pp-pane-whiteboard" data-pane="whiteboard"></section>' +
+          '<section class="pp-pane" id="pp-pane-team" data-pane="team"></section>' +
+          '<section class="pp-pane" id="pp-pane-dependencies" data-pane="dependencies"></section>' +
+          '<section class="pp-pane" id="pp-pane-docs" data-pane="docs"></section>' +
+          '<section class="pp-pane" id="pp-pane-risks" data-pane="risks"></section>' +
+          '<section class="pp-pane" id="pp-pane-automations" data-pane="automations"></section>' +
+          '<section class="pp-pane" id="pp-pane-analytics" data-pane="analytics"></section>' +
+          '<section class="pp-pane" id="pp-pane-universe" data-pane="universe"></section>' +
+          '<section class="pp-pane" id="pp-pane-portal" data-pane="portal"></section>' +
           '<section class="pp-pane" id="pp-pane-tasks" data-pane="tasks"></section>' +
           '<section class="pp-pane" id="pp-pane-resources" data-pane="resources"></section>' +
           '<section class="pp-pane" id="pp-pane-collab" data-pane="collab"></section>' +
@@ -1043,11 +1080,25 @@
         '<!-- Edit with AI: one instruction, applied to the shared plan -->' +
         '<form class="pp-ai-bar" id="pp-ai-form" autocomplete="off">' +
           '<label class="pp-ai-bar__label" for="pp-ai-input">Edit with AI</label>' +
-          '<input class="pp-ai-bar__input" id="pp-ai-input" type="text" placeholder="Tell the copilot what to change — “move Paint to Done”, “add a phase for Handover”…" />' +
+          '<input class="pp-ai-bar__input" id="pp-ai-input" type="text" placeholder="Tell the AI Project Manager what to plan, analyze, or update..." />' +
           '<button class="pp-ai-bar__send" id="pp-ai-send" type="submit">Apply</button>' +
           '<p class="pp-ai-bar__status" id="pp-ai-status" role="status" aria-live="polite"></p>' +
         '</form>' +
       '</div>' +
+
+      '<!-- Persistent AI Project Manager Dock -->' +
+      '<aside class="pos-ai-dock" id="pos-ai-dock" aria-label="AI Project Manager">' +
+        '<div class="pos-ai-dock__head">' +
+          '<h3 class="pos-ai-dock__title">AI Project Manager</h3>' +
+          '<button class="pos-btn pos-btn--sm" id="pos-ai-close" type="button" aria-label="Close AI Project Manager">Close</button>' +
+        '</div>' +
+        '<div class="pos-ai-chips">' + aiChipsHtml + '</div>' +
+        '<div class="pos-ai-log" id="pos-ai-log"></div>' +
+        '<form class="pos-ai-dock__form" id="pos-ai-dock-form" autocomplete="off">' +
+          '<input class="pos-input" id="pos-ai-dock-input" type="text" placeholder="Ask about schedule, risks, sprint, roadmap..." style="flex:1;" />' +
+          '<button class="pos-btn pos-btn--primary" type="submit">Run</button>' +
+        '</form>' +
+      '</aside>' +
 
       '<!-- Backdrop overlay for slide-over drawer -->' +
       '<div class="pp-drawer-backdrop" id="pp-drawer-backdrop"></div>' +
@@ -1055,7 +1106,7 @@
       '<!-- Flyout Action Drawer (Contextual feeds, chats, wiki specs & files) -->' +
       '<aside class="pp-drawer" id="pp-task-drawer" aria-label="Task Detail Drawer">' +
         '<div class="pp-drawer__header">' +
-          '<h3 id="pp-drawer-heading">Deliverable Details</h3>' +
+          '<h3 id="pp-drawer-heading">Task Details</h3>' +
           '<button class="pp-drawer__close" id="pp-drawer-close" type="button" aria-label="Close drawer">&times;</button>' +
         '</div>' +
         '<div class="pp-drawer__nav">' +
@@ -1085,6 +1136,61 @@
 
     document.getElementById('pp-btn-quick-task')?.addEventListener('click', promptNewTask);
     document.getElementById('pp-btn-top-new-task')?.addEventListener('click', promptNewTask);
+
+    document.getElementById('pos-toggle-sidebar')?.addEventListener('click', function () {
+      shellEl.classList.toggle('is-sidebar-collapsed');
+    });
+
+    function getOSContext() {
+      return {
+        saveAndRender: function () { persistAndRender(); },
+        saveOnly: function () { persistState(); },
+        renderAll: renderAll,
+        openTaskDrawer: function (id) { openTaskDrawer(id, 'details', false); },
+        promptNewTask: promptNewTask,
+        notify: notify,
+        openAiDock: openAiDock
+      };
+    }
+
+    function openAiDock(prefillCommand) {
+      var dock = document.getElementById('pos-ai-dock');
+      if (!dock) return;
+      dock.classList.add('is-open');
+      if (window.ProjectOSViews) {
+        if (prefillCommand) {
+          window.ProjectOSViews.executeAiCommand(dock, prefillCommand, state, getOSContext());
+        } else {
+          window.ProjectOSViews.renderAiDock(dock, state, getOSContext());
+        }
+      }
+    }
+
+    document.getElementById('pos-btn-ai-pm')?.addEventListener('click', function () {
+      var dock = document.getElementById('pos-ai-dock');
+      if (!dock) return;
+      if (dock.classList.contains('is-open')) dock.classList.remove('is-open');
+      else openAiDock();
+    });
+
+    document.getElementById('pos-ai-close')?.addEventListener('click', function () {
+      document.getElementById('pos-ai-dock')?.classList.remove('is-open');
+    });
+
+    shellEl.querySelectorAll('[data-ai-cmd]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openAiDock(btn.dataset.aiCmd);
+      });
+    });
+
+    document.getElementById('pos-ai-dock-form')?.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var inp = document.getElementById('pos-ai-dock-input');
+      if (!inp || !inp.value.trim()) return;
+      var cmd = inp.value.trim();
+      inp.value = '';
+      openAiDock(cmd);
+    });
 
     document.getElementById('pp-btn-export-report')?.addEventListener('click', function () {
       exportExecutiveReport();
@@ -1199,10 +1305,12 @@
     document.getElementById('pp-drawer-close')?.addEventListener('click', closeTaskDrawer);
     backdropEl?.addEventListener('click', closeTaskDrawer);
 
-    // Global Gantt Bar Dragging Listeners
-    window.addEventListener('mousemove', function (e) {
+    // Global Gantt Bar Dragging Listeners (Unified Pointer Events with 5px drag threshold so taps open task drawer)
+    window.addEventListener('pointermove', function (e) {
       if (!ganttDrag) return;
       var dx = e.clientX - ganttDrag.startX;
+      if (!ganttDrag.moved && Math.abs(dx) < 5) return;
+      ganttDrag.moved = true;
       var deltaDays = Math.round(dx / ganttDrag.pxPerDay);
       var task = getTask(ganttDrag.taskId);
       if (!task) return;
@@ -1224,16 +1332,21 @@
       }
     });
 
-    window.addEventListener('mouseup', function () {
+    function endGanttPointer() {
       if (ganttDrag) {
+        var moved = ganttDrag.moved;
         var t = getTask(ganttDrag.taskId);
         ganttDrag = null;
-        persistState();
-        if (t) {
-          notify('Updated ' + t.id + ': ' + dayToDateStr(t.startDay) + ' – ' + dayToDateStr(t.startDay + t.durationDays));
+        if (moved) {
+          persistState();
+          if (t) {
+            notify('Updated ' + t.id + ': ' + dayToDateStr(t.startDay) + ' – ' + dayToDateStr(t.startDay + t.durationDays));
+          }
         }
       }
-    });
+    }
+    window.addEventListener('pointerup', endGanttPointer);
+    window.addEventListener('pointercancel', endGanttPointer);
   }
 
   function nextTaskId() {
@@ -1766,32 +1879,64 @@
       return Math.max(max, (Number(t.startDay) || 1) + (Number(t.durationDays) || 0));
     }, 1);
     var newId = nextTaskId();
-    var columnStatus = status || 'todo';
+    var today = new Date().toISOString().slice(0, 10);
+    var endDateObj = new Date();
+    endDateObj.setDate(endDateObj.getDate() + 4);
+    var defaultEnd = endDateObj.toISOString().slice(0, 10);
+    var canonicalStatus = (window.ProjectOSViews && window.ProjectOSViews.normalizeStatus)
+      ? window.ProjectOSViews.normalizeStatus(status || 'Planned')
+      : (status || 'Planned');
     var newTask = {
       id: newId,
       wbs: newWbs,
       parentWbs: slot.pkg.wbs,
       phaseWbs: slot.phase.wbs,
-      title: 'New Deliverable (' + newWbs + ')',
-      status: columnStatus,
-      priority: 'medium',
-      assigneeId: owner ? owner.id : null,
+      title: 'New Task (' + newWbs + ')',
+      description: '',
+      status: canonicalStatus,
+      priority: 'Medium',
+      owner: state.projectOwner || '',
+      assigneeId: owner ? owner.id : '',
+      assignee: owner ? owner.name : '',
+      department: state.department || '',
       sprint: state.activeSprint || '',
       storyPoints: 5,
       startDay: nextStart,
       durationDays: 5,
-      progress: columnStatus === 'done' ? 100 : 0,
+      start: today,
+      dueDate: defaultEnd,
+      end: defaultEnd,
+      estHours: 8,
+      actualHours: 0,
+      progress: canonicalStatus === 'Completed' ? 100 : 0,
       budget: 0,
+      tags: [],
+      subtasks: [],
       dependencies: [],
       comments: []
     };
+    if (window.ProjectOSViews && window.ProjectOSViews.normalizeTask) {
+      window.ProjectOSViews.normalizeTask(newTask, state);
+    }
     state.tasks.push(newTask);
+    if (window.ProjectOSViews && window.ProjectOSViews.logActivity) {
+      window.ProjectOSViews.logActivity(state, state.projectOwner || 'User', 'created task', newTask.title);
+    }
     persistAndRender('Created ' + newId + ' (' + newWbs + ')');
     openTaskDrawer(newId, 'details', true);
   }
 
+  var LEGACY_MODULE_MAP = {
+    tasks: 'kanban',
+    resources: 'team',
+    collab: 'docs',
+    reporting: 'analytics',
+    risk: 'risks'
+  };
+
   function setActiveModule(modName) {
-    state.activeModule = modName || 'gantt';
+    var resolved = LEGACY_MODULE_MAP[modName] || modName || 'dashboard';
+    state.activeModule = resolved;
     shellEl.querySelectorAll('[data-pp-nav]').forEach(function (btn) {
       var active = btn.dataset.ppNav === state.activeModule;
       btn.classList.toggle('is-active', active);
@@ -2095,27 +2240,30 @@
       });
     });
 
-    // Drag-to-reschedule & duration resizing
+    // Drag-to-reschedule & duration resizing (Unified Pointer Events)
     pane.querySelectorAll('[data-gantt-task]').forEach(function (bar) {
-      bar.addEventListener('mousedown', function (e) {
+      bar.addEventListener('pointerdown', function (e) {
+        if (e.button && e.button !== 0) return;
         if (e.target.dataset.ganttResize) {
           ganttDrag = {
             mode: 'resize',
+            moved: false,
             taskId: bar.dataset.ganttTask,
             startX: e.clientX,
             origDuration: getTask(bar.dataset.ganttTask).durationDays,
             pxPerDay: pxPerDay
           };
+          e.preventDefault();
         } else {
           ganttDrag = {
             mode: 'move',
+            moved: false,
             taskId: bar.dataset.ganttTask,
             startX: e.clientX,
             origStart: getTask(bar.dataset.ganttTask).startDay,
             pxPerDay: pxPerDay
           };
         }
-        e.preventDefault();
       });
     });
   }
@@ -3140,51 +3288,88 @@
     });
 
     if (tab === 'details') {
+      if (window.ProjectOSViews && window.ProjectOSViews.normalizeTask) {
+        window.ProjectOSViews.normalizeTask(task, state);
+      }
+      var allStatuses = (window.ProjectOSViews && window.ProjectOSViews.ALL_STATUSES) || [
+        'Not Started', 'Planned', 'In Progress', 'On Hold', 'Review', 'Completed', 'Cancelled'
+      ];
       body.innerHTML =
-        '<div style="display:flex; flex-direction:column; gap:16px;">' +
+        '<div style="display:flex; flex-direction:column; gap:14px;">' +
           '<div>' +
-            '<label style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--pp-muted); display:block; margin-bottom:6px;">Deliverable Title</label>' +
-            '<input type="text" id="pp-drw-title" value="' + escapeHtml(task.title) + '" style="width:100%; padding:8px 10px; border:1px solid var(--pp-border); border-radius:6px; font-size:13.5px;" />' +
+            '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Task Title</label>' +
+            '<input type="text" id="pp-drw-title" class="pos-input" value="' + escapeHtml(task.title) + '" style="width:100%;" />' +
           '</div>' +
 
-          '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">' +
+          '<div>' +
+            '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Description</label>' +
+            '<textarea id="pp-drw-desc" class="pos-textarea" style="width:100%;min-height:64px;">' + escapeHtml(task.description || '') + '</textarea>' +
+          '</div>' +
+
+          '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">' +
             '<div>' +
-              '<label style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--pp-muted); display:block; margin-bottom:6px;">Status</label>' +
-              '<select id="pp-drw-status" style="width:100%; padding:7px 10px; border:1px solid var(--pp-border); border-radius:6px; font-size:13px;">' +
-                '<option value="backlog" ' + (task.status === 'backlog' ? 'selected' : '') + '>Backlog</option>' +
-                '<option value="todo" ' + (task.status === 'todo' ? 'selected' : '') + '>To Do</option>' +
-                '<option value="in-progress" ' + (task.status === 'in-progress' ? 'selected' : '') + '>In Progress</option>' +
-                '<option value="review" ' + (task.status === 'review' ? 'selected' : '') + '>In Review</option>' +
-                '<option value="done" ' + (task.status === 'done' ? 'selected' : '') + '>Done</option>' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Status</label>' +
+              '<select id="pp-drw-status" class="pos-select" style="width:100%;">' +
+                allStatuses.map(function (st) {
+                  return '<option value="' + st + '" ' + (task.status === st ? 'selected' : '') + '>' + st + '</option>';
+                }).join('') +
               '</select>' +
             '</div>' +
             '<div>' +
-              '<label style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--pp-muted); display:block; margin-bottom:6px;">Assignee</label>' +
-              '<select id="pp-drw-assignee" style="width:100%; padding:7px 10px; border:1px solid var(--pp-border); border-radius:6px; font-size:13px;">' +
-                (function () {
-                  var people = state.resources.filter(function (r) { return typeof r.category === 'string' && r.category.indexOf('Personnel') === 0; });
-                  if (!people.length) return '<option value="">Unassigned</option>';
-                  return '<option value="">Unassigned</option>' + people.map(function (r) {
-                    return '<option value="' + r.id + '" ' + (task.assigneeId === r.id ? 'selected' : '') + '>' + escapeHtml(r.name) + '</option>';
-                  }).join('');
-                })() +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Priority</label>' +
+              '<select id="pp-drw-priority" class="pos-select" style="width:100%;">' +
+                ['Low', 'Medium', 'High', 'Critical'].map(function (pr) {
+                  return '<option value="' + pr + '" ' + ((task.priority || 'Medium') === pr ? 'selected' : '') + '>' + pr + '</option>';
+                }).join('') +
               '</select>' +
             '</div>' +
           '</div>' +
 
-          '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">' +
+          '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">' +
             '<div>' +
-              '<label style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--pp-muted); display:block; margin-bottom:6px;">Start Day</label>' +
-              '<input type="number" id="pp-drw-start" min="1" max="34" value="' + task.startDay + '" style="width:100%; padding:7px 10px; border:1px solid var(--pp-border); border-radius:6px; font-size:13px;" />' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Start Date</label>' +
+              '<input type="date" id="pp-drw-start-date" class="pos-input" value="' + escapeHtml(task.start || '') + '" style="width:100%;" />' +
             '</div>' +
             '<div>' +
-              '<label style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--pp-muted); display:block; margin-bottom:6px;">Duration (Days)</label>' +
-              '<input type="number" id="pp-drw-dur" min="1" max="25" value="' + task.durationDays + '" style="width:100%; padding:7px 10px; border:1px solid var(--pp-border); border-radius:6px; font-size:13px;" />' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Due Date</label>' +
+              '<input type="date" id="pp-drw-due-date" class="pos-input" value="' + escapeHtml(task.dueDate || task.end || '') + '" style="width:100%;" />' +
             '</div>' +
           '</div>' +
 
-          '<div style="margin-top:4px; padding-top:16px; border-top:1px solid var(--pp-border); display:flex; justify-content:flex-end;">' +
-            '<button class="pp-btn pp-btn--sm pp-btn--danger" id="pp-drw-delete" type="button">Delete deliverable</button>' +
+          '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">' +
+            '<div>' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Assignee</label>' +
+              '<select id="pp-drw-assignee" class="pos-select" style="width:100%;">' +
+                '<option value="">Unassigned</option>' +
+                (state.resources || []).map(function (r) {
+                  var selected = (task.assigneeId === r.id || task.assignee === r.name);
+                  return '<option value="' + escapeHtml(r.id) + '" ' + (selected ? 'selected' : '') + '>' + escapeHtml(r.name) + '</option>';
+                }).join('') +
+              '</select>' +
+            '</div>' +
+            '<div>' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Department</label>' +
+              '<input type="text" id="pp-drw-dept" class="pos-input" value="' + escapeHtml(task.department || '') + '" placeholder="Department" style="width:100%;" />' +
+            '</div>' +
+          '</div>' +
+
+          '<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">' +
+            '<div>' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Progress %</label>' +
+              '<input type="number" id="pp-drw-progress" class="pos-input" min="0" max="100" value="' + (Number(task.progress) || 0) + '" style="width:100%;" />' +
+            '</div>' +
+            '<div>' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Est (h)</label>' +
+              '<input type="number" id="pp-drw-est" class="pos-input" min="0" value="' + (Number(task.estHours) || 0) + '" style="width:100%;" />' +
+            '</div>' +
+            '<div>' +
+              '<label style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--pos-muted,#4b5563); display:block; margin-bottom:5px;">Actual (h)</label>' +
+              '<input type="number" id="pp-drw-act" class="pos-input" min="0" value="' + (Number(task.actualHours) || 0) + '" style="width:100%;" />' +
+            '</div>' +
+          '</div>' +
+
+          '<div style="margin-top:4px; padding-top:14px; border-top:1px solid var(--pos-border,#e5e7eb); display:flex; justify-content:flex-end;">' +
+            '<button class="pp-btn pp-btn--sm pp-btn--danger" id="pp-drw-delete" type="button">Delete task</button>' +
           '</div>' +
         '</div>';
 
@@ -3192,14 +3377,29 @@
         deleteTask(task.id);
       });
 
-      ['pp-drw-title', 'pp-drw-status', 'pp-drw-assignee', 'pp-drw-start', 'pp-drw-dur'].forEach(function (id) {
+      ['pp-drw-title', 'pp-drw-desc', 'pp-drw-status', 'pp-drw-priority', 'pp-drw-start-date', 'pp-drw-due-date', 'pp-drw-assignee', 'pp-drw-dept', 'pp-drw-progress', 'pp-drw-est', 'pp-drw-act'].forEach(function (id) {
         document.getElementById(id)?.addEventListener('change', function () {
           task.title = document.getElementById('pp-drw-title').value.trim() || task.title;
+          task.description = document.getElementById('pp-drw-desc').value;
           task.status = document.getElementById('pp-drw-status').value;
-          task.assigneeId = document.getElementById('pp-drw-assignee').value;
-          task.startDay = Math.max(1, Math.min(34, Number(document.getElementById('pp-drw-start').value) || 1));
-          task.durationDays = Math.max(1, Math.min(25, Number(document.getElementById('pp-drw-dur').value) || 1));
-          persistAndRender('Synced ' + task.id);
+          task.priority = document.getElementById('pp-drw-priority').value;
+          var sVal = document.getElementById('pp-drw-start-date').value;
+          var dVal = document.getElementById('pp-drw-due-date').value;
+          if (sVal) task.start = sVal;
+          if (dVal) { task.dueDate = dVal; task.end = dVal; }
+          var resId = document.getElementById('pp-drw-assignee').value;
+          task.assigneeId = resId;
+          var resObj = (state.resources || []).find(function (r) { return r.id === resId; });
+          task.assignee = resObj ? resObj.name : '';
+          task.department = document.getElementById('pp-drw-dept').value.trim();
+          task.progress = Math.max(0, Math.min(100, Number(document.getElementById('pp-drw-progress').value) || 0));
+          if (task.status === 'Completed') task.progress = 100;
+          task.estHours = Math.max(0, Number(document.getElementById('pp-drw-est').value) || 0);
+          task.actualHours = Math.max(0, Number(document.getElementById('pp-drw-act').value) || 0);
+          if (window.ProjectOSViews && window.ProjectOSViews.normalizeTask) {
+            window.ProjectOSViews.normalizeTask(task, state);
+          }
+          persistAndRender('Synced ' + task.id + ' across Kanban, Timeline & Calendar');
         });
       });
     } else if (tab === 'comments') {
@@ -3337,13 +3537,59 @@
   /* ---------- Render All Active Modules ---------- */
   function renderAll() {
     if (!shellEl || shellEl.hidden) return;
+    if (window.ProjectOSViews) window.ProjectOSViews.ensureOSState(state);
     renderTopHeaderAndRibbon();
-    renderGanttPane();
-    renderTasksPane();
-    renderResourcesPane();
-    renderCollabPane();
-    renderReportingPane();
-    renderRiskPane();
+
+    var osCtx = {
+      saveAndRender: function () { persistAndRender(); },
+      saveOnly: function () { persistState(); },
+      renderAll: renderAll,
+      openTaskDrawer: function (id) { openTaskDrawer(id, 'details', false); },
+      promptNewTask: promptNewTask,
+      notify: notify,
+      openAiDock: function (cmd) {
+        var dock = document.getElementById('pos-ai-dock');
+        if (!dock) return;
+        dock.classList.add('is-open');
+        if (window.ProjectOSViews) {
+          if (cmd) window.ProjectOSViews.executeAiCommand(dock, cmd, state, osCtx);
+          else window.ProjectOSViews.renderAiDock(dock, state, osCtx);
+        }
+      }
+    };
+
+    var active = state.activeModule || 'dashboard';
+    if (window.ProjectOSViews) {
+      var osRenderers = {
+        dashboard: window.ProjectOSViews.renderDashboardPane,
+        kanban: window.ProjectOSViews.renderKanbanPane,
+        gantt: window.ProjectOSViews.renderTimelinePane,
+        calendar: window.ProjectOSViews.renderCalendarPane,
+        table: window.ProjectOSViews.renderTablePane,
+        mindmap: window.ProjectOSViews.renderMindMapPane,
+        whiteboard: window.ProjectOSViews.renderWhiteboardPane,
+        team: window.ProjectOSViews.renderTeamPane,
+        dependencies: window.ProjectOSViews.renderDependenciesPane,
+        docs: window.ProjectOSViews.renderDocsDecisionsPane,
+        risks: window.ProjectOSViews.renderRiskHeatmapPane,
+        automations: window.ProjectOSViews.renderAutomationsPane,
+        analytics: window.ProjectOSViews.renderAnalyticsPane,
+        universe: window.ProjectOSViews.renderUniversePane,
+        portal: window.ProjectOSViews.renderPortalPane
+      };
+      if (osRenderers[active]) {
+        var paneEl = document.getElementById('pp-pane-' + active);
+        if (paneEl) osRenderers[active](paneEl, state, osCtx);
+        return;
+      }
+    }
+
+    if (active === 'gantt') renderGanttPane();
+    else if (active === 'tasks') renderTasksPane();
+    else if (active === 'resources') renderResourcesPane();
+    else if (active === 'collab') renderCollabPane();
+    else if (active === 'reporting') renderReportingPane();
+    else if (active === 'risk') renderRiskPane();
   }
 
   /* ---------- Open / Close Workspace API ---------- */
@@ -3369,7 +3615,7 @@
     shellEl.style.display = '';
     shellEl.classList.add('is-open');
     syncWorkspaceTabs();
-    setActiveModule(state.activeModule || 'gantt');
+    setActiveModule(state.activeModule || 'dashboard');
   }
 
   function closeWorkspace() {
@@ -3446,7 +3692,11 @@
   };
 
   /* ---------- Auto-Detect Route or Trigger Buttons ---------- */
-  var MODULE_NAMES = ['gantt', 'tasks', 'resources', 'collab', 'reporting', 'risk'];
+  var MODULE_NAMES = [
+    'dashboard', 'kanban', 'gantt', 'calendar', 'table', 'mindmap', 'whiteboard',
+    'team', 'dependencies', 'docs', 'risks', 'automations', 'analytics', 'universe', 'portal',
+    'tasks', 'resources', 'collab', 'reporting', 'risk'
+  ];
 
   function initTriggers() {
     purgeSeededDemoPlansOnce();

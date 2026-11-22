@@ -1690,6 +1690,215 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
   .create-board-footer > div { justify-content: flex-end; }
 }
 
+/* Dashboard "Start New Workspace" Modal — Clean, Minimal Layout */
+#modal-create-board .quantalflow-modal {
+  width: min(560px, 94vw);
+  max-width: 560px;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 28px 28px 24px;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+}
+#modal-create-board .quantalflow-modal h3 {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111827;
+  margin: 0 0 6px;
+}
+#modal-create-board .quantalflow-modal p {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0 0 20px;
+  line-height: 1.45;
+}
+.create-board-field-group { margin-bottom: 18px; }
+.create-board-section-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+}
+.create-board-optional { font-weight: 400; color: #6b7280; }
+.create-board-service-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+.service-tab-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 13px 8px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color .14s var(--ease), background .14s var(--ease), color .14s var(--ease);
+  text-align: center;
+}
+.service-tab-chip:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+  color: #111827;
+}
+.service-tab-chip.is-selected {
+  background: #eff4ff;
+  color: #2563eb;
+  font-weight: 600;
+  border: 1.5px solid #2563eb;
+  box-shadow: none;
+}
+.service-tab-chip__icon {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  color: inherit;
+  flex-shrink: 0;
+}
+.service-tab-chip__icon svg { width: 18px; height: 18px; }
+.service-tab-chip__label { line-height: 1.2; }
+.create-board-name { margin-bottom: 16px; }
+.create-board-details-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 14px;
+}
+.create-board-name label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
+}
+.create-board-name input,
+.create-board-name select {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  background: #ffffff;
+  color: #111827;
+}
+.create-board-name input::placeholder { color: #9ca3af; }
+.create-board-name input:focus,
+.create-board-name select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.create-board-templates-section { margin-top: 2px; }
+.create-board-templates-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.create-board-templates-title { font-size: 12.5px; font-weight: 600; color: #111827; }
+#modal-create-board .template-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+#modal-create-board .template-pick-card--visual {
+  padding: 8px 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+#modal-create-board .template-pick-card--visual:hover {
+  border-color: #9ca3af;
+  box-shadow: none;
+  transform: none;
+}
+#modal-create-board .template-pick-card--visual.is-selected {
+  border: 1.5px solid #2563eb;
+  box-shadow: none;
+  background: #ffffff;
+}
+#modal-create-board .template-pick-card--visual .template-pick-card__preview {
+  position: relative;
+  height: 76px;
+  border-radius: 8px;
+  border: none;
+  background: #f3f4f6;
+  margin-bottom: 9px;
+}
+.template-pick-card__check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.template-pick-card.is-selected .template-pick-card__check { display: inline-flex; }
+.template-pick-card__label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+  padding: 0 2px;
+  line-height: 1.25;
+}
+.create-board-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
+  border-top: none;
+}
+.create-board-cancel-btn {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.create-board-cancel-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.create-board-submit-btn {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background: #2563eb;
+  border: 1px solid #2563eb;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.create-board-submit-btn:hover { background: #1d4ed8; border-color: #1d4ed8; }
+@media (max-width: 640px) {
+  .create-board-service-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .create-board-details-row { grid-template-columns: 1fr; }
+  #modal-create-board .template-modal-grid { grid-template-columns: 1fr; }
+}
+
 /* Empty Collaborative Board Starter Hub (21st.dev Magic + UI/UX Pro Max) */
 .empty-board-starter[hidden] {
   display: none !important;
@@ -3984,3 +4193,280 @@ body.dash-drawer-locked {
 }
 
 
+
+
+/* ==========================================================================
+   Global Fluid Mobile Responsiveness, 100dvh, Stacking & Touch-Target Hardening
+   ========================================================================== */
+.quantalflow-app-body {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overscroll-behavior: none;
+}
+.quantalflow-app {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+}
+.quantalflow-topbar {
+  height: var(--app-topbar-h, 52px);
+  z-index: 160;
+  position: relative;
+}
+.quantalflow-viewport {
+  height: calc(100vh - var(--app-topbar-h, 52px));
+  height: calc(100dvh - var(--app-topbar-h, 52px));
+  touch-action: none;
+  overscroll-behavior: none;
+}
+body.is-presenting .quantalflow-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+.dash-layout {
+  min-height: calc(100vh - 64px);
+  min-height: calc(100dvh - 64px);
+}
+.profile-body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.canvas-doc.is-fullscreen {
+  width: 100% !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+}
+.more-tools-popover { max-height: 68dvh; }
+.icon-picker-grid { max-height: 46dvh; }
+.canvas-table__scroll { max-height: 70dvh; }
+.quantalflow-modal {
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+#modal-create-board .quantalflow-modal { max-height: 92dvh; }
+
+/* Ensure Empty Board Starter sits cleanly above toolbars and scrolls on short viewports */
+.empty-board-starter { z-index: 105; }
+.empty-board-starter__card {
+  max-height: calc(100dvh - 84px);
+  overflow-y: auto;
+}
+.empty-board-starter__footer {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Profile password field wrapper (fixes unstyled Show/Hide buttons on /profile/) */
+.field__pass-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.field__pass-wrap input {
+  width: 100%;
+  padding-right: 68px;
+}
+.field__pass-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 10px;
+  min-height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.profile-infra-item { min-width: 0; overflow-wrap: anywhere; }
+
+/* Context toolbar & banners never overflow narrow screens */
+.context-toolbar {
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  z-index: 120;
+}
+.context-toolbar::-webkit-scrollbar { display: none; }
+.quantalflow-voting-banner,
+.quantalflow-present-bar {
+  max-width: calc(100vw - 24px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.quantalflow-modal__input-group,
+.icon-picker-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quantalflow-modal__input-group > * { min-width: 0; }
+
+/* Prevent sticky tooltips on touch & reveal hover-only table delete handles on touch */
+@media (hover: none) {
+  .tool-btn:hover .tooltip { display: none !important; opacity: 0 !important; }
+  .canvas-table th .cell-x { display: block; opacity: 0.75; }
+  .starter-option-card:hover { transform: none; }
+}
+
+/* Mobile & Tablet Canvas App, Profile & Dashboard Fluidity (<= 768px) */
+@media (max-width: 768px) {
+  .quantalflow-topbar {
+    padding: 0 8px;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .quantalflow-topbar::-webkit-scrollbar { display: none; }
+  .quantalflow-topbar__left { gap: 6px; flex-shrink: 0; }
+  .quantalflow-topbar__left > .btn--ghost {
+    margin-left: 2px !important;
+    padding: 6px 9px !important;
+    min-height: 38px;
+    font-size: 12px !important;
+  }
+  .quantalflow-topbar__title {
+    max-width: 118px;
+    font-size: 14px;
+    padding: 4px 5px;
+  }
+  .quantalflow-topbar__star { min-width: 36px; min-height: 36px; }
+  .quantalflow-topbar__center {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .top-action-btn {
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0 8px;
+  }
+  .top-action-btn span { display: none; }
+  .quantalflow-topbar__right { gap: 6px; flex-shrink: 0; }
+  .collab-presence { display: none; }
+  #btn-share {
+    padding: 6px 12px !important;
+    min-height: 38px;
+    font-size: 12.5px !important;
+  }
+  .topbar-ws-dropdown__btn {
+    min-height: 38px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  /* Transform left vertical toolbar into a clean horizontal scrollable bottom dock on phones */
+  .quantalflow-toolbar {
+    top: auto;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
+    max-width: calc(100vw - 16px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding: 5px 6px;
+    gap: 4px;
+    border-radius: 14px;
+  }
+  .quantalflow-toolbar::-webkit-scrollbar { display: none; }
+  .quantalflow-toolbar .tool-btn {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .quantalflow-toolbar .tool-divider {
+    width: 1px;
+    height: 24px;
+    margin: 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* Popovers open cleanly above the bottom dock on mobile */
+  .color-picker-popover,
+  .shape-picker-popover,
+  .connector-picker-popover,
+  .pen-picker-popover,
+  .more-tools-popover {
+    left: 50% !important;
+    top: auto !important;
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 20px);
+    max-height: 55dvh;
+    overflow-y: auto;
+    z-index: 112;
+  }
+  .swatch, .pen-swatch, .ctx-swatch { width: 28px; height: 28px; }
+  .shape-option, .connector-menu__item { min-height: 44px; }
+
+  /* Lift bottom-left & bottom-right zoom/undo bars cleanly above the mobile bottom dock */
+  .quantalflow-bottom-left {
+    left: 8px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    padding: 3px 4px;
+    gap: 2px;
+  }
+  .quantalflow-bottom-right {
+    right: 8px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    padding: 3px 4px;
+    gap: 2px;
+  }
+  .zoom-btn {
+    min-width: 34px;
+    min-height: 36px;
+  }
+  .zoom-level { font-size: 11.5px; padding: 0 4px; }
+  #btn-shortcuts, #btn-minimap { display: none; }
+  .quantalflow-minimap { display: none !important; }
+
+  .ctx-btn { min-width: 36px; min-height: 38px; padding: 0 8px; }
+  .resize-handle { width: 16px; height: 16px; }
+  .quantalflow-modal__close { min-width: 40px; min-height: 40px; }
+  .ai-mode-tabs { grid-template-columns: repeat(2, 1fr); }
+  .dash-icon-btn { min-width: 40px; min-height: 40px; }
+
+  /* Fullscreen doc editor on narrow phones */
+  .canvas-doc.is-fullscreen .doc-outline { display: none; }
+  .canvas-doc.is-fullscreen .doc-page { padding: 20px 16px 40px; }
+  .canvas-doc .doc-ribbon { flex-wrap: wrap; gap: 6px; }
+
+  /* Profile page responsive header & layout */
+  .profile-body .dash-top {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 56px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .profile-body .dash-top__right {
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .profile-body .dash-top__right .btn {
+    min-height: 40px;
+    padding: 6px 10px !important;
+    font-size: 12.5px !important;
+  }
+  .profile-card { padding: clamp(16px, 4vw, 28px); }
+  .profile-avatar-row { flex-wrap: wrap; gap: 14px; }
+  .profile-avatar-badge { width: 34px !important; height: 34px !important; }
+  .field__pass-toggle { min-height: 44px; }
+}
+
+@media (max-width: 520px) {
+  .dash-templates-row { grid-template-columns: 1fr; }
+  .empty-board-starter__grid { grid-template-columns: 1fr; }
+  .empty-board-starter__grid > [style*="grid-column: span 2"] { grid-column: span 1 !important; }
+  .profile-infra-grid { grid-template-columns: 1fr; }
+  .quantalflow-bottom-left { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+  .quantalflow-bottom-right { bottom: calc(68px + env(safe-area-inset-bottom, 0px)); right: 8px; left: 8px; justify-content: center; }
+}

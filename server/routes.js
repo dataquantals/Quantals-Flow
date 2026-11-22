@@ -56,6 +56,11 @@ import {
   saveUserInvoice,
   getUserNotepad,
   saveUserNotepad,
+  getUserKnowledgeHub,
+  saveUserKnowledgeHub,
+  getKnowledgeEcosystemSnapshot,
+  getUserOsWorkspace,
+  saveUserOsWorkspace,
   getEffectiveWorkspaceRole,
   capabilitiesForRole,
   acceptPendingInvitationsForUser,
@@ -888,6 +893,14 @@ export function createApi(limiter) {
         systemPrompt = 'You are an Agile Coach AI in QuantalFlow. Return a JSON object with 3 columns: {"todo": ["Task 1", "Task 2"], "doing": ["Task 3", "Task 4"], "done": ["Task 5"]}. Keep tasks concise and actionable. Output ONLY valid JSON.';
       } else if (mode === 'expand') {
         systemPrompt = 'You are QuantalFlow AI. Expand the given sticky note or concept into 4 concrete sub-points, next steps, or sub-tasks as a valid JSON array of strings: ["Sub-point 1", "Sub-point 2", "Sub-point 3", "Sub-point 4"]. Output ONLY a valid JSON array.';
+      } else if (mode === 'knowledge') {
+        systemPrompt = [
+          'You are the QuantalFlow AI Knowledge Assistant — the Organisational Brain across Projects, Whiteboards, Mind Maps, Documents, Meetings, Decisions, SOPs, Lessons Learned, Wiki, and Training.',
+          'Ground your response ONLY in the provided organisational knowledge context when referencing internal facts. Never invent project metrics or approval dates not present in the context.',
+          'Return a concise, well-structured JSON object with:',
+          '{"answer":"Clear, executive-ready markdown answer (concise paragraphs or bullet points)","relatedIds":["id1","id2"],"suggestedAction":{"label":"Optional action button label","type":"sop|wiki|course|lesson|decision|none","draftTitle":"Optional title","draftBody":"Optional structured draft"}}',
+          'Output ONLY valid JSON with no markdown code fences.'
+        ].join('\n');
       } else if (mode === 'plan-edit') {
         systemPrompt = [
           'You are the planning copilot inside a project-planning workspace.',
@@ -1452,6 +1465,84 @@ export function createApi(limiter) {
       }
       try {
         const result = await saveUserNotepad(user.id, body && body.notes);
+        return sendJson(res, 200, { success: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** GET /api/knowledge */
+    async getKnowledgeHubApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const saved = getUserKnowledgeHub(user.id);
+        const ecosystem = getKnowledgeEcosystemSnapshot(user.id);
+        return sendJson(res, 200, {
+          success: true,
+          state: saved ? saved.state : null,
+          updatedAt: saved ? saved.updatedAt : null,
+          ecosystem
+        });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to load Knowledge Hub.' });
+      }
+    },
+
+    /** PUT /api/knowledge */
+    async saveKnowledgeHubApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 4 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = saveUserKnowledgeHub(user.id, body && body.state);
+        return sendJson(res, 200, { success: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** GET /api/os */
+    async getOsWorkspaceApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const saved = getUserOsWorkspace(user.id);
+        const ecosystem = getKnowledgeEcosystemSnapshot(user.id);
+        const knowledge = getUserKnowledgeHub(user.id);
+        return sendJson(res, 200, {
+          success: true,
+          state: saved ? saved.state : null,
+          updatedAt: saved ? saved.updatedAt : null,
+          ecosystem,
+          knowledgeSummary: knowledge && knowledge.state ? {
+            objectsCount: Array.isArray(knowledge.state.objects) ? knowledge.state.objects.length : 0,
+            decisionsCount: Array.isArray(knowledge.state.decisions) ? knowledge.state.decisions.length : 0,
+            sopsCount: Array.isArray(knowledge.state.sops) ? knowledge.state.sops.length : 0
+          } : null
+        });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to load Organisational OS.' });
+      }
+    },
+
+    /** PUT /api/os */
+    async saveOsWorkspaceApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 4 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = saveUserOsWorkspace(user.id, body && body.state);
         return sendJson(res, 200, { success: true, ...result });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });

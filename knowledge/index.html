@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Knowledge Hub | QuantalFlow</title>
+  <meta name="description" content="QuantalFlow Intelligent Organisational Brain — capture, connect, search, learn, and govern knowledge across projects, whiteboards, mind maps, decisions, SOPs, and teams." />
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=98259fce" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=05ba3441" />
+  <link rel="stylesheet" href="/assets/css/folder.css?v=57a2c866" />
+  <link rel="stylesheet" href="/assets/css/project-planning.css?v=18e59eab" />
+  <link rel="stylesheet" href="/assets/css/project-os.css?v=d070eb29" />
+  <link rel="stylesheet" href="/assets/css/whiteboard-suite.css?v=b695c494" />
+  <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
+  <script src="/assets/js/save-state.js?v=d063b18d"></script>
+</head>
+<body class="dash-body km-body">
+
+  <link rel="stylesheet" href="/assets/css/knowledge.css" />
+
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png?v=d12f8ae3" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+
+    <div class="km-top-status" id="km-sync-pill" role="status" aria-live="polite">
+      <span class="km-sync-dot" aria-hidden="true"></span>
+      <span id="km-sync-label">Organisational Brain Synced</span>
+    </div>
+
+    <div class="dash-top__right">
+      <button type="button" class="km-btn km-btn--ai-trigger" id="km-open-assistant" aria-haspopup="dialog" aria-controls="km-assistant-drawer">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-5.1 1.9L12 16.6l-1.9-4.9L5 9.8l5.1-1.9L12 3z"/><path d="M5 19l.9 2.1L8 22l-2.1.9L5 25l-.9-2.1L2 22l2.1-.9L5 19z" transform="translate(0 -3) scale(0.8)"/></svg>
+        <span>AI Assistant</span>
+      </button>
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span id="dash-profile-name">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <!-- Left Workspace Sidebar — mirrors dashboard.html, notepad.html, quotation.html & invoice.html -->
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="btn btn--blue dash-sidebar__create" href="/app/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </a>
+
+      <nav class="dash-nav" aria-label="Primary">
+        <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>All Boards</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/starred/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred Boards</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-notepad" href="/dashboard/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
+        </a>
+
+        <a class="dash-nav__item is-active" id="nav-knowledge" href="/dashboard/knowledge/" aria-current="page" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M12 18v-5"/></svg>
+          <span>Knowledge Hub</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>
+          <span>Whiteboarding</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
+          <span>Project Planning</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
+          <span>Mind Map</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+          <span>Kanban Board</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Perspective</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
+          <span>Brainstorm</span>
+        </a>
+
+        <a class="dash-nav__item" href="/resources/templates/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-documents" href="/dashboard/documents/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <span>Document Generation</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Other Services</div>
+
+        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/quotation/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Quotation</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Team Members</span>
+        </a>
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Profile &amp; Settings</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Knowledge Hub Workspace -->
+    <main class="dash km-main" id="km-app">
+      <!-- Focused Header & AI-First Search -->
+      <section class="km-hero" aria-label="AI Organisational Search">
+        <div class="km-hero__head">
+          <div>
+            <h1 class="km-hero__title">Knowledge Hub</h1>
+            <p class="km-hero__sub">Search projects, decisions, SOPs, meetings, and experts across QuantalFlow.</p>
+          </div>
+          <div class="km-hero__actions">
+            <button type="button" class="km-btn km-btn--quiet" id="km-btn-sync-ecosystem" title="Sync latest boards, projects, files, and notes from QuantalFlow">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+              <span>Sync</span>
+            </button>
+            <button type="button" class="km-btn km-btn--secondary" id="km-btn-hero-assistant" aria-haspopup="dialog" aria-controls="km-assistant-drawer">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-5.1 1.9L12 16.6l-1.9-4.9L5 9.8l5.1-1.9L12 3z"/></svg>
+              <span>AI Assistant</span>
+            </button>
+            <button type="button" class="km-btn km-btn--primary" id="km-btn-new-object">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Capture Knowledge</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="km-search-wrap">
+          <form class="km-ai-search" id="km-ai-search-form" role="search" aria-label="Ask Organisational Brain">
+            <span class="km-ai-search__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </span>
+            <input
+              type="search"
+              id="km-ai-search-input"
+              class="km-ai-search__input"
+              placeholder="Ask anything — e.g. &ldquo;Nursing Student Attendance Project&rdquo;, &ldquo;Airtel Money&rdquo;, or &ldquo;onboarding SOP&rdquo;"
+              autocomplete="off"
+              aria-label="Search organisational knowledge with natural language"
+              aria-expanded="false"
+              aria-controls="km-search-dropdown"
+            />
+            <kbd class="km-kbd" aria-hidden="true">Ctrl K</kbd>
+            <button type="submit" class="km-btn km-btn--primary km-ai-search__submit" id="km-ai-search-submit">Ask AI</button>
+          </form>
+
+          <!-- Origin-aware Search Suggestions Dropdown (appears only on focus) -->
+          <div class="km-search-dropdown" id="km-search-dropdown" hidden role="listbox" aria-label="Suggested searches">
+            <div class="km-search-dropdown__label">Suggested Queries</div>
+            <button type="button" class="km-search-dropdown__item" data-km-prompt="Show me everything related to the Nursing Student Attendance Project">Show me everything related to the Nursing Student Attendance Project</button>
+            <button type="button" class="km-search-dropdown__item" data-km-prompt="What did we learn from the attendance project?">What did we learn from the attendance project?</button>
+            <button type="button" class="km-search-dropdown__item" data-km-prompt="Show all information related to Airtel Money.">Show all information related to Airtel Money</button>
+            <button type="button" class="km-search-dropdown__item" data-km-prompt="Find onboarding procedures.">Find onboarding procedures</button>
+            <button type="button" class="km-search-dropdown__item" data-km-prompt="Summarise all customer support issues.">Summarise all customer support issues</button>
+          </div>
+        </div>
+
+        <!-- AI Search Synthesis Result Panel (hidden until query is run) -->
+        <div class="km-ai-results" id="km-ai-results" hidden aria-live="polite">
+          <div class="km-ai-results__bar">
+            <div class="km-ai-badge">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-5.1 1.9L12 16.6l-1.9-4.9L5 9.8l5.1-1.9L12 3z"/></svg>
+              <span>AI-Synthesised Answer</span>
+              <span class="km-ai-badge__note" id="km-ai-results-meta">Grounded in QuantalFlow Knowledge Graph</span>
+            </div>
+            <button type="button" class="km-icon-btn" id="km-ai-results-close" aria-label="Close AI search results">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="km-ai-results__body" id="km-ai-results-body"></div>
+          <div class="km-ai-results__groups" id="km-ai-results-groups"></div>
+        </div>
+      </section>
+
+      <!-- Single Unified Navigation Layer (Roving Tabindex) -->
+      <nav class="km-tabs" role="tablist" aria-label="Knowledge Hub sections" id="km-tablist">
+        <button type="button" class="km-tab is-active" role="tab" id="km-tab-overview" aria-selected="true" aria-controls="km-panel-overview" data-km-tab="overview" tabindex="0">Overview</button>
+        <button type="button" class="km-tab" role="tab" id="km-tab-objects" aria-selected="false" aria-controls="km-panel-objects" data-km-tab="objects" tabindex="-1">Knowledge Base</button>
+        <button type="button" class="km-tab" role="tab" id="km-tab-graph" aria-selected="false" aria-controls="km-panel-graph" data-km-tab="graph" tabindex="-1">Graph &amp; Brain</button>
+        <button type="button" class="km-tab" role="tab" id="km-tab-decisions" aria-selected="false" aria-controls="km-panel-decisions" data-km-tab="decisions" tabindex="-1">Decisions &amp; Meetings</button>
+        <button type="button" class="km-tab" role="tab" id="km-tab-sops" aria-selected="false" aria-controls="km-panel-sops" data-km-tab="sops" tabindex="-1">SOPs, Wiki &amp; Docs</button>
+        <button type="button" class="km-tab" role="tab" id="km-tab-learning" aria-selected="false" aria-controls="km-panel-learning" data-km-tab="learning" tabindex="-1">Experts &amp; Learning</button>
+        <button type="button" class="km-tab" role="tab" id="km-tab-governance" aria-selected="false" aria-controls="km-panel-governance" data-km-tab="governance" tabindex="-1">Health &amp; Governance</button>
+      </nav>
+
+      <!-- TAB 1: OVERVIEW DASHBOARD (Focused Above-the-Fold Hierarchy) -->
+      <section class="km-panel" id="km-panel-overview" role="tabpanel" aria-labelledby="km-tab-overview" data-km-panel="overview">
+        <!-- Strictly ONE row of 4 high-signal stat tiles with trends -->
+        <div class="km-kpi-row" id="km-kpi-grid"></div>
+
+        <!-- Primary Above-the-Fold Focal Band: Health Score (Hero) + Knowledge Gaps -->
+        <div class="km-focal-grid">
+          <article class="km-card km-card--focal" id="km-overview-health-card">
+            <div class="km-card__head">
+              <div>
+                <h2 class="km-card__title km-card__title--light">Knowledge Health Score</h2>
+                <p class="km-card__sub km-card__sub--light">Organisational coverage, freshness &amp; governance against monthly targets</p>
+              </div>
+              <button type="button" class="km-btn km-btn--focal-cta" data-jump-tab="governance">Full Health Audit &rarr;</button>
+            </div>
+            <div class="km-health-focal" id="km-overview-health"></div>
+          </article>
+
+          <article class="km-card km-card--gaps">
+            <div class="km-card__head">
+              <div>
+                <h2 class="km-card__title">Knowledge Gaps</h2>
+                <p class="km-card__sub">Priority actions to strengthen coverage</p>
+              </div>
+              <span class="km-pill km-pill--amber" id="km-gaps-badge">Action Needed</span>
+            </div>
+            <div class="km-gap-list" id="km-overview-gaps"></div>
+          </article>
+        </div>
+
+        <!-- Below the Fold: Varied Recent Knowledge + Ranked Top 5 Topics & Experts -->
+        <div class="km-secondary-grid">
+          <article class="km-card km-card--recent">
+            <div class="km-card__head">
+              <div>
+                <h2 class="km-card__title">Recent Knowledge</h2>
+                <p class="km-card__sub">Latest projects, decisions, SOPs, meetings, and research across teams</p>
+              </div>
+              <button type="button" class="km-link-btn" data-jump-tab="objects">Browse All &rarr;</button>
+            </div>
+            <div class="km-list" id="km-overview-feed"></div>
+          </article>
+
+          <div class="km-side-stack">
+            <article class="km-card">
+              <div class="km-card__head">
+                <div>
+                  <h2 class="km-card__title">Top 5 Topics</h2>
+                  <p class="km-card__sub">Ranked by organisational queries</p>
+                </div>
+              </div>
+              <ol class="km-ranked-list" id="km-overview-topics"></ol>
+            </article>
+
+            <article class="km-card">
+              <div class="km-card__head">
+                <div>
+                  <h2 class="km-card__title">Top Contributors</h2>
+                  <p class="km-card__sub">Subject-matter owners</p>
+                </div>
+                <button type="button" class="km-link-btn" data-jump-tab="learning">Directory &rarr;</button>
+              </div>
+              <div class="km-experts-mini" id="km-overview-experts"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: KNOWLEDGE OBJECTS & SMART SEARCH -->
+      <section class="km-panel" id="km-panel-objects" role="tabpanel" aria-labelledby="km-tab-objects" data-km-panel="objects" hidden>
+        <div class="km-card km-objects-shell">
+          <div class="km-objects-header">
+            <div class="km-objects-header__titles">
+              <h2 class="km-card__title">Knowledge Objects</h2>
+              <span class="km-objects-count" id="km-objects-meta">0 items</span>
+            </div>
+
+            <div class="km-new-menu-wrap">
+              <button type="button" class="km-btn km-btn--primary" id="km-btn-new-type-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="km-new-type-menu">
+                <span>+ New</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <div class="km-popover-menu km-popover-menu--right" id="km-new-type-menu" role="menu" aria-label="Choose knowledge object type" hidden></div>
+            </div>
+          </div>
+
+          <!-- Custom Filter Bar (Zero native <select> elements) -->
+          <div class="km-custom-filter-bar" role="toolbar" aria-label="Filter and sort knowledge objects">
+            <div class="km-filter-search">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="search" id="km-filter-q" class="km-filter-search__input" placeholder="Search knowledge" aria-label="Search knowledge" autocomplete="off" />
+            </div>
+
+            <div class="km-filter-pills">
+              <!-- Type Custom Popover -->
+              <div class="km-dd" data-km-dd="type">
+                <button type="button" class="km-dd__btn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="km-dd__label" id="km-dd-label-type">Type</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="km-dd__menu" id="km-dd-menu-type" role="listbox" aria-label="Filter by Type" hidden></div>
+              </div>
+
+              <!-- Department Custom Popover -->
+              <div class="km-dd" data-km-dd="dept">
+                <button type="button" class="km-dd__btn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="km-dd__label" id="km-dd-label-dept">Department</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="km-dd__menu" id="km-dd-menu-dept" role="listbox" aria-label="Filter by Department" hidden></div>
+              </div>
+
+              <!-- Project Custom Popover -->
+              <div class="km-dd" data-km-dd="project">
+                <button type="button" class="km-dd__btn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="km-dd__label" id="km-dd-label-project">Project</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="km-dd__menu" id="km-dd-menu-project" role="listbox" aria-label="Filter by Project" hidden></div>
+              </div>
+
+              <!-- Permission Custom Popover -->
+              <div class="km-dd" data-km-dd="perm">
+                <button type="button" class="km-dd__btn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="km-dd__label" id="km-dd-label-perm">Permission</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="km-dd__menu" id="km-dd-menu-perm" role="listbox" aria-label="Filter by Permission" hidden></div>
+              </div>
+
+              <!-- Needs Cleanup Filter Chip -->
+              <button type="button" class="km-cleanup-chip" id="km-btn-cleanup-filter" aria-pressed="false" title="Show records with placeholder or default titles">
+                <span>Needs cleanup</span>
+                <span class="km-cleanup-chip__count" id="km-cleanup-count">0</span>
+              </button>
+
+              <!-- Active Filter Count & Clear Link -->
+              <div class="km-active-filters" id="km-active-filters" hidden>
+                <span class="km-active-filters__badge" id="km-active-filters-count">0 active</span>
+                <button type="button" class="km-clear-filters-btn" id="km-btn-clear-filters">Clear filters</button>
+              </div>
+            </div>
+
+            <div class="km-filter-right">
+              <!-- Sort Custom Popover -->
+              <div class="km-dd" data-km-dd="sort">
+                <button type="button" class="km-dd__btn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="km-dd__label" id="km-dd-label-sort">Recently updated</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="km-dd__menu km-dd__menu--right" id="km-dd-menu-sort" role="listbox" aria-label="Sort objects" hidden></div>
+              </div>
+
+              <!-- Grid / List View Toggle -->
+              <div class="km-view-toggle" role="group" aria-label="View layout">
+                <button type="button" class="km-view-toggle__btn is-active" data-km-view-mode="grid" aria-pressed="true" title="Grid view" aria-label="Grid view">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                </button>
+                <button type="button" class="km-view-toggle__btn" data-km-view-mode="list" aria-pressed="false" title="List view" aria-label="List view">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pinned Section (shown when >= 1 matching object is pinned) -->
+          <div class="km-pinned-section" id="km-pinned-section" hidden>
+            <div class="km-pinned-section__label">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m15 4.5 4.5 4.5-9 9-4.5-4.5 9-9Z"/><path d="m9 15-5 5"/></svg>
+              <span>Pinned</span>
+            </div>
+            <div class="km-objects-grid" id="km-pinned-grid"></div>
+          </div>
+
+          <!-- Main Knowledge Objects Grid / List -->
+          <div class="km-objects-grid" id="km-objects-grid"></div>
+        </div>
+      </section>
+
+      <!-- TAB 3: KNOWLEDGE GRAPH, ORGANISATIONAL BRAIN & TIMELINE -->
+      <section class="km-panel" id="km-panel-graph" role="tabpanel" aria-labelledby="km-tab-graph" data-km-panel="graph" hidden>
+        <div class="km-subnav-bar">
+          <div class="km-seg" role="group" aria-label="Visualisation mode">
+            <button type="button" class="km-seg__btn is-active" data-graph-view="network">Knowledge Graph</button>
+            <button type="button" class="km-seg__btn" data-graph-view="brain">Organisational Brain Map</button>
+            <button type="button" class="km-seg__btn" data-graph-view="timeline">Knowledge Timeline</button>
+          </div>
+          <div class="km-graph-controls" id="km-graph-controls">
+            <select id="km-rel-filter" class="km-select" aria-label="Filter relationships">
+              <option value="all">All Relationships (8)</option>
+              <option value="Depends On">Depends On</option>
+              <option value="References">References</option>
+              <option value="Originated From">Originated From</option>
+              <option value="Related To">Related To</option>
+              <option value="Supports">Supports</option>
+              <option value="Used By">Used By</option>
+              <option value="Created By">Created By</option>
+              <option value="Linked To">Linked To</option>
+            </select>
+            <button type="button" class="km-btn km-btn--secondary km-btn--sm" id="km-btn-add-link">+ Link Nodes</button>
+          </div>
+        </div>
+
+        <!-- 3A. Interactive Knowledge Graph -->
+        <div id="km-view-network" class="km-graph-layout">
+          <div class="km-card km-graph-stage">
+            <div class="km-graph-chain" aria-label="Knowledge lineage chain">
+              <span>Document</span><span aria-hidden="true">&rarr;</span>
+              <span>Related Meetings</span><span aria-hidden="true">&rarr;</span>
+              <span>Project</span><span aria-hidden="true">&rarr;</span>
+              <span>Tasks</span><span aria-hidden="true">&rarr;</span>
+              <span>Decisions</span><span aria-hidden="true">&rarr;</span>
+              <span>SOPs</span>
+            </div>
+            <div class="km-svg-wrap" id="km-graph-canvas"></div>
+            <div class="km-graph-legend" id="km-graph-legend"></div>
+          </div>
+          <aside class="km-card km-graph-inspector" id="km-graph-inspector" aria-label="Selected graph node details">
+            <h3 class="km-card__title">Node Inspector</h3>
+            <p class="km-card__sub">Select any node in the Knowledge Graph to trace its dependencies, lineage, and connected assets.</p>
+          </aside>
+        </div>
+
+        <!-- 3B. Organisational Brain Tree View -->
+        <div id="km-view-brain" class="km-card" hidden>
+          <div class="km-card__head">
+            <div>
+              <h2 class="km-card__title">Organisational Brain View</h2>
+              <p class="km-card__sub">Interactive structural map of Company &rarr; Departments, Projects, Documents, Decisions, SOPs, Training &amp; Experts</p>
+            </div>
+          </div>
+          <div class="km-brain-tree" id="km-brain-tree"></div>
+        </div>
+
+        <!-- 3C. Knowledge Timeline -->
+        <div id="km-view-timeline" class="km-card" hidden>
+          <div class="km-card__head km-card__head--wrap">
+            <div>
+              <h2 class="km-card__title">Project Knowledge Timeline</h2>
+              <p class="km-card__sub">Trace how institutional knowledge evolves from kickoff through decisions, architecture shifts, process improvements, and closure</p>
+            </div>
+            <select id="km-timeline-project" class="km-select" aria-label="Select project timeline"></select>
+          </div>
+          <ol class="km-timeline" id="km-timeline-list"></ol>
+        </div>
+      </section>
+
+      <!-- TAB 4: DECISIONS, MEETINGS & LESSONS LEARNED -->
+      <section class="km-panel" id="km-panel-decisions" role="tabpanel" aria-labelledby="km-tab-decisions" data-km-panel="decisions" hidden>
+        <div class="km-subnav-bar">
+          <div class="km-seg" role="group" aria-label="Decisions and Meetings view">
+            <button type="button" class="km-seg__btn is-active" data-dec-view="decisions">Decision Repository</button>
+            <button type="button" class="km-seg__btn" data-dec-view="meetings">Meeting Knowledge</button>
+            <button type="button" class="km-seg__btn" data-dec-view="lessons">Lessons Learned Centre</button>
+          </div>
+          <div class="km-hero__actions">
+            <button type="button" class="km-btn km-btn--primary km-btn--sm" id="km-btn-new-decision">+ Record Decision</button>
+            <button type="button" class="km-btn km-btn--secondary km-btn--sm" id="km-btn-new-meeting">+ Capture Meeting</button>
+            <button type="button" class="km-btn km-btn--secondary km-btn--sm" id="km-btn-new-lesson">+ Log Lesson</button>
+          </div>
+        </div>
+
+        <div id="km-view-decisions" class="km-stack"></div>
+        <div id="km-view-meetings" class="km-stack" hidden></div>
+        <div id="km-view-lessons" class="km-stack" hidden></div>
+      </section>
+
+      <!-- TAB 5: SOP MANAGEMENT, ENTERPRISE WIKI & DOCUMENT MANAGEMENT -->
+      <section class="km-panel" id="km-panel-sops" role="tabpanel" aria-labelledby="km-tab-sops" data-km-panel="sops" hidden>
+        <div class="km-subnav-bar">
+          <div class="km-seg" role="group" aria-label="SOPs, Wiki and Documents view">
+            <button type="button" class="km-seg__btn is-active" data-doc-view="sops">SOP Management</button>
+            <button type="button" class="km-seg__btn" data-doc-view="wiki">Enterprise Wiki</button>
+            <button type="button" class="km-seg__btn" data-doc-view="documents">Document Vault</button>
+          </div>
+          <div class="km-hero__actions">
+            <button type="button" class="km-btn km-btn--primary km-btn--sm" id="km-btn-ai-sop">AI Process &rarr; SOP</button>
+            <button type="button" class="km-btn km-btn--secondary km-btn--sm" id="km-btn-new-wiki">+ New Wiki Page</button>
+          </div>
+        </div>
+
+        <!-- 5A. SOP Management -->
+        <div id="km-view-sops" class="km-stack"></div>
+
+        <!-- 5B. Enterprise Wiki -->
+        <div id="km-view-wiki" class="km-wiki-layout" hidden>
+          <aside class="km-card km-wiki-sidebar" aria-label="Wiki sections">
+            <h3 class="km-card__title" style="margin-bottom:10px;">Enterprise Wiki</h3>
+            <div id="km-wiki-tree"></div>
+          </aside>
+          <article class="km-card km-wiki-article" id="km-wiki-article"></article>
+        </div>
+
+        <!-- 5C. Document Management -->
+        <div id="km-view-documents" class="km-card" hidden>
+          <div class="km-card__head km-card__head--wrap">
+            <div>
+              <h2 class="km-card__title">Document Management Vault</h2>
+              <p class="km-card__sub">PDF, Word, Excel, PowerPoint, Images, Videos &amp; Audio with preview, version history, comments, permissions, and approvals</p>
+            </div>
+            <div class="km-filter-inline">
+              <select id="km-doc-format-filter" class="km-select" aria-label="Filter by document format">
+                <option value="all">All Formats</option>
+                <option value="PDF">PDF</option>
+                <option value="Word">Word</option>
+                <option value="Excel">Excel</option>
+                <option value="PowerPoint">PowerPoint</option>
+                <option value="Image">Image</option>
+                <option value="Video">Video</option>
+                <option value="Audio">Audio</option>
+              </select>
+            </div>
+          </div>
+          <div class="km-docs-grid" id="km-docs-grid"></div>
+        </div>
+      </section>
+
+      <!-- TAB 6: EXPERT FINDER, LEARNING CENTRE & TEMPLATE LIBRARY -->
+      <section class="km-panel" id="km-panel-learning" role="tabpanel" aria-labelledby="km-tab-learning" data-km-panel="learning" hidden>
+        <div class="km-subnav-bar">
+          <div class="km-seg" role="group" aria-label="Experts, Learning and Templates view">
+            <button type="button" class="km-seg__btn is-active" data-learn-view="experts">Expert Finder</button>
+            <button type="button" class="km-seg__btn" data-learn-view="courses">Learning Centre</button>
+            <button type="button" class="km-seg__btn" data-learn-view="templates">Template Library</button>
+          </div>
+          <button type="button" class="km-btn km-btn--primary km-btn--sm" id="km-btn-ai-course">AI Generate Course</button>
+        </div>
+
+        <div id="km-view-experts" class="km-experts-grid"></div>
+        <div id="km-view-courses" class="km-stack" hidden></div>
+        <div id="km-view-templates" class="km-templates-grid" hidden></div>
+      </section>
+
+      <!-- TAB 7: KNOWLEDGE HEALTH, PERMISSIONS, AUTOMATION & ANALYTICS -->
+      <section class="km-panel" id="km-panel-governance" role="tabpanel" aria-labelledby="km-tab-governance" data-km-panel="governance" hidden>
+        <div class="km-subnav-bar">
+          <div class="km-seg" role="group" aria-label="Governance and Analytics view">
+            <button type="button" class="km-seg__btn is-active" data-gov-view="health">Health Dashboard</button>
+            <button type="button" class="km-seg__btn" data-gov-view="permissions">Permissions &amp; RBAC</button>
+            <button type="button" class="km-seg__btn" data-gov-view="automation">Automation Engine</button>
+            <button type="button" class="km-seg__btn" data-gov-view="analytics">Visual Analytics</button>
+          </div>
+        </div>
+
+        <div id="km-view-health" class="km-stack"></div>
+        <div id="km-view-permissions" class="km-card" hidden></div>
+        <div id="km-view-automation" class="km-stack" hidden></div>
+        <div id="km-view-analytics" class="km-analytics-grid" hidden></div>
+      </section>
+
+      <!-- Knowledge Object Inspector Slide-Over Drawer (Inside main.dash so SPA router always mounts it) -->
+      <div class="km-backdrop" id="km-inspector-backdrop" hidden></div>
+      <aside class="km-drawer" id="km-inspector-drawer" role="dialog" aria-modal="true" aria-labelledby="km-inspector-title" hidden>
+        <div class="km-drawer__head">
+          <div>
+            <span class="km-pill" id="km-inspector-type">Object</span>
+            <h2 class="km-drawer__title" id="km-inspector-title">Knowledge Object</h2>
+          </div>
+          <button type="button" class="km-icon-btn" id="km-inspector-close" aria-label="Close inspector">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="km-drawer__body" id="km-inspector-body"></div>
+      </aside>
+
+      <!-- Persistent AI Knowledge Assistant Slide-Over Drawer -->
+      <div class="km-backdrop" id="km-assistant-backdrop" hidden></div>
+      <aside class="km-drawer km-drawer--ai" id="km-assistant-drawer" role="dialog" aria-modal="true" aria-labelledby="km-assistant-title" hidden>
+        <div class="km-drawer__head">
+          <div>
+            <div class="km-ai-badge">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-5.1 1.9L12 16.6l-1.9-4.9L5 9.8l5.1-1.9L12 3z"/></svg>
+              <span>AI Knowledge Assistant</span>
+            </div>
+            <h2 class="km-drawer__title" id="km-assistant-title">Organisational Brain Copilot</h2>
+          </div>
+          <button type="button" class="km-icon-btn" id="km-assistant-close" aria-label="Close AI Assistant">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div class="km-assistant-commands" aria-label="Quick AI Knowledge commands">
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Summarise Knowledge">Summarise Knowledge</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Generate SOP">Generate SOP</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Find Missing Documentation">Find Missing Docs</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Identify Knowledge Gaps">Identify Gaps</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Find Experts">Find Experts</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Generate Training Course">Generate Course</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Generate Wiki Article">Generate Wiki</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Generate Project Summary">Project Summary</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Connect Related Knowledge">Connect Knowledge</button>
+          <button type="button" class="km-cmd-chip" data-ai-cmd="Answer Organisation Questions">Ask Organisation</button>
+        </div>
+
+        <div class="km-assistant-log" id="km-assistant-log" aria-live="polite"></div>
+
+        <form class="km-assistant-form" id="km-assistant-form">
+          <input type="text" id="km-assistant-input" class="km-input" placeholder="Ask a question or give a command…" autocomplete="off" aria-label="Message AI Knowledge Assistant" />
+          <button type="submit" class="km-btn km-btn--primary">Send</button>
+        </form>
+      </aside>
+
+      <!-- Universal Modal (Create Object / Decision / Meeting / Lesson / SOP / Link / Quiz / Doc Preview) -->
+      <div class="km-modal-backdrop" id="km-modal-backdrop" hidden>
+        <div class="km-modal" id="km-modal" role="dialog" aria-modal="true" aria-labelledby="km-modal-title">
+          <div class="km-modal__head">
+            <h2 class="km-modal__title" id="km-modal-title">Create Knowledge Asset</h2>
+            <button type="button" class="km-icon-btn" id="km-modal-close" aria-label="Close dialog">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div class="km-modal__body" id="km-modal-body"></div>
+        </div>
+      </div>
+
+      <!-- Subtle Toast Notification -->
+      <div class="km-toast" id="km-toast" role="status" aria-live="polite" hidden></div>
+    </main>
+  </div>
+
+<script src="/assets/js/workspace-nav.js?v=26169050"></script>
+  <script src="/assets/js/workspace-router.js?v=8af64ec7"></script>
+  <script src="/assets/js/knowledge-data.js"></script>
+  <script src="/assets/js/knowledge.js"></script>
+</body>
+</html>

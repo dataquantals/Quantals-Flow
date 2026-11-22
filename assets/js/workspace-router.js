@@ -16,12 +16,18 @@
     { path: '/dashboard/files/',     key: 'files',     shell: 'dashboard', filter: 'files' },
     { path: '/dashboard/team/',      key: 'team',      shell: 'dashboard', filter: 'team' },
     { path: '/dashboard/notepad/',   key: 'notepad',   shell: 'notepad',   markerId: 'admin-view-notes' },
+    { path: '/dashboard/knowledge/', key: 'knowledge', shell: 'knowledge', markerId: 'km-app' },
+    { path: '/dashboard/documents/', key: 'documents', shell: 'documents', markerId: 'docgen-app' },
     { path: '/dashboard/quotation/', key: 'quotation', shell: 'quotation', markerId: 'sheet' },
     { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice',   markerId: 'sheet' }
   ];
 
   var LEGACY_ALIASES = {
     '/notepad/': '/dashboard/notepad/',
+    '/knowledge/': '/dashboard/knowledge/',
+    '/documents/': '/dashboard/documents/',
+    '/dashboard/os/': '/dashboard/documents/',
+    '/os/': '/dashboard/documents/',
     '/quotation/': '/dashboard/quotation/',
     '/invoice/': '/dashboard/invoice/'
   };
@@ -36,7 +42,10 @@
   var ONCE_LIBS = [
     { match: /html2pdf\.bundle\.min\.js/i, globalCheck: function () { return typeof window.html2pdf !== 'undefined'; } },
     { match: /notepad-page\.js/i,          globalCheck: function () { return Boolean(window.ConvexNotes); } },
-    { match: /\/assets\/js\/notepad\.js/i, globalCheck: function () { return typeof window.initNotepad === 'function'; }, reinit: function () { window.initNotepad(); } }
+    { match: /\/assets\/js\/notepad\.js/i, globalCheck: function () { return typeof window.initNotepad === 'function'; }, reinit: function () { window.initNotepad(); } },
+    { match: /\/assets\/js\/knowledge-data\.js/i, globalCheck: function () { return typeof window.QFKnowledgeSeed !== 'undefined'; } },
+    { match: /\/assets\/js\/knowledge\.js/i, globalCheck: function () { return typeof window.initKnowledgeHub === 'function'; }, reinit: function () { window.initKnowledgeHub(); } },
+    { match: /\/assets\/js\/documents\.js/i, globalCheck: function () { return typeof window.initDocumentGeneration === 'function'; }, reinit: function () { window.initDocumentGeneration(); } }
   ];
 
   var htmlCache = new Map();

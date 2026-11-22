@@ -482,7 +482,8 @@
       var handle = document.createElement('span');
       handle.className = 'resize-handle';
       handle.title = 'Drag to resize';
-      handle.addEventListener('mousedown', function (e) {
+      handle.addEventListener('pointerdown', function (e) {
+        if (e.button && e.button !== 0) return;
         e.stopPropagation();
         e.preventDefault();
         pushHistory();
@@ -491,6 +492,7 @@
         resizeStartH = el.offsetHeight;
         resizeStartX = e.clientX;
         resizeStartY = e.clientY;
+        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
         selectElement(el);
       });
       el.appendChild(handle);
@@ -530,8 +532,10 @@
     if (!selectedEl || !contextToolbar || contextToolbar.hidden) return;
     var rect = selectedEl.getBoundingClientRect();
     var vpRect = viewport.getBoundingClientRect();
-    var left = rect.left - vpRect.left + rect.width / 2;
-    var top = Math.max(12, rect.top - vpRect.top - 52);
+    var tbW = contextToolbar.offsetWidth || 280;
+    var halfW = Math.min(tbW / 2, Math.max(0, vpRect.width / 2 - 12));
+    var left = Math.max(halfW + 12, Math.min(vpRect.width - halfW - 12, rect.left - vpRect.left + rect.width / 2));
+    var top = Math.max(12, Math.min(vpRect.height - 64, rect.top - vpRect.top - 52));
     contextToolbar.style.left = Math.round(left) + 'px';
     contextToolbar.style.top = Math.round(top) + 'px';
   }
@@ -542,9 +546,11 @@
     el.dataset.bound = '1';
     ensureResizeHandle(el);
 
-    el.addEventListener('mousedown', function (e) {
+    el.addEventListener('pointerdown', function (e) {
+      if (e.button && e.button !== 0) return;
       if (e.target.classList.contains('resize-handle')) return;
       if (currentTool === 'hand' || spacePressed) return;
+      if (e.pointerType === 'touch' && viewportActivePointers && viewportActivePointers.size >= 1) return;
 
       // Connector tool or pending connector mode
       if ((currentTool === 'connector' || pendingConnectorFromId) && !el.classList.contains('canvas-frame')) {
@@ -615,10 +621,12 @@
         }
       }
 
-      // Allow inline text editing on double-click or when clicking inside focused contenteditable
+      // Allow inline text editing on double-click, when clicking inside focused contenteditable,
+      // or tapping an already-selected element's editable text on touch devices
       var editable = e.target.closest('[contenteditable="true"]');
-      if (editable && document.activeElement === editable) {
+      if (editable && (document.activeElement === editable || (e.pointerType === 'touch' && el.classList.contains('is-selected')))) {
         e.stopPropagation();
+        if (document.activeElement !== editable) editable.focus();
         return;
       }
 
@@ -2148,13 +2156,18 @@
   function toggleMoreTools(show) {
     if (!moreToolsPopover) return;
     if (show && moreToolsPopover.hidden) {
-      // Anchor next to the "+" button (right side of the toolbar rail).
+      // Anchor next to the "+" button, clamped within viewport so mobile never clips.
       var host = moreToolsPopover.offsetParent;
       if (host && moreToolsBtn) {
         var br = moreToolsBtn.getBoundingClientRect();
         var hr = host.getBoundingClientRect();
-        moreToolsPopover.style.left = Math.round(br.right - hr.left + 10) + 'px';
-        moreToolsPopover.style.top = Math.max(8, Math.round(br.top - hr.top)) + 'px';
+        var popW = 240;
+        var rawLeft = Math.round(br.right - hr.left + 10);
+        var clampedLeft = Math.max(8, Math.min(hr.width - popW - 8, rawLeft));
+        var rawTop = Math.max(8, Math.round(br.top - hr.top));
+        var clampedTop = Math.min(Math.max(8, hr.height - 260), rawTop);
+        moreToolsPopover.style.left = clampedLeft + 'px';
+        moreToolsPopover.style.top = clampedTop + 'px';
       }
     }
     moreToolsPopover.hidden = !show;
@@ -2654,11 +2667,44 @@
     if (e.target === clipartModal) closeModal(clipartModal);
   });
 
-  /* ---------- Viewport Mouse Interaction (Create, Pan, Draw, Drag, Resize) ---------- */
-  viewport.addEventListener('mousedown', function (e) {
+  /* ---------- Viewport Unified Pointer Interaction (Create, Pan, Pinch-Zoom, Draw, Drag, Resize) ---------- */
+  var viewportActivePointers = new Map();
+  var viewportPinch = null;
+  var VIEWPORT_CHROME_SELECTOR = '.quantalflow-toolbar, .color-picker-popover, .shape-picker-popover, .connector-picker-popover, .pen-picker-popover, .more-tools-popover, .context-toolbar, .quantalflow-timer-widget, .quantalflow-voting-banner, .quantalflow-present-bar, .quantalflow-minimap, .quantalflow-bottom-left, .quantalflow-bottom-right, .empty-board-starter';
+
+  viewport.addEventListener('pointerdown', function (e) {
+    // Never hijack clicks/taps on floating toolbar, popovers, zoom/undo controls, modals, or starter hub
+    if (e.target.closest(VIEWPORT_CHROME_SELECTOR)) return;
+
+    // Multi-touch tracking for smooth two-finger pinch-to-zoom & two-finger pan
+    if (e.pointerType === 'touch') {
+      viewportActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (viewportActivePointers.size === 2) {
+        // Cancel any single-finger drag/marquee/pen in progress
+        isDrawingPen = false; activePathEl = null; penPoints = [];
+        isMarqueeSelecting = false; if (marqueeEl) { marqueeEl.remove(); marqueeEl = null; }
+        activeDragEl = null; dragGroupOffsets = []; dragMoved = false;
+        isPanning = false;
+        var pair = Array.from(viewportActivePointers.values());
+        viewportPinch = {
+          dist: Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y) || 1,
+          midX: (pair[0].x + pair[1].x) / 2,
+          midY: (pair[0].y + pair[1].y) / 2,
+          startZoom: zoom,
+          startPanX: panX,
+          startPanY: panY
+        };
+        viewport.classList.add('is-dragging-pan');
+        try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
+        return;
+      }
+    }
+
     var isBackground = (e.target === viewport || e.target === world || e.target.classList.contains('quantalflow-svg-layer') || e.target.classList.contains('canvas-frame'));
 
     if (currentTool === 'pen') {
+      if (e.button && e.button !== 0) return;
+      e.preventDefault();
       pushHistory();
       isDrawingPen = true;
       var pt = screenToWorld(e.clientX, e.clientY);
@@ -2671,6 +2717,7 @@
       activePathEl.setAttribute('stroke-linejoin', 'round');
       activePathEl.setAttribute('d', 'M ' + Math.round(pt.x) + ' ' + Math.round(pt.y));
       drawingsGroup.appendChild(activePathEl);
+      try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
       return;
     }
 
@@ -2736,17 +2783,20 @@
       return;
     }
 
-    // Pan only when Hand tool is active, Space is held, or middle mouse button is used.
-    if (currentTool === 'hand' || spacePressed || e.button === 1) {
-      if (e.button === 1) e.preventDefault();
+    // Pan when Hand tool is active, Space is held, middle mouse button is used,
+    // OR single-finger touch drag on empty canvas background in Select mode (natural mobile sliding).
+    var isTouchBackgroundPan = (e.pointerType === 'touch' && isBackground && currentTool === 'select');
+    if (currentTool === 'hand' || spacePressed || e.button === 1 || isTouchBackgroundPan) {
+      if (e.button === 1 || isTouchBackgroundPan) e.preventDefault();
       isPanning = true;
       startPanX = e.clientX - panX;
       startPanY = e.clientY - panY;
       viewport.classList.add('is-dragging-pan');
+      try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
       return;
     }
 
-    // Select (V) tool on empty canvas / background: start marquee highlight selection!
+    // Select (V) tool on empty canvas / background (mouse/pen): start marquee highlight selection!
     if (currentTool === 'select' && isBackground) {
       selectElement(null);
       isMarqueeSelecting = true;
@@ -2760,6 +2810,7 @@
       marqueeEl.style.width = '0px';
       marqueeEl.style.height = '0px';
       viewport.appendChild(marqueeEl);
+      try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
     }
   });
 
@@ -2792,7 +2843,27 @@
     setSelectedElements(hits);
   }
 
-  window.addEventListener('mousemove', function (e) {
+  window.addEventListener('pointermove', function (e) {
+    if (viewportActivePointers.has(e.pointerId)) {
+      viewportActivePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (viewportPinch && viewportActivePointers.size >= 2) {
+      e.preventDefault();
+      var pair = Array.from(viewportActivePointers.values());
+      var newDist = Math.hypot(pair[1].x - pair[0].x, pair[1].y - pair[0].y) || 1;
+      var newMidX = (pair[0].x + pair[1].x) / 2;
+      var newMidY = (pair[0].y + pair[1].y) / 2;
+      var vpRect = viewport.getBoundingClientRect();
+      var nextZoom = Math.max(0.25, Math.min(2.5, viewportPinch.startZoom * (newDist / viewportPinch.dist)));
+      var worldMidX = (viewportPinch.midX - vpRect.left - viewportPinch.startPanX) / viewportPinch.startZoom;
+      var worldMidY = (viewportPinch.midY - vpRect.top - viewportPinch.startPanY) / viewportPinch.startZoom;
+      zoom = nextZoom;
+      panX = (newMidX - vpRect.left) - worldMidX * zoom;
+      panY = (newMidY - vpRect.top) - worldMidY * zoom;
+      updateTransform();
+      return;
+    }
+
     if (isDrawingPen && activePathEl) {
       var pt = screenToWorld(e.clientX, e.clientY);
       penPoints.push(pt);
@@ -2847,7 +2918,12 @@
     }
   });
 
-  window.addEventListener('mouseup', function (e) {
+  function finishViewportPointer(e) {
+    viewportActivePointers.delete(e.pointerId);
+    if (viewportPinch && viewportActivePointers.size < 2) {
+      viewportPinch = null;
+      viewport.classList.remove('is-dragging-pan');
+    }
     if (isDrawingPen) {
       isDrawingPen = false;
       activePathEl = null;
@@ -2876,7 +2952,9 @@
       dragGroupOffsets = [];
       dragMoved = false;
     }
-  });
+  }
+  window.addEventListener('pointerup', finishViewportPointer);
+  window.addEventListener('pointercancel', finishViewportPointer);
 
   /* ---------- Context Toolbar Actions ---------- */
   document.querySelectorAll('[data-ctx-color]').forEach(function (btn) {
@@ -5160,6 +5238,10 @@
 
   /* ---------- Keyboard Shortcuts ---------- */
   window.addEventListener('keydown', function (e) {
+    // Do not double-fire main canvas shortcuts when WhiteboardSuite or ProjectPlanningSuite owns the stage
+    if (window.WhiteboardSuite && typeof window.WhiteboardSuite.isOpen === 'function' && window.WhiteboardSuite.isOpen()) return;
+    if (window.ProjectPlanningSuite && typeof window.ProjectPlanningSuite.isOpen === 'function' && window.ProjectPlanningSuite.isOpen()) return;
+
     var tag = (e.target && e.target.tagName) || '';
     var isEditingText = tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable;
 
