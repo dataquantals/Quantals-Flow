@@ -540,8 +540,8 @@
       });
     });
 
-    container.querySelector('#pos-add-objective')?.addEventListener('click', function () {
-      var title = window.prompt('Objective title:');
+    container.querySelector('#pos-add-objective')?.addEventListener('click', async function () {
+      var title = await window.QFDialog.prompt({ title: 'New Objective', message: 'Enter objective title:', confirmLabel: 'Add Objective', cancelLabel: 'Cancel' });
       if (!title || !title.trim()) return;
       state.objectives.push({
         id: uid('OBJ'),
@@ -554,10 +554,10 @@
       ctx.saveAndRender();
     });
 
-    container.querySelector('#pos-add-milestone')?.addEventListener('click', function () {
-      var title = window.prompt('Milestone name:');
+    container.querySelector('#pos-add-milestone')?.addEventListener('click', async function () {
+      var title = await window.QFDialog.prompt({ title: 'New Milestone', message: 'Enter milestone name:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!title || !title.trim()) return;
-      var criteria = window.prompt('Success criteria (optional):') || '';
+      var criteria = (await window.QFDialog.prompt({ title: 'Success criteria (optional)', message: 'Define measurable completion criteria:', confirmLabel: 'Add Milestone', cancelLabel: 'Skip' })) || '';
       state.milestones.push({
         id: uid('MS'),
         title: title.trim(),
@@ -666,10 +666,10 @@
     });
 
     container.querySelectorAll('[data-kb-sub]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', async function () {
         var t = (state.tasks || []).find(function (x) { return x.id === btn.dataset.kbSub; });
         if (!t) return;
-        var stTitle = window.prompt('Subtask title for "' + t.title + '":');
+        var stTitle = await window.QFDialog.prompt({ title: 'Add subtask', message: 'Subtask title for "' + t.title + '":', confirmLabel: 'Add Subtask', cancelLabel: 'Cancel' });
         if (!stTitle || !stTitle.trim()) return;
         if (!Array.isArray(t.subtasks)) t.subtasks = [];
         t.subtasks.push({ id: uid('SUB'), title: stTitle.trim(), done: false });
@@ -950,9 +950,9 @@
       el.addEventListener('click', function () { ctx.openTaskDrawer(el.dataset.calTask); });
     });
     container.querySelectorAll('[data-cal-add]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', async function () {
         var iso = btn.dataset.calAdd;
-        var title = window.prompt('New task title for ' + iso + ':');
+        var title = await window.QFDialog.prompt({ title: 'New task', message: 'Task title for ' + iso + ':', confirmLabel: 'Create Task', cancelLabel: 'Cancel' });
         if (!title || !title.trim()) return;
         var nt = normalizeTask({
           id: uid('TSK'),
@@ -1126,8 +1126,8 @@
         '</svg>' +
       '</div>';
 
-    container.querySelector('#pos-mm-add-obj')?.addEventListener('click', function () {
-      var title = window.prompt('New Objective node title:');
+    container.querySelector('#pos-mm-add-obj')?.addEventListener('click', async function () {
+      var title = await window.QFDialog.prompt({ title: 'New Objective node', message: 'Enter node title:', confirmLabel: 'Add Node', cancelLabel: 'Cancel' });
       if (!title || !title.trim()) return;
       state.objectives.push({ id: uid('OBJ'), title: title.trim(), owner: state.projectOwner || '', progress: 0 });
       ctx.saveAndRender();
@@ -1170,10 +1170,10 @@
             }).join('')) +
       '</div>';
 
-    container.querySelector('#pos-wb-add-note')?.addEventListener('click', function () {
-      var title = window.prompt('Note headline:');
+    container.querySelector('#pos-wb-add-note')?.addEventListener('click', async function () {
+      var title = await window.QFDialog.prompt({ title: 'New sticky note', message: 'Note headline:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!title || !title.trim()) return;
-      var body = window.prompt('Note details (optional):') || '';
+      var body = (await window.QFDialog.prompt({ title: 'Note details (optional)', message: 'Add supporting details:', confirmLabel: 'Add Note', cancelLabel: 'Skip' })) || '';
       var tones = ['', 'blue', 'amber', 'green'];
       state.whiteboardNodes.push({
         id: uid('WB'),
@@ -1187,8 +1187,8 @@
       ctx.saveAndRender();
     });
 
-    container.querySelector('#pos-wb-add-frame')?.addEventListener('click', function () {
-      var title = window.prompt('Frame title:');
+    container.querySelector('#pos-wb-add-frame')?.addEventListener('click', async function () {
+      var title = await window.QFDialog.prompt({ title: 'New planning frame', message: 'Frame title:', confirmLabel: 'Add Frame', cancelLabel: 'Cancel' });
       if (!title || !title.trim()) return;
       state.whiteboardNodes.push({
         id: uid('WB'),
@@ -1323,11 +1323,11 @@
         '</table>' +
       '</div>';
 
-    container.querySelector('#pos-team-add')?.addEventListener('click', function () {
-      var name = window.prompt('Team member name:');
+    container.querySelector('#pos-team-add')?.addEventListener('click', async function () {
+      var name = await window.QFDialog.prompt({ title: 'Add team member', message: 'Team member name:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!name || !name.trim()) return;
-      var role = window.prompt('Position / Role:') || 'Product Engineer';
-      var cap = Number(window.prompt('Weekly capacity (hours):', '40')) || 40;
+      var role = (await window.QFDialog.prompt({ title: 'Position / Role', defaultValue: 'Product Engineer', confirmLabel: 'Next', cancelLabel: 'Skip' })) || 'Product Engineer';
+      var cap = Number(await window.QFDialog.prompt({ title: 'Weekly capacity (hours)', defaultValue: '40', confirmLabel: 'Add Member', cancelLabel: 'Cancel' })) || 40;
       state.resources.push({ id: uid('res'), name: name.trim(), role: role.trim(), capacityHours: cap });
       logActivity(state, state.projectOwner || 'User', 'added team member', name.trim());
       ctx.saveAndRender();
@@ -1484,11 +1484,11 @@
       state.docCategoryFilter = e.target.value;
       renderDocsDecisionsPane(container, state, ctx);
     });
-    container.querySelector('#pos-doc-add')?.addEventListener('click', function () {
-      var title = window.prompt('Document title:');
+    container.querySelector('#pos-doc-add')?.addEventListener('click', async function () {
+      var title = await window.QFDialog.prompt({ title: 'New document', message: 'Document title:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!title || !title.trim()) return;
-      var category = window.prompt('Category (' + DOC_CATEGORIES.join(' / ') + '):', DOC_CATEGORIES[0]) || DOC_CATEGORIES[0];
-      var content = window.prompt('Summary / Notes:') || '';
+      var category = (await window.QFDialog.prompt({ title: 'Document category', message: 'Choose: ' + DOC_CATEGORIES.join(' / '), defaultValue: DOC_CATEGORIES[0], confirmLabel: 'Next', cancelLabel: 'Skip' })) || DOC_CATEGORIES[0];
+      var content = (await window.QFDialog.prompt({ title: 'Summary / Notes', message: 'Optional document notes:', confirmLabel: 'Create Document', cancelLabel: 'Skip' })) || '';
       state.documents.unshift({
         id: uid('DOC'),
         title: title.trim(),
@@ -1500,11 +1500,11 @@
       logActivity(state, state.projectOwner || 'User', 'added document', title.trim());
       ctx.saveAndRender();
     });
-    container.querySelector('#pos-dec-add')?.addEventListener('click', function () {
-      var summary = window.prompt('Decision summary:');
+    container.querySelector('#pos-dec-add')?.addEventListener('click', async function () {
+      var summary = await window.QFDialog.prompt({ title: 'Log decision', message: 'Decision summary:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!summary || !summary.trim()) return;
-      var participants = window.prompt('Participants (comma-separated):') || state.projectOwner || 'Leadership';
-      var riskAssessment = window.prompt('Risk assessment:') || 'Low impact';
+      var participants = (await window.QFDialog.prompt({ title: 'Participants', message: 'Comma-separated names:', defaultValue: state.projectOwner || 'Leadership', confirmLabel: 'Next', cancelLabel: 'Skip' })) || state.projectOwner || 'Leadership';
+      var riskAssessment = (await window.QFDialog.prompt({ title: 'Risk assessment', defaultValue: 'Low impact', confirmLabel: 'Log Decision', cancelLabel: 'Skip' })) || 'Low impact';
       state.decisions.unshift({
         id: uid('DEC'),
         summary: summary.trim(),
@@ -1589,12 +1589,12 @@
         '</section>' +
       '</div>';
 
-    container.querySelector('#pos-risk-add')?.addEventListener('click', function () {
-      var title = window.prompt('Risk name:');
+    container.querySelector('#pos-risk-add')?.addEventListener('click', async function () {
+      var title = await window.QFDialog.prompt({ title: 'Add risk', message: 'Risk name:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!title || !title.trim()) return;
-      var impact = Math.max(1, Math.min(5, Number(window.prompt('Impact (1-5):', '4')) || 3));
-      var probability = Math.max(1, Math.min(5, Number(window.prompt('Probability (1-5):', '3')) || 3));
-      var mitigation = window.prompt('Mitigation plan:') || '';
+      var impact = Math.max(1, Math.min(5, Number(await window.QFDialog.prompt({ title: 'Impact (1-5)', defaultValue: '4', confirmLabel: 'Next', cancelLabel: 'Skip' })) || 3));
+      var probability = Math.max(1, Math.min(5, Number(await window.QFDialog.prompt({ title: 'Probability (1-5)', defaultValue: '3', confirmLabel: 'Next', cancelLabel: 'Skip' })) || 3));
+      var mitigation = (await window.QFDialog.prompt({ title: 'Mitigation plan', message: 'Optional mitigation strategy:', confirmLabel: 'Add Risk', cancelLabel: 'Skip' })) || '';
       var score = impact * probability;
       var severity = score >= 16 ? 'Critical' : (score >= 10 ? 'High' : (score >= 5 ? 'Medium' : 'Low'));
       var item = {
@@ -1674,11 +1674,11 @@
         ctx.saveAndRender();
       });
     });
-    container.querySelector('#pos-auto-new')?.addEventListener('click', function () {
-      var name = window.prompt('Rule name:');
+    container.querySelector('#pos-auto-new')?.addEventListener('click', async function () {
+      var name = await window.QFDialog.prompt({ title: 'New automation rule', message: 'Rule name:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!name || !name.trim()) return;
-      var trigger = window.prompt('Trigger (e.g. When Task Completed / When Milestone Reached / When Deadline Missed / When Risk Created):', 'When Task Completed') || 'When Task Completed';
-      var action = window.prompt('Action (e.g. Notify Team / Create Next Phase Tasks / Escalate To Manager / Notify Stakeholders):', 'Notify Team') || 'Notify Team';
+      var trigger = (await window.QFDialog.prompt({ title: 'Trigger event', message: 'e.g. When Task Completed / When Milestone Reached / When Deadline Missed / When Risk Created', defaultValue: 'When Task Completed', confirmLabel: 'Next', cancelLabel: 'Skip' })) || 'When Task Completed';
+      var action = (await window.QFDialog.prompt({ title: 'Action', message: 'e.g. Notify Team / Create Next Phase Tasks / Escalate To Manager / Notify Stakeholders', defaultValue: 'Notify Team', confirmLabel: 'Create Rule', cancelLabel: 'Skip' })) || 'Notify Team';
       state.automations.push({ id: uid('AUTO'), name: name.trim(), trigger: trigger.trim(), action: action.trim(), enabled: true, runCount: 0 });
       ctx.saveAndRender();
     });
@@ -1863,10 +1863,10 @@
         ctx.saveAndRender();
       });
     });
-    container.querySelector('#pos-portal-add-role')?.addEventListener('click', function () {
-      var name = window.prompt('Stakeholder name:');
+    container.querySelector('#pos-portal-add-role')?.addEventListener('click', async function () {
+      var name = await window.QFDialog.prompt({ title: 'Add stakeholder', message: 'Stakeholder name:', confirmLabel: 'Next', cancelLabel: 'Cancel' });
       if (!name || !name.trim()) return;
-      var role = window.prompt('Role (Viewer / Commenter / Approver):', 'Viewer') || 'Viewer';
+      var role = (await window.QFDialog.prompt({ title: 'Role', message: 'Viewer / Commenter / Approver', defaultValue: 'Viewer', confirmLabel: 'Add Stakeholder', cancelLabel: 'Skip' })) || 'Viewer';
       portal.roles.push({ id: uid('role'), name: name.trim(), role: role.trim(), email: '' });
       ctx.saveAndRender();
     });

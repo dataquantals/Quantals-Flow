@@ -8,16 +8,48 @@
   var STORAGE_KEY = 'qf_documents_v1';
 
   var SOURCES = {
-    whiteboards: { label: 'Whiteboards', items: ['Mobile Payments Strategy Board', 'Q1 Planning Board', 'Customer Journey Map'] },
-    mindmaps: { label: 'Mind Maps', items: ['QuantalFlow Product Map', 'Hospital Platform Map', 'Training Programme Map'] },
-    projects: { label: 'Projects', items: ['QuantalFlow Mobile Payments Project', 'Nursing Student Attendance Project', 'School Portal Rollout'] },
-    meetings: { label: 'Meetings', items: ['Weekly Product Sync', 'Client Kick-off Meeting', 'Steering Committee Review'] },
-    tasks: { label: 'Tasks', items: ['Sprint 12 Tasks', 'Open Risks and Blockers', 'Release Checklist'] },
-    knowledge: { label: 'Knowledge Articles', items: ['Onboarding Guide', 'Data Security Practices', 'Deployment Notes'] },
-    decisions: { label: 'Decisions', items: ['Use Convex Instead of Firebase', 'Choice of Payment Gateway', 'Cloud Hosting Decision'] },
-    research: { label: 'Research', items: ['Customer Support Root-Cause Analysis', 'User Interview Findings', 'Competitor Review'] },
-    workflows: { label: 'Workflows', items: ['Invoice Approval Workflow', 'Support Ticket Workflow', 'Employee Onboarding Workflow'] }
+    perspective: { label: 'Perspective', items: [] },
+    brainstorm: { label: 'Brainstorm', items: [] },
+    whiteboards: { label: 'Whiteboards', items: [] },
+    mindmaps: { label: 'Mind Maps', items: [] },
+    projects: { label: 'Projects', items: [] },
+    meetings: { label: 'Meetings', items: [] },
+    tasks: { label: 'Tasks', items: [] },
+    knowledge: { label: 'Knowledge Articles', items: [] },
+    decisions: { label: 'Decisions', items: [] },
+    research: { label: 'Research', items: [] },
+    workflows: { label: 'Workflows', items: [] }
   };
+
+  function normalizeSourceItem(it, sourceKey) {
+    if (it && typeof it === 'object') {
+      var id = String(it.id || it.title || '').trim();
+      var title = String(it.title || it.label || it.name || id).trim();
+      return {
+        key: id || title,
+        id: String(it.id || '').trim(),
+        boardId: String(it.boardId || '').trim(),
+        moduleKey: String(it.moduleKey || '').trim(),
+        itemId: String(it.itemId || '').trim(),
+        title: title,
+        source: sourceKey,
+        meta: String(it.meta || '').trim(),
+        context: String(it.context || '').trim()
+      };
+    }
+    var str = String(it || '').trim();
+    return { key: str, id: '', boardId: '', moduleKey: '', itemId: '', title: str, source: sourceKey, meta: '', context: '' };
+  }
+
+  function getPickedSourceItems() {
+    var list = (SOURCES[state.source] && SOURCES[state.source].items) || [];
+    var out = [];
+    list.forEach(function (raw) {
+      var norm = normalizeSourceItem(raw, state.source);
+      if (state.picked.has(norm.key)) out.push(norm);
+    });
+    return out;
+  }
 
   var TYPES = [
     ['Business Plan', ['Executive Summary', 'Problem and Opportunity', 'Market Analysis', 'Strategy and Operations', 'Financial Outlook', 'Risks and Mitigation']],
@@ -49,7 +81,8 @@
     picked: new Set(),
     type: 'Project Charter',
     currentId: null,
-    searchQuery: ''
+    searchQuery: '',
+    lastPreAiHtml: null
   };
 
   var toastTimer = null;
@@ -114,9 +147,17 @@
       return '<button type="button" class="dg-chip' + (k === state.source ? ' is-on' : '') + '" data-dg-src="' + esc(k) + '">' + esc(SOURCES[k].label) + '</button>';
     }).join('');
 
-    list.innerHTML = SOURCES[state.source].items.map(function (it) {
-      var checked = state.picked.has(it) ? ' checked' : '';
-      return '<label><input type="checkbox" data-dg-pick="' + esc(it) + '"' + checked + ' />' + esc(it) + '</label>';
+    var items = (SOURCES[state.source] && SOURCES[state.source].items) || [];
+    if (!items.length) {
+      list.innerHTML = '<div style="padding:10px 4px;font-size:12.5px;color:var(--dg-muted);">No items found in ' + esc(SOURCES[state.source].label) + ' yet. Create one in your workspace or choose another source.</div>';
+      return;
+    }
+
+    list.innerHTML = items.map(function (raw) {
+      var it = normalizeSourceItem(raw, state.source);
+      var checked = state.picked.has(it.key) ? ' checked' : '';
+      var metaHtml = it.meta ? '<span style="margin-left:auto;font-size:11px;color:var(--dg-muted);">' + esc(it.meta) + '</span>' : '';
+      return '<label><input type="checkbox" data-dg-pick="' + esc(it.key) + '"' + checked + ' /><span>' + esc(it.title) + '</span>' + metaHtml + '</label>';
     }).join('');
   }
 
@@ -330,30 +371,159 @@
       .then(function (d) { if (d && d.user) wireChrome(d.user); })
       .catch(function () {});
 
-    fetch('/api/os', { credentials: 'same-origin', cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        if (!data) return;
-        if (data.state && Array.isArray(data.state.documents) && data.state.documents.length && !loadDocs().length) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.state.documents));
-          renderLists();
-        }
-        var eco = data.ecosystem;
-        if (eco) {
-          if (eco.boards && eco.boards.length) {
-            var wb = eco.boards.filter(function (b) { return !/mind/i.test(b.mode); }).map(function (b) { return b.title; }).filter(Boolean);
-            var mm = eco.boards.filter(function (b) { return /mind/i.test(b.mode); }).map(function (b) { return b.title; }).filter(Boolean);
-            if (wb.length) SOURCES.whiteboards.items = Array.from(new Set(wb.concat(SOURCES.whiteboards.items))).slice(0, 8);
-            if (mm.length) SOURCES.mindmaps.items = Array.from(new Set(mm.concat(SOURCES.mindmaps.items))).slice(0, 8);
+    Promise.all([
+      fetch('/api/os', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      fetch('/api/knowledge', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (results) {
+      var data = results[0];
+      var knData = results[1];
+      if (data && data.state && Array.isArray(data.state.documents) && data.state.documents.length && !loadDocs().length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.state.documents));
+        renderLists();
+      }
+
+      var eco = data && data.ecosystem ? data.ecosystem : null;
+      if (eco) {
+        var wsDocs = Array.isArray(eco.workspaceDocs) ? eco.workspaceDocs : [];
+        var boards = Array.isArray(eco.boards) ? eco.boards : [];
+
+        var buildModuleSource = function (modKey, fallbackBoards) {
+          var list = [];
+          var seenKeys = new Set();
+          wsDocs.filter(function (d) { return (d.moduleKey || '').toLowerCase() === modKey; }).forEach(function (d) {
+            var k = d.id || (d.boardId + ':' + d.title);
+            if (!seenKeys.has(k)) {
+              seenKeys.add(k);
+              list.push({
+                id: d.id,
+                boardId: d.boardId,
+                moduleKey: modKey,
+                itemId: d.itemId || '',
+                title: d.title,
+                meta: d.boardTitle || modKey
+              });
+            }
+          });
+          fallbackBoards.forEach(function (b) {
+            var k = b.id || b.title;
+            if (!seenKeys.has(k)) {
+              seenKeys.add(k);
+              list.push({
+                id: b.id,
+                boardId: b.id,
+                moduleKey: modKey,
+                title: b.title || 'Untitled Board',
+                meta: b.mode || modKey
+              });
+            }
+          });
+          return list;
+        };
+
+        var hasMod = function (b, mod) {
+          var mods = Array.isArray(b.enabledModules) ? b.enabledModules : [];
+          return mods.indexOf(mod) !== -1 || String(b.mode || '').toLowerCase() === mod;
+        };
+
+        SOURCES.perspective.items = buildModuleSource('perspective', boards.filter(function (b) { return hasMod(b, 'perspective'); }));
+        SOURCES.brainstorm.items = buildModuleSource('brainstorm', boards.filter(function (b) { return hasMod(b, 'brainstorm'); }));
+        SOURCES.whiteboards.items = buildModuleSource('whiteboard', boards.filter(function (b) { return !/mind/i.test(b.mode || ''); }));
+        SOURCES.mindmaps.items = buildModuleSource('mindmap', boards.filter(function (b) { return /mind/i.test(b.mode || '') || hasMod(b, 'mindmap'); }));
+
+        // Also surface embedded workspace docs at the top of Whiteboards if not already present so users can pick them there too
+        wsDocs.forEach(function (d) {
+          var already = SOURCES.whiteboards.items.some(function (x) { return x.title === d.title; });
+          if (!already) {
+            SOURCES.whiteboards.items.unshift({
+              id: d.id,
+              boardId: d.boardId,
+              moduleKey: d.moduleKey,
+              itemId: d.itemId || '',
+              title: d.title,
+              meta: (d.boardTitle || 'Workspace') + ' · ' + (d.moduleKey || 'doc')
+            });
           }
-          if (eco.projects && eco.projects.length) {
-            var pr = eco.projects.map(function (p) { return p.title; }).filter(Boolean);
-            if (pr.length) SOURCES.projects.items = Array.from(new Set(pr.concat(SOURCES.projects.items))).slice(0, 8);
-          }
-          renderSources();
+        });
+
+        if (Array.isArray(eco.projects)) {
+          SOURCES.projects.items = eco.projects.map(function (p) {
+            return {
+              id: p.id,
+              title: p.title || 'Untitled Project',
+              meta: (p.taskCount || 0) + ' tasks'
+            };
+          });
+          SOURCES.tasks.items = eco.projects
+            .filter(function (p) { return (p.taskCount || 0) > 0; })
+            .map(function (p) {
+              return {
+                id: p.id,
+                title: p.title + ' Tasks',
+                meta: p.taskCount + ' tasks',
+                context: (p.tasks || []).map(function (t) {
+                  return '- [' + (t.status || 'todo') + '] ' + (t.title || 'Task') + (t.assignee ? (' (' + t.assignee + ')') : '');
+                }).join('\n')
+              };
+            });
         }
-      })
-      .catch(function () {});
+        if (Array.isArray(eco.notes) && eco.notes.length) {
+          SOURCES.meetings.items = eco.notes
+            .filter(function (n) { return /meeting|sync|kick|review/i.test((n.title || '') + ' ' + (n.body || '')); })
+            .map(function (n) {
+              return { id: n.id, title: n.title || 'Note', meta: 'Note', context: n.body || '' };
+            });
+        }
+      }
+
+      var knState = knData && knData.state ? knData.state : null;
+      if (knState) {
+        var objs = Array.isArray(knState.objects) ? knState.objects : [];
+        var decs = Array.isArray(knState.decisions) ? knState.decisions : [];
+        var sops = Array.isArray(knState.sops) ? knState.sops : [];
+
+        SOURCES.knowledge.items = objs.map(function (o) {
+          return {
+            id: o.id || '',
+            title: o.title || 'Knowledge Object',
+            meta: o.type || 'Document',
+            context: [o.description, o.content].filter(Boolean).join('\n')
+          };
+        });
+
+        var decisionItems = decs.concat(objs.filter(function (o) { return /decision/i.test(o.type || ''); }));
+        SOURCES.decisions.items = decisionItems.map(function (d) {
+          return {
+            id: d.id || '',
+            title: d.title || 'Decision',
+            meta: d.status || 'Decision',
+            context: [d.description, d.rationale, d.content].filter(Boolean).join('\n')
+          };
+        });
+
+        var workflowItems = sops.concat(objs.filter(function (o) { return /workflow|sop/i.test(o.type || ''); }));
+        SOURCES.workflows.items = workflowItems.map(function (w) {
+          return {
+            id: w.id || '',
+            title: w.title || 'Workflow',
+            meta: w.type || 'Workflow',
+            context: [w.description, w.content].filter(Boolean).join('\n')
+          };
+        });
+
+        SOURCES.research.items = objs
+          .filter(function (o) { return /research|analysis|note/i.test(o.type || ''); })
+          .map(function (r) {
+            return {
+              id: r.id || '',
+              title: r.title || 'Research',
+              meta: r.type || 'Research',
+              context: [r.description, r.content].filter(Boolean).join('\n')
+            };
+          });
+      }
+
+      renderSources();
+    }).catch(function () {});
   }
 
   function bindEvents() {
@@ -402,37 +572,115 @@
 
       if (t.closest('#dg-btn-generate')) {
         var btn = document.getElementById('dg-btn-generate');
-        if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+        var foundType = TYPES.find(function (x) { return x[0] === state.type; }) || TYPES[0];
+        var pickedObjs = getPickedSourceItems();
+        var notesVal = (document.getElementById('dg-opt-notes') || {}).value ? document.getElementById('dg-opt-notes').value.trim() : '';
+
+        if (!pickedObjs.length && !notesVal) {
+          if (window.QFDialog) {
+            window.QFDialog.alert({
+              title: 'Select a source item',
+              message: 'Choose at least one item from "' + SOURCES[state.source].label + '" (or enter instructions in Notes) before generating.',
+              buttonLabel: 'OK',
+              tone: 'primary'
+            });
+          } else {
+            toast('Select a source item before generating');
+          }
+          return;
+        }
+
+        if (btn) { btn.disabled = true; btn.textContent = 'Synthesising with AI…'; }
+        var combinedClientContext = pickedObjs
+          .filter(function (o) { return o.context; })
+          .map(function (o) { return '=== ' + o.title + ' ===\n' + o.context; })
+          .join('\n\n');
+
         var payload = {
           source: state.source,
           sourceLabel: SOURCES[state.source].label,
-          items: Array.from(state.picked),
+          sourceItems: pickedObjs.map(function (o) {
+            return {
+              id: o.id,
+              boardId: o.boardId,
+              moduleKey: o.moduleKey,
+              itemId: o.itemId,
+              title: o.title,
+              source: o.source
+            };
+          }),
+          items: pickedObjs.map(function (o) { return o.title; }),
+          sourceContext: combinedClientContext,
           type: state.type,
+          defaultSections: foundType[1],
           title: (document.getElementById('dg-opt-title') || {}).value ? document.getElementById('dg-opt-title').value.trim() : '',
           audience: (document.getElementById('dg-opt-aud') || {}).value || 'Executive team',
           length: (document.getElementById('dg-opt-len') || {}).value || '2',
-          notes: (document.getElementById('dg-opt-notes') || {}).value ? document.getElementById('dg-opt-notes').value.trim() : ''
+          notes: notesVal
         };
-        var out = generateLocally(payload);
-        var id = 'd' + Date.now();
-        var rec = {
-          id: id,
-          title: out.title,
-          type: state.type,
-          source: payload.sourceLabel,
-          items: payload.items,
-          status: 'Draft',
-          html: docToHTML(out),
-          versions: [],
-          published: false,
-          updated: new Date().toISOString()
-        };
-        var docs = loadDocs();
-        docs.unshift(rec);
-        saveDocs(docs);
-        openDoc(id);
-        if (btn) { btn.disabled = false; btn.textContent = 'Generate Document'; }
-        toast('Document generated');
+
+        fetch('/api/documents/generate', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (json) {
+              if (!r.ok) {
+                throw new Error(json.error || ('Generation failed (HTTP ' + r.status + ')'));
+              }
+              return json;
+            });
+          })
+          .then(function (res) {
+            if (!res || !res.document || !Array.isArray(res.document.sections)) {
+              throw new Error('Invalid document response from server.');
+            }
+            var out = res.document;
+            var id = 'd' + Date.now();
+            var rec = {
+              id: id,
+              title: out.title,
+              type: state.type,
+              source: payload.sourceLabel,
+              audience: payload.audience,
+              items: payload.items,
+              sections: out.sections,
+              aiProvider: out.aiProvider || 'local-engine',
+              status: 'Draft',
+              html: docToHTML(out),
+              versions: [],
+              published: false,
+              updated: new Date().toISOString()
+            };
+            var docs = loadDocs();
+            docs.unshift(rec);
+            saveDocs(docs);
+            state.lastPreAiHtml = null;
+            var undoBtn = document.getElementById('dg-btn-undo-ai');
+            if (undoBtn) undoBtn.hidden = true;
+            openDoc(id);
+            toast(out.aiProvider && out.aiProvider !== 'local-engine'
+              ? ('Document generated with ' + out.aiProvider)
+              : 'Executive document generated');
+          })
+          .catch(function (err) {
+            var errMsg = (err && err.message) ? err.message : 'Could not generate document from the selected source.';
+            if (window.QFDialog) {
+              window.QFDialog.alert({
+                title: 'Cannot generate document',
+                message: errMsg,
+                buttonLabel: 'OK',
+                tone: 'danger'
+              });
+            } else {
+              toast(errMsg);
+            }
+          })
+          .finally(function () {
+            if (btn) { btn.disabled = false; btn.textContent = 'Generate Document'; }
+          });
         return;
       }
 
@@ -474,10 +722,59 @@
         return;
       }
 
+      if (t.closest('#dg-btn-undo-ai')) {
+        if (!state.currentId || !state.lastPreAiHtml) return;
+        var curDocsUndo = loadDocs();
+        var curDocUndo = curDocsUndo.find(function (x) { return x.id === state.currentId; });
+        if (curDocUndo) {
+          curDocUndo.html = state.lastPreAiHtml;
+          saveDocs(curDocsUndo);
+          state.lastPreAiHtml = null;
+          var ub = document.getElementById('dg-btn-undo-ai');
+          if (ub) ub.hidden = true;
+          openDoc(curDocUndo.id);
+          toast('Reverted AI edit');
+        }
+        return;
+      }
+
       var aiBtn = t.closest('[data-dg-ai]');
       if (aiBtn) {
         if (!state.currentId) { toast('Generate a document first'); return; }
-        toast(aiBtn.getAttribute('data-dg-ai') + ' applied to active draft');
+        var action = aiBtn.getAttribute('data-dg-ai');
+        var prevDoc = persistCurrent(false);
+        if (!prevDoc) return;
+        state.lastPreAiHtml = prevDoc.html;
+        var origText = aiBtn.textContent;
+        aiBtn.disabled = true;
+        aiBtn.textContent = 'Refining…';
+        fetch('/api/documents/ai-edit', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action, title: prevDoc.title, html: prevDoc.html })
+        })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (res) {
+            if (res && res.html) {
+              var allDocs = loadDocs();
+              var item = allDocs.find(function (x) { return x.id === state.currentId; });
+              if (item) {
+                item.html = res.html;
+                item.sections = null;
+                item.updated = new Date().toISOString();
+                saveDocs(allDocs);
+                openDoc(item.id);
+                var ub2 = document.getElementById('dg-btn-undo-ai');
+                if (ub2) ub2.hidden = false;
+                toast(action + ' complete — click Undo AI to revert');
+              }
+            } else {
+              toast('Could not refine document right now');
+            }
+          })
+          .catch(function () { toast('AI refinement failed'); })
+          .finally(function () { aiBtn.disabled = false; aiBtn.textContent = origText; });
         return;
       }
 
@@ -488,12 +785,65 @@
         if (!d) return;
         var safe = d.title.replace(/[^\w-]+/g, '_');
         var f = expBtn.getAttribute('data-dg-export');
-        var page = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + esc(d.title) + '</title><style>body{font-family:Calibri,Arial,sans-serif;max-width:760px;margin:40px auto;line-height:1.6}h1{font-size:24px}h2{font-size:16px;margin-top:22px}</style></head><body><h1>' + esc(d.title) + '</h1>' + d.html + '</body></html>';
-        if (f === 'pdf') { window.print(); toast('Choose Save as PDF in the print dialog'); }
-        else if (f === 'html') downloadFile(safe + '.html', 'text/html', page);
-        else if (f === 'md') downloadFile(safe + '.md', 'text/markdown', toMarkdown(d.html, d.title));
-        else if (f === 'docx') { downloadFile(safe + '.doc', 'application/msword', page); toast('Saved as Word-compatible .doc file'); }
-        else if (f === 'pptx') toast('PPTX slide export queued');
+
+        if (f === 'pdf') {
+          if (typeof window.html2pdf === 'function') {
+            toast('Generating executive PDF…');
+            var wrap = document.createElement('div');
+            wrap.style.cssText = 'font-family:Inter,Calibri,Arial,sans-serif;color:#111827;padding:24px 28px;line-height:1.6;max-width:720px;';
+            wrap.innerHTML =
+              '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2563eb;margin-bottom:6px;">QuantalFlow &bull; ' + esc(d.type) + '</div>' +
+              '<h1 style="font-size:24px;color:#0c1630;margin:0 0 8px;padding-bottom:10px;border-bottom:2px solid #2563eb;">' + esc(d.title) + '</h1>' +
+              '<div style="font-size:11px;color:#525866;margin-bottom:20px;">Audience: ' + esc(d.audience || 'Executive team') + ' &middot; Source: ' + esc(d.source) + ' &middot; Status: ' + esc(d.status) + '</div>' +
+              d.html;
+            window.html2pdf().set({
+              margin: [12, 12, 12, 12],
+              filename: safe + '.pdf',
+              image: { type: 'jpeg', quality: 0.96 },
+              html2canvas: { scale: 2 },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(wrap).save().then(function () {
+              toast('Exported ' + safe + '.pdf');
+            }).catch(function () {
+              window.print();
+            });
+          } else {
+            window.print();
+            toast('Choose Save as PDF in the print dialog');
+          }
+          return;
+        }
+
+        // Server-side top-standard OpenXML PPTX, DOCX, HTML, and Markdown export
+        var expLabel = expBtn.textContent;
+        expBtn.disabled = true;
+        expBtn.textContent = 'Exporting…';
+        fetch('/api/documents/export', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ format: f, document: d })
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.blob();
+          })
+          .then(function (blob) {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = safe + '.' + f;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+            toast('Exported ' + safe + '.' + f);
+          })
+          .catch(function () {
+            toast('Export failed for ' + f.toUpperCase());
+          })
+          .finally(function () {
+            expBtn.disabled = false;
+            expBtn.textContent = expLabel;
+          });
         return;
       }
 
@@ -503,11 +853,19 @@
       var delBtn = t.closest('[data-dg-del]');
       if (delBtn) {
         var did = delBtn.getAttribute('data-dg-del');
-        if (!window.confirm('Delete this document?')) return;
-        saveDocs(loadDocs().filter(function (x) { return x.id !== did; }));
-        if (state.currentId === did) startNewDoc(true);
-        renderLists();
-        toast('Document deleted');
+        window.QFDialog.confirm({
+          title: 'Delete this document?',
+          message: 'This document will be permanently removed from your Document Generation library.',
+          confirmLabel: 'Delete',
+          cancelLabel: 'Cancel',
+          tone: 'danger'
+        }).then(function (ok) {
+          if (!ok) return;
+          saveDocs(loadDocs().filter(function (x) { return x.id !== did; }));
+          if (state.currentId === did) startNewDoc(true);
+          renderLists();
+          toast('Document deleted');
+        });
       }
     });
   }

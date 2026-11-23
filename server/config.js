@@ -64,6 +64,10 @@ export const config = {
   },
 
   deepseekApiKey: process.env.DEEPSEEK_API_KEY || '',
+  openrouterApiKey: process.env.OPENROUTER_API_KEY || '',
+  openrouterModels: process.env.OPENROUTER_MODELS
+    ? process.env.OPENROUTER_MODELS.split(',').map((s) => s.trim()).filter(Boolean)
+    : [],
 
   cloudinary: {
     url:
@@ -91,7 +95,8 @@ export const config = {
 // Say so once at boot instead of failing silently on the first AI or Convex call.
 for (const [key, value] of [
   ['CONVEX_DEPLOY_KEY', config.convex.deployKey],
-  ['DEEPSEEK_API_KEY', config.deepseekApiKey]
+  ['DEEPSEEK_API_KEY', config.deepseekApiKey],
+  ['OPENROUTER_API_KEY', config.openrouterApiKey]
 ]) {
   if (!value) console.warn(`[config] ${key} is not set — that integration stays disabled.`);
 }

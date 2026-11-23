@@ -113,7 +113,12 @@
   async function uploadOne(file) {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      alert(file.name + ' is larger than 10 MB — skipped.');
+      await window.QFDialog.alert({
+        title: 'File too large',
+        message: file.name + ' is larger than 10 MB and was skipped.',
+        buttonLabel: 'OK',
+        tone: 'primary'
+      });
       return;
     }
     // 1. Get signed upload ticket
@@ -159,7 +164,12 @@
       } catch (err) {
         failed += 1;
         console.warn('[files] upload failed', f.name, err);
-        alert('Failed to upload ' + f.name + ': ' + (err && err.message));
+        await window.QFDialog.alert({
+          title: 'Upload failed',
+          message: 'Failed to upload ' + f.name + ': ' + (err && err.message),
+          buttonLabel: 'OK',
+          tone: 'danger'
+        });
       }
     }
     dropzone.classList.remove('is-uploading');
@@ -170,12 +180,24 @@
   }
 
   async function deleteFile(id) {
-    if (!confirm('Delete this file? This cannot be undone.')) return;
+    var confirmed = await window.QFDialog.confirm({
+      title: 'Delete this file?',
+      message: 'This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!confirmed) return;
     try {
       await api('/api/files/' + encodeURIComponent(id), { method: 'DELETE' });
       await loadFiles();
     } catch (err) {
-      alert('Delete failed: ' + (err && err.message));
+      await window.QFDialog.alert({
+        title: 'Delete failed',
+        message: 'Delete failed: ' + (err && err.message),
+        buttonLabel: 'OK',
+        tone: 'danger'
+      });
     }
   }
 

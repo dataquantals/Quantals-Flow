@@ -35,7 +35,8 @@
   // Shared shell scripts that are already loaded and should never be re-executed on swap.
   var SHARED_SCRIPT_PATTERNS = [
     /workspace-nav\.js/i,
-    /workspace-router\.js/i
+    /workspace-router\.js/i,
+    /qf-dialog\.js/i
   ];
 
   // Heavy libraries loaded lazily once and reused across route visits.

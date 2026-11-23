@@ -1708,6 +1708,7 @@ export function saveUserOsWorkspace(userId, state) {
 
 export function getKnowledgeEcosystemSnapshot(userId) {
   const boards = [];
+  const workspaceDocs = [];
   const projects = [];
   const files = [];
   const notes = [];
@@ -1719,21 +1720,69 @@ export function getKnowledgeEcosystemSnapshot(userId) {
     ).all(userId);
     for (const r of boardRows) {
       let mode = 'whiteboard';
+      let enabledModules = [];
+      let parsed = null;
       try {
-        const parsed = JSON.parse(r.state_json || '{}');
+        parsed = JSON.parse(r.state_json || '{}');
         if (parsed.workspaceMode) mode = String(parsed.workspaceMode);
         else if (parsed.module) mode = String(parsed.module);
         else if (parsed.template) mode = String(parsed.template);
+        if (Array.isArray(parsed.enabledModules)) {
+          enabledModules = parsed.enabledModules.map((m) => String(m || '').toLowerCase()).filter(Boolean);
+        }
       } catch {}
+
       boards.push({
         id: r.id,
         title: r.title || 'Untitled Board',
         category: r.category || 'Workspace',
         mode,
+        enabledModules,
         starred: Boolean(r.starred),
         createdAt: r.created_at,
         updatedAt: r.updated_at
       });
+
+      // Extract embedded workspace documents (e.g. Perspective / Brainstorm / Whiteboard doc items)
+      if (parsed && typeof parsed === 'object') {
+        const seenDocKey = new Set();
+        const scanItemsForDocs = (list, modKey) => {
+          if (!Array.isArray(list)) return;
+          list.forEach((item, idx) => {
+            if (!item || typeof item !== 'object') return;
+            if (item.doc && typeof item.doc === 'object') {
+              const docTitle = String(item.doc.title || '').trim();
+              const plain = stripHtmlPreserveStructure(item.doc.html || item.doc.text || item.doc.content || '');
+              if (docTitle || plain.length > 20) {
+                const dedupeKey = `${r.id}|${modKey}|${(docTitle || '').toLowerCase()}`;
+                if (!seenDocKey.has(dedupeKey)) {
+                  seenDocKey.add(dedupeKey);
+                  workspaceDocs.push({
+                    id: `doc:${r.id}:${modKey}:${item.id || idx}`,
+                    boardId: r.id,
+                    boardTitle: r.title || 'Untitled Board',
+                    moduleKey: modKey,
+                    itemId: String(item.id || ''),
+                    title: docTitle || `${r.title || 'Workspace'} (${modKey})`,
+                    textLength: plain.length,
+                    updatedAt: r.updated_at
+                  });
+                }
+              }
+            }
+          });
+        };
+
+        if (parsed.modules && typeof parsed.modules === 'object') {
+          for (const [modKey, modVal] of Object.entries(parsed.modules)) {
+            if (modVal && typeof modVal === 'object') {
+              scanItemsForDocs(modVal.items, String(modKey).toLowerCase());
+            }
+          }
+        }
+        const activeMod = String(parsed.activeModule || mode || 'whiteboard').toLowerCase();
+        scanItemsForDocs(parsed.items, activeMod);
+      }
     }
   } catch {}
 
@@ -1820,7 +1869,473 @@ export function getKnowledgeEcosystemSnapshot(userId) {
     }
   } catch {}
 
-  return { boards, projects, files, notes, members, syncedAt: Date.now() };
+  return { boards, workspaceDocs, projects, files, notes, members, syncedAt: Date.now() };
+}
+
+function decodeHtmlEntities(str) {
+  return String(str || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&rsquo;|&lsquo;/gi, "'")
+    .replace(/&rdquo;|&ldquo;/gi, '"')
+    .replace(/&mdash;/gi, '—')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&#(\d+);/g, (_, n) => {
+      const code = Number(n);
+      return Number.isFinite(code) && code > 0 && code < 65536 ? String.fromCharCode(code) : '';
+    });
+}
+
+function stripHtmlTags(raw) {
+  return decodeHtmlEntities(
+    String(raw || '')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stripHtmlPreserveStructure(raw) {
+  return decodeHtmlEntities(
+    String(raw || '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|tr|blockquote|section|article)>/gi, '\n')
+      .replace(/<(li)[^>]*>/gi, '- ')
+      .replace(/<[^>]+>/g, ' ')
+  )
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+const STARTER_PLACEHOLDER_RE = /^\[(frame|shape|text|sticky)\]\s*(Mind Map|Main Idea|Topic [1-4]|Kanban Board|TO DO|IN PROGRESS|DONE|Task [1-2]|In progress\.{0,3}|In progress…|Completed\.{0,3}|Completed…)$/i;
+
+function isStarterPlaceholder(line) {
+  return STARTER_PLACEHOLDER_RE.test(String(line || '').trim());
+}
+
+function collectItemsText(list, outLines, seen, opts) {
+  if (!Array.isArray(list)) return;
+  const targetItemId = opts && opts.targetItemId ? String(opts.targetItemId) : '';
+  const targetDocTitle = opts && opts.targetDocTitle ? String(opts.targetDocTitle).toLowerCase() : '';
+
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
+
+    // 1. Rich embedded document cards (item.doc = { title, html, ... })
+    if (item.doc && typeof item.doc === 'object') {
+      const docTitle = String(item.doc.title || '').trim();
+      const docBody = stripHtmlPreserveStructure(item.doc.html || item.doc.text || item.doc.content || '');
+      const matchesTarget =
+        (!targetItemId && !targetDocTitle) ||
+        (targetItemId && String(item.id || '') === targetItemId) ||
+        (targetDocTitle && docTitle.toLowerCase() === targetDocTitle);
+
+      if (matchesTarget && (docTitle || docBody)) {
+        const block = (docTitle ? `[Document: ${docTitle}]\n` : '[Document]\n') + docBody;
+        const sig = block.slice(0, 300);
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          outLines.push(block);
+        }
+      }
+      continue;
+    }
+
+    if (targetItemId || targetDocTitle) continue;
+
+    // 2. Embedded table / spreadsheet cards
+    if (item.table && typeof item.table === 'object' && Array.isArray(item.table.cells)) {
+      const rows = item.table.cells
+        .map((row) => (Array.isArray(row) ? row.map((c) => stripHtmlTags(c)).filter(Boolean).join(' | ') : ''))
+        .filter(Boolean);
+      if (rows.length) {
+        const tblLine = '[Table]\n' + rows.slice(0, 30).join('\n');
+        if (!seen.has(tblLine)) {
+          seen.add(tblLine);
+          outLines.push(tblLine);
+        }
+      }
+      continue;
+    }
+
+    const parts = [];
+    const kind = item.type || item.kind || item.shape || '';
+    const title = String(item.title || item.label || item.name || '').trim();
+    const text = stripHtmlTags(item.text || item.content || item.body || item.description || item.note || item.html || '');
+    if (title) parts.push(title);
+    if (text && text !== title) parts.push(text);
+    if (item.decision && typeof item.decision === 'object') {
+      const decBits = [item.decision.summary, item.decision.discussion, item.decision.approval ? `Status: ${item.decision.approval}` : ''].filter(Boolean);
+      if (decBits.length) parts.push(decBits.join(' — '));
+    }
+    if (Array.isArray(item.items) && item.items.length) {
+      const sub = item.items.map((x) => (typeof x === 'string' ? x : (x && (x.title || x.text || x.label || '')))).filter(Boolean);
+      if (sub.length) parts.push(sub.join('; '));
+    }
+    if (parts.length) {
+      const line = (kind ? `[${kind}] ` : '') + parts.join(' — ');
+      if (!seen.has(line)) {
+        seen.add(line);
+        outLines.push(line);
+      }
+    }
+  }
+}
+
+function extractBoardContentLines(stateJson, options) {
+  const opts = options || {};
+  const preferredModule = opts.preferredModule ? String(opts.preferredModule).toLowerCase() : '';
+  const targetItemId = opts.targetItemId ? String(opts.targetItemId) : '';
+  const targetDocTitle = opts.targetDocTitle ? String(opts.targetDocTitle).trim() : '';
+
+  const lines = [];
+  const seen = new Set();
+  if (!stateJson || stateJson === '{}') return lines;
+  let state;
+  try {
+    state = typeof stateJson === 'string' ? JSON.parse(stateJson) : stateJson;
+  } catch {
+    return lines;
+  }
+  if (!state || typeof state !== 'object') return lines;
+
+  // If targeting a specific doc item / module, extract it directly first
+  if (targetItemId || targetDocTitle) {
+    const targetLines = [];
+    const targetSeen = new Set();
+    if (preferredModule && state.modules && state.modules[preferredModule]) {
+      collectItemsText(state.modules[preferredModule].items, targetLines, targetSeen, { targetItemId, targetDocTitle });
+    }
+    if (!targetLines.length && state.modules && typeof state.modules === 'object') {
+      for (const modVal of Object.values(state.modules)) {
+        if (modVal && typeof modVal === 'object') {
+          collectItemsText(modVal.items, targetLines, targetSeen, { targetItemId, targetDocTitle });
+        }
+      }
+    }
+    if (!targetLines.length) {
+      collectItemsText(state.items, targetLines, targetSeen, { targetItemId, targetDocTitle });
+    }
+    if (targetLines.length) return targetLines;
+  }
+
+  if (state.title && String(state.title).trim()) {
+    lines.push(`Workspace Title: ${String(state.title).trim()}`);
+  }
+  if (state.description && String(state.description).trim()) {
+    lines.push(`Description: ${String(state.description).trim()}`);
+  }
+
+  // If a preferred module (e.g. 'perspective', 'brainstorm') was requested, prioritize its content first
+  if (preferredModule && state.modules && state.modules[preferredModule]) {
+    const modVal = state.modules[preferredModule];
+    const modLines = [];
+    const modSeen = new Set();
+    collectItemsText(modVal.items, modLines, modSeen);
+    collectItemsText(modVal.elements, modLines, modSeen);
+    collectItemsText(modVal.objects, modLines, modSeen);
+    if (modVal.whiteboardState && typeof modVal.whiteboardState === 'object') {
+      collectItemsText(modVal.whiteboardState.objects, modLines, modSeen);
+      collectItemsText(modVal.whiteboardState.items, modLines, modSeen);
+    }
+    const realModLines = modLines.filter((l) => !isStarterPlaceholder(l));
+    if (realModLines.length) {
+      lines.push(`Module (${preferredModule}):`);
+      for (const l of realModLines) {
+        const sig = l.slice(0, 300);
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          lines.push(l);
+        }
+      }
+      return lines;
+    }
+  }
+
+  collectItemsText(state.items, lines, seen);
+  collectItemsText(state.elements, lines, seen);
+  collectItemsText(state.objects, lines, seen);
+
+  if (state.whiteboardState && typeof state.whiteboardState === 'object') {
+    collectItemsText(state.whiteboardState.objects, lines, seen);
+    collectItemsText(state.whiteboardState.items, lines, seen);
+  }
+
+  if (state.modules && typeof state.modules === 'object') {
+    for (const [modKey, modVal] of Object.entries(state.modules)) {
+      if (!modVal || typeof modVal !== 'object') continue;
+      const modLines = [];
+      const modSeen = new Set();
+      collectItemsText(modVal.items, modLines, modSeen);
+      collectItemsText(modVal.elements, modLines, modSeen);
+      collectItemsText(modVal.objects, modLines, modSeen);
+      if (modVal.whiteboardState && typeof modVal.whiteboardState === 'object') {
+        collectItemsText(modVal.whiteboardState.objects, modLines, modSeen);
+        collectItemsText(modVal.whiteboardState.items, modLines, modSeen);
+      }
+      if (modVal.docHtml || modVal.html || modVal.text) {
+        const docTxt = stripHtmlPreserveStructure(modVal.docHtml || modVal.html || modVal.text);
+        if (docTxt) modLines.push(docTxt.slice(0, 4000));
+      }
+      const filteredMod = modLines.filter((l) => !isStarterPlaceholder(l));
+      if (filteredMod.length) {
+        lines.push(`Module (${modKey}):`);
+        for (const l of filteredMod) {
+          const sig = l.slice(0, 300);
+          if (!seen.has(sig)) {
+            seen.add(sig);
+            lines.push(l);
+          }
+        }
+      }
+    }
+  }
+
+  // Strip starter template placeholders if any real user content exists
+  const nonPlaceholder = lines.filter((l) => !isStarterPlaceholder(l));
+  const hasRealContent = nonPlaceholder.some((l) => !/^Workspace Title:/i.test(l) && !/^Module \(/i.test(l));
+  return hasRealContent ? nonPlaceholder : [];
+}
+
+function extractProjectPlanLines(planJson) {
+  const lines = [];
+  if (!planJson) return lines;
+  let plan;
+  try {
+    plan = typeof planJson === 'string' ? JSON.parse(planJson) : planJson;
+  } catch {
+    return lines;
+  }
+  if (!plan || typeof plan !== 'object') return lines;
+
+  const pName = (plan.meta && plan.meta.title) || plan.projectName || plan.title || '';
+  const pDesc = (plan.meta && plan.meta.description) || plan.projectDescription || '';
+  if (pName) lines.push(`Project: ${pName}`);
+  if (pDesc) lines.push(`Project Overview: ${pDesc}`);
+
+  if (Array.isArray(plan.wbsPhases) && plan.wbsPhases.length) {
+    lines.push(`Phases: ${plan.wbsPhases.map((p) => `${p.wbs || ''} ${p.title || ''}`.trim()).filter(Boolean).join(' | ')}`);
+  }
+  if (Array.isArray(plan.tasks) && plan.tasks.length) {
+    lines.push('Tasks:');
+    for (const t of plan.tasks.slice(0, 40)) {
+      const bits = [t.id, t.title || t.name, t.status ? `status=${t.status}` : '', t.priority ? `priority=${t.priority}` : '', t.assignee || t.owner || ''].filter(Boolean);
+      if (bits.length) lines.push(`  - ${bits.join(' | ')}`);
+    }
+  }
+  if (Array.isArray(plan.milestones) && plan.milestones.length) {
+    lines.push('Milestones:');
+    for (const m of plan.milestones.slice(0, 20)) {
+      lines.push(`  - ${m.title || 'Milestone'} (${m.status || 'planned'}${m.owner ? `, owner: ${m.owner}` : ''})`);
+    }
+  }
+  if (Array.isArray(plan.raidItems) && plan.raidItems.length) {
+    lines.push('Risks & Issues:');
+    for (const r of plan.raidItems.slice(0, 20)) {
+      lines.push(`  - [${r.type || 'Risk'}] ${r.title || ''}${r.mitigation ? ` — Mitigation: ${r.mitigation}` : ''}`);
+    }
+  }
+  if (Array.isArray(plan.wikiPages) && plan.wikiPages.length) {
+    lines.push('Project Notes & Wiki:');
+    for (const w of plan.wikiPages.slice(0, 10)) {
+      const body = stripHtmlTags(w.content || '');
+      if (w.title || body) lines.push(`  - ${w.title || 'Note'}: ${body.slice(0, 500)}`);
+    }
+  }
+  return lines;
+}
+
+export function getDocumentSourceContext(userId, sourceCategory, selectedItems) {
+  const refs = Array.isArray(selectedItems) ? selectedItems : [];
+  const results = [];
+  const missingOrEmptyTitles = [];
+  const contextBlocks = [];
+
+  let knowledgeState = null;
+  try {
+    const kRow = db.prepare('SELECT state_json FROM knowledge_hub WHERE user_id = ?').get(userId);
+    if (kRow && kRow.state_json) knowledgeState = JSON.parse(kRow.state_json);
+  } catch {}
+
+  let userNotes = [];
+  try {
+    const nRow = db.prepare('SELECT notes_json FROM user_notepads WHERE user_id = ?').get(userId);
+    if (nRow && nRow.notes_json) {
+      const parsed = JSON.parse(nRow.notes_json);
+      if (Array.isArray(parsed)) userNotes = parsed;
+    }
+  } catch {}
+
+  for (const rawRef of refs) {
+    const refId = typeof rawRef === 'object' && rawRef ? String(rawRef.id || '').trim() : '';
+    const refTitle = typeof rawRef === 'object' && rawRef ? String(rawRef.title || rawRef.label || '').trim() : String(rawRef || '').trim();
+    let refBoardId = typeof rawRef === 'object' && rawRef ? String(rawRef.boardId || '').trim() : '';
+    let refModuleKey = typeof rawRef === 'object' && rawRef ? String(rawRef.moduleKey || '').trim().toLowerCase() : '';
+    let refItemId = typeof rawRef === 'object' && rawRef ? String(rawRef.itemId || '').trim() : '';
+
+    // Parse structured doc ref IDs: "doc:<boardId>:<moduleKey>:<itemId>"
+    if (refId.startsWith('doc:')) {
+      const parts = refId.split(':');
+      if (!refBoardId && parts[1]) refBoardId = parts[1];
+      if (!refModuleKey && parts[2]) refModuleKey = parts[2].toLowerCase();
+      if (!refItemId && parts.length > 3) refItemId = parts.slice(3).join(':');
+    }
+    // Resolve Knowledge Hub auto-synced board IDs: "ECO-BRD-<boardId>"
+    if (!refBoardId && refId.startsWith('ECO-BRD-')) {
+      refBoardId = refId.slice('ECO-BRD-'.length);
+    }
+
+    const label = refTitle || refId || 'Selected Item';
+    const lines = [];
+    let found = false;
+
+    // 1. Check boards (by refBoardId / refId first, then exact title, then embedded doc.title across user boards)
+    let boardRow = null;
+    try {
+      const lookupBoardId = refBoardId || (refId && !refId.startsWith('doc:') ? refId : '');
+      if (lookupBoardId) {
+        boardRow = db.prepare(
+          'SELECT id, title, category, state_json FROM boards WHERE id = ? AND (user_id = ? OR user_id IS NULL)'
+        ).get(lookupBoardId, userId);
+      }
+      if (!boardRow && refTitle) {
+        boardRow = db.prepare(
+          'SELECT id, title, category, state_json FROM boards WHERE LOWER(TRIM(title)) = LOWER(TRIM(?)) AND (user_id = ? OR user_id IS NULL) ORDER BY updated_at DESC LIMIT 1'
+        ).get(refTitle, userId);
+      }
+      // Search inside boards' embedded doc titles (e.g. "14 One-Person AI Business Ideas to Escape Your 9-5")
+      if (!boardRow && refTitle) {
+        const candidateBoards = db.prepare(
+          'SELECT id, title, category, state_json FROM boards WHERE (user_id = ? OR user_id IS NULL) AND state_json LIKE ? ORDER BY updated_at DESC LIMIT 10'
+        ).all(userId, `%${refTitle}%`);
+        if (candidateBoards.length) {
+          boardRow = candidateBoards[0];
+        }
+      }
+    } catch {}
+
+    if (boardRow) {
+      found = true;
+      const preferredMod = refModuleKey || (
+        ['perspective', 'brainstorm', 'whiteboard', 'mindmap', 'kanban'].includes(String(sourceCategory || '').toLowerCase())
+          ? String(sourceCategory).toLowerCase()
+          : ''
+      );
+      const bLines = extractBoardContentLines(boardRow.state_json, {
+        preferredModule: preferredMod,
+        targetItemId: refItemId,
+        targetDocTitle: (refId.startsWith('doc:') || (refTitle && boardRow.title && refTitle.toLowerCase() !== boardRow.title.trim().toLowerCase())) ? refTitle : ''
+      });
+      lines.push(...bLines);
+
+      // Also check linked project plan for this board if no rich doc content already found or source is projects
+      if (!lines.length || sourceCategory === 'projects' || sourceCategory === 'tasks') {
+        try {
+          const planRow = db.prepare('SELECT plan_json FROM project_plans WHERE board_id = ?').get(boardRow.id);
+          if (planRow && planRow.plan_json) {
+            lines.push(...extractProjectPlanLines(planRow.plan_json));
+          }
+        } catch {}
+      }
+    }
+
+    // 2. Check project_plans directly if not already loaded via board
+    if (!lines.length && (sourceCategory === 'projects' || sourceCategory === 'tasks' || refId || refTitle)) {
+      try {
+        let planRow = refId ? db.prepare('SELECT board_id, plan_json FROM project_plans WHERE board_id = ?').get(refId) : null;
+        if (!planRow && refTitle) {
+          const allPlans = db.prepare('SELECT board_id, plan_json FROM project_plans ORDER BY updated_at DESC LIMIT 40').all();
+          for (const p of allPlans) {
+            try {
+              const pj = JSON.parse(p.plan_json || '{}');
+              const pt = (pj.meta && pj.meta.title) || pj.projectName || pj.title || '';
+              if (pt && pt.trim().toLowerCase() === refTitle.toLowerCase()) {
+                planRow = p;
+                break;
+              }
+            } catch {}
+          }
+        }
+        if (planRow && planRow.plan_json) {
+          found = true;
+          lines.push(...extractProjectPlanLines(planRow.plan_json));
+        }
+      } catch {}
+    }
+
+    // 3. Check Knowledge Hub objects / decisions / sops
+    if (knowledgeState && typeof knowledgeState === 'object') {
+      const pools = [
+        ...(Array.isArray(knowledgeState.objects) ? knowledgeState.objects : []),
+        ...(Array.isArray(knowledgeState.decisions) ? knowledgeState.decisions : []),
+        ...(Array.isArray(knowledgeState.sops) ? knowledgeState.sops : [])
+      ];
+      const matchObj = pools.find((o) => o && (
+        (refId && String(o.id || '') === refId) ||
+        (refTitle && String(o.title || '').trim().toLowerCase() === refTitle.toLowerCase())
+      ));
+      if (matchObj) {
+        found = true;
+        if (matchObj.type) lines.push(`Type: ${matchObj.type}`);
+        if (matchObj.department) lines.push(`Department: ${matchObj.department}`);
+        if (matchObj.owner) lines.push(`Owner: ${matchObj.owner}`);
+        if (matchObj.description) lines.push(`Description: ${stripHtmlTags(matchObj.description)}`);
+        if (matchObj.content) lines.push(`Content: ${stripHtmlTags(matchObj.content)}`);
+        if (matchObj.rationale) lines.push(`Rationale: ${stripHtmlTags(matchObj.rationale)}`);
+        if (Array.isArray(matchObj.steps) && matchObj.steps.length) {
+          lines.push(`Steps: ${matchObj.steps.map((s) => (typeof s === 'string' ? s : (s.title || s.text || ''))).filter(Boolean).join(' -> ')}`);
+        }
+      }
+    }
+
+    // 4. Check Note Pad entries
+    if (userNotes.length) {
+      const matchNote = userNotes.find((n) => n && (
+        (refId && String(n.id || '') === refId) ||
+        (refTitle && String(n.title || '').trim().toLowerCase() === refTitle.toLowerCase())
+      ));
+      if (matchNote) {
+        found = true;
+        const body = stripHtmlTags(matchNote.text || matchNote.content || '');
+        if (body) lines.push(`Note Content: ${body}`);
+      }
+    }
+
+    // Filter out trivial header-only lines like "Workspace Title: X" when checking if there's real content
+    const meaningfulLines = lines.filter((l) => !/^Workspace Title:/i.test(l));
+    const hasContent = meaningfulLines.length > 0;
+
+    if (!found || !hasContent) {
+      missingOrEmptyTitles.push(label);
+    } else {
+      contextBlocks.push(`=== SOURCE ITEM: ${label} (${sourceCategory || 'workspace'}) ===\n${lines.join('\n')}`);
+    }
+
+    results.push({
+      id: (boardRow && boardRow.id) || refId || '',
+      title: label,
+      found,
+      hasContent,
+      lineCount: meaningfulLines.length
+    });
+  }
+
+  return {
+    items: results,
+    missingOrEmptyTitles,
+    combinedContext: contextBlocks.join('\n\n')
+  };
 }
 
 /* ==========================================================================

@@ -1466,12 +1466,17 @@
     state.timesheets = state.timesheets.filter(function (row) { return row.taskId !== taskId; });
   }
 
-  function deleteTask(taskId) {
+  async function deleteTask(taskId) {
     var task = getTask(taskId);
     if (!task) return false;
-    if (!window.confirm('Delete ' + task.id + ' — “' + task.title + '”?\n\nIt disappears from the WBS, Kanban, Gantt, timesheets and reports.')) {
-      return false;
-    }
+    var ok = await window.QFDialog.confirm({
+      title: 'Delete ' + task.id + ' — “' + task.title + '”?',
+      message: 'It will be removed from the WBS, Kanban, Gantt, timesheets, and reports.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!ok) return false;
     state.tasks = state.tasks.filter(function (t) { return t.id !== taskId; });
     dropReferencesToTask(taskId);
     if (activeDrawerTaskId === taskId) closeTaskDrawer();
@@ -1479,7 +1484,7 @@
     return true;
   }
 
-  function deletePhase(phaseWbs) {
+  async function deletePhase(phaseWbs) {
     var phase = state.wbsPhases.find(function (p) { return p.wbs === phaseWbs; });
     if (!phase) return false;
 
@@ -1488,9 +1493,14 @@
       ? ' and its ' + doomed.length + ' deliverable' + (doomed.length === 1 ? '' : 's')
       : '';
 
-    if (!window.confirm('Delete ' + phase.title + ' (' + phaseWbs + ')' + detail + '?\n\nThis cannot be undone.')) {
-      return false;
-    }
+    var ok = await window.QFDialog.confirm({
+      title: 'Delete ' + phase.title + ' (' + phaseWbs + ')' + detail + '?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete Phase',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!ok) return false;
 
     doomed.forEach(function (t) { dropReferencesToTask(t.id); });
     state.tasks = state.tasks.filter(function (t) { return t.phaseWbs !== phaseWbs; });
@@ -1500,28 +1510,49 @@
     return true;
   }
 
-  function deleteRaidItem(itemId) {
+  async function deleteRaidItem(itemId) {
     var item = state.raidItems.find(function (r) { return r.id === itemId; });
     if (!item) return false;
-    if (!window.confirm('Delete ' + item.id + ' — “' + item.title + '”?')) return false;
+    var ok = await window.QFDialog.confirm({
+      title: 'Delete ' + item.id + ' — “' + item.title + '”?',
+      message: 'This RAID entry will be removed from the plan.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!ok) return false;
     state.raidItems = state.raidItems.filter(function (r) { return r.id !== itemId; });
     persistAndRender('Deleted ' + item.id);
     return true;
   }
 
-  function deleteChangeRequest(crId) {
+  async function deleteChangeRequest(crId) {
     var cr = state.changeRequests.find(function (c) { return c.id === crId; });
     if (!cr) return false;
-    if (!window.confirm('Delete change request ' + cr.id + ' — “' + cr.title + '”?')) return false;
+    var ok = await window.QFDialog.confirm({
+      title: 'Delete change request ' + cr.id + ' — “' + cr.title + '”?',
+      message: 'This change request will be permanently removed.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!ok) return false;
     state.changeRequests = state.changeRequests.filter(function (c) { return c.id !== crId; });
     persistAndRender('Deleted ' + cr.id);
     return true;
   }
 
-  function deleteWikiPage(pageId) {
+  async function deleteWikiPage(pageId) {
     var page = state.wikiPages.find(function (w) { return w.id === pageId; });
     if (!page) return false;
-    if (!window.confirm('Delete the wiki page “' + page.title + '”?')) return false;
+    var ok = await window.QFDialog.confirm({
+      title: 'Delete wiki page “' + page.title + '”?',
+      message: 'This page will be permanently removed from the project wiki.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!ok) return false;
 
     state.wikiPages = state.wikiPages.filter(function (w) { return w.id !== pageId; });
     if (state.activeWikiId === pageId) {
@@ -1532,12 +1563,17 @@
     return true;
   }
 
-  function deleteResource(resourceId) {
+  async function deleteResource(resourceId) {
     var res = state.resources.find(function (r) { return r.id === resourceId; });
     if (!res) return false;
-    if (!window.confirm('Remove ' + res.name + ' from the plan?\n\nTheir timesheet rows go too; deliverables become unassigned.')) {
-      return false;
-    }
+    var ok = await window.QFDialog.confirm({
+      title: 'Remove ' + res.name + ' from the plan?',
+      message: 'Their timesheet rows will also be removed and deliverables will become unassigned.',
+      confirmLabel: 'Remove',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!ok) return false;
 
     state.resources = state.resources.filter(function (r) { return r.id !== resourceId; });
     state.tasks.forEach(function (t) { if (t.assigneeId === resourceId) t.assigneeId = null; });
@@ -1549,12 +1585,17 @@
   /* Wipes the whole plan from SQLite and Convex, then leaves a fresh empty plan
      on screen. Deliberately skips schedulePlanSync so the delete is not undone
      by the next autosave. */
-  function deletePlan() {
+  async function deletePlan() {
     if (!state) return;
     var name = state.projectName || 'this plan';
-    if (!window.confirm('Delete “' + name + '” and everything in it?\n\nThis removes the plan from the database and cannot be undone.')) {
-      return;
-    }
+    var ok = await window.QFDialog.confirm({
+      title: 'Delete “' + name + '” and everything in it?',
+      message: 'This removes the plan from the database and cannot be undone.',
+      confirmLabel: 'Delete Plan',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!ok) return;
 
     var projectName = state.projectName || 'Untitled Project';
     fetch(planApiUrl(), { method: 'DELETE' })
@@ -2543,9 +2584,14 @@
     });
 
     pane.querySelectorAll('[data-add-phase]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', async function () {
         var suggested = 'Phase ' + nextPhaseNumber();
-        var name = window.prompt('Name this phase', suggested);
+        var name = await window.QFDialog.prompt({
+          title: 'Name this phase',
+          defaultValue: suggested,
+          confirmLabel: 'Add Phase',
+          cancelLabel: 'Cancel'
+        });
         if (name === null) return; // cancelled
         addPhase(name);
       });
@@ -2585,8 +2631,13 @@
       persistAndRender('Reloaded master reference WBS plan');
     });
 
-    pane.querySelector('#wbs-root-node')?.addEventListener('click', function () {
-      var next = prompt('Project Plan / WBS Tree Title:', state.projectName);
+    pane.querySelector('#wbs-root-node')?.addEventListener('click', async function () {
+      var next = await window.QFDialog.prompt({
+        title: 'Project Plan / WBS Tree Title',
+        defaultValue: state.projectName,
+        confirmLabel: 'Save',
+        cancelLabel: 'Cancel'
+      });
       if (next && next.trim()) {
         state.projectName = next.trim();
         persistAndRender('Updated project title');

@@ -145,6 +145,7 @@ export async function handleApi(req, res) {
   if (pathname === '/api/auth/clerk-sync' && req.method === 'POST') return api.clerkSync(req, res);
   if (pathname === '/api/convex/status' && req.method === 'GET') return api.convexStatus(req, res);
   if (pathname === '/api/ai/generate' && req.method === 'POST') return api.generateAi(req, res);
+  if (pathname === '/api/ai/status' && req.method === 'GET') return api.aiStatusApi(req, res);
   if (pathname === '/api/admin/users' && req.method === 'GET') return api.adminUsers(req, res);
   if (pathname === '/api/admin/system-stats' && req.method === 'GET') return api.adminSystemStats(req, res);
 
@@ -212,6 +213,9 @@ export async function handleApi(req, res) {
   if (pathname === '/api/knowledge' && req.method === 'PUT') return api.saveKnowledgeHubApi(req, res);
   if (pathname === '/api/os' && req.method === 'GET') return api.getOsWorkspaceApi(req, res);
   if (pathname === '/api/os' && req.method === 'PUT') return api.saveOsWorkspaceApi(req, res);
+  if (pathname === '/api/documents/generate' && req.method === 'POST') return api.generateDocumentApi(req, res);
+  if (pathname === '/api/documents/ai-edit' && req.method === 'POST') return api.aiEditDocumentApi(req, res);
+  if (pathname === '/api/documents/export' && req.method === 'POST') return api.exportDocumentApi(req, res);
   if (pathname === '/api/preferences' && req.method === 'GET') return api.getPreferencesApi(req, res);
   if (pathname === '/api/preferences' && (req.method === 'PATCH' || req.method === 'PUT')) {
     return api.savePreferencesApi(req, res);

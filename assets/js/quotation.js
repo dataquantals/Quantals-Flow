@@ -224,9 +224,16 @@
     if (r) r.querySelector('input').focus();
   });
 
-  $('newQ').addEventListener('click', function () {
+  $('newQ').addEventListener('click', async function () {
     if (!S) return;
-    if (!window.confirm('Start a new quotation? The current line items will be cleared and the number will go up by one.')) return;
+    var confirmed = await window.QFDialog.confirm({
+      title: 'Start a new quotation?',
+      message: 'The current line items will be cleared and the quotation number will increment by one.',
+      confirmLabel: 'Start New',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!confirmed) return;
     var width = String(S.qno || '000000').length;
     S.qno = String((parseInt(S.qno, 10) || 0) + 1).padStart(width, '0');
     var d = new Date();
@@ -239,9 +246,16 @@
     scheduleSave();
   });
 
-  $('reset').addEventListener('click', function () {
+  $('reset').addEventListener('click', async function () {
     if (!S) return;
-    if (!window.confirm('Replace everything on this quotation with the sample? This cannot be undone.')) return;
+    var confirmed = await window.QFDialog.confirm({
+      title: 'Replace quotation with sample?',
+      message: 'Everything on this quotation will be replaced with the sample. This cannot be undone.',
+      confirmLabel: 'Replace',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!confirmed) return;
     S = sample();
     fillFields();
     buildRows();
@@ -330,8 +344,15 @@
 
   function openDownloadDialog() {
     if (!dialogEl || !filenameInput) {
-      var name = window.prompt('Enter the name for the PDF file to be downloaded:', getDefaultFilename());
-      if (name) generateAndDownloadPdf(name);
+      window.QFDialog.prompt({
+        title: 'Download PDF',
+        message: 'Enter the name for the PDF file to be downloaded:',
+        defaultValue: getDefaultFilename(),
+        confirmLabel: 'Download',
+        cancelLabel: 'Cancel'
+      }).then(function (name) {
+        if (name) generateAndDownloadPdf(name);
+      });
       return;
     }
     var defName = getDefaultFilename();

@@ -4,7 +4,7 @@ description: Intelligent Document Factory — turn boards, mind maps, projects, 
 route: /documents/
 layout: standalone
 body_class: dash-body docgen-body
-scripts: /assets/js/workspace-nav.js, /assets/js/workspace-router.js, /assets/js/documents.js
+scripts: /assets/js/workspace-nav.js, /assets/js/workspace-router.js, /assets/js/html2pdf.bundle.min.js, /assets/js/documents.js
 ---
   <link rel="stylesheet" href="/assets/css/documents.css" />
 
@@ -211,6 +211,7 @@ scripts: /assets/js/workspace-nav.js, /assets/js/workspace-router.js, /assets/js
                   <button type="button" data-dg-ai="Rewrite shorter">AI: Shorten</button>
                   <button type="button" data-dg-ai="Expand section">AI: Expand</button>
                   <button type="button" data-dg-ai="Fix grammar">AI: Grammar</button>
+                  <button type="button" id="dg-btn-undo-ai" hidden title="Revert last AI edit">Undo AI</button>
                 </div>
                 <span class="dg-status dg-st-Draft" id="dg-cur-status">Draft</span>
               </div>

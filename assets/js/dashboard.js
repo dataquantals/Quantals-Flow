@@ -261,7 +261,14 @@
         var id = btn.dataset.delId;
         var board = allBoards.find(function (item) { return item.id === id; });
         var label = board ? '“' + board.title + '”' : 'this board';
-        if (!confirm('Delete ' + label + ' from your workspace?\n\nIts plan and saved records are removed too.')) return;
+        var confirmed = await window.QFDialog.confirm({
+          title: 'Delete ' + label + '?',
+          message: 'Its plan and saved records will be permanently removed from your workspace.',
+          confirmLabel: 'Delete',
+          cancelLabel: 'Cancel',
+          tone: 'danger'
+        });
+        if (!confirmed) return;
 
         var removed = allBoards.slice();
         allBoards = allBoards.filter(function (item) { return item.id !== id; });
@@ -279,7 +286,12 @@
           // Put the card back rather than showing a delete that did not happen.
           allBoards = removed;
           renderBoards();
-          alert('Could not delete that board. Please try again.');
+          await window.QFDialog.alert({
+            title: 'Delete failed',
+            message: 'Could not delete that board. Please try again.',
+            buttonLabel: 'OK',
+            tone: 'danger'
+          });
         }
       });
     });
@@ -931,7 +943,14 @@
       var btn = e.target.closest('[data-member-remove]');
       if (!btn) return;
       var memberId = btn.getAttribute('data-member-remove');
-      if (!window.confirm('Remove this member from your workspace?')) return;
+      var confirmed = await window.QFDialog.confirm({
+        title: 'Remove this member from your workspace?',
+        message: 'They will immediately lose access to shared boards and workspace resources.',
+        confirmLabel: 'Remove',
+        cancelLabel: 'Cancel',
+        tone: 'danger'
+      });
+      if (!confirmed) return;
       try {
         var res = await fetch('/api/workspace/members/' + encodeURIComponent(memberId), {
           method: 'DELETE',

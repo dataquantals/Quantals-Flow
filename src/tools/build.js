@@ -50,6 +50,7 @@ const ASSETS = [
   '/assets/css/whiteboard-suite.css',
   '/assets/css/quotation.css',
   '/assets/js/save-state.js',
+  '/assets/js/qf-dialog.js',
   '/assets/js/main.js',
   '/assets/js/tool-pages.js',
   '/assets/js/login.js',

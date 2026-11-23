@@ -424,7 +424,14 @@
 
   if (removeBtn) {
     removeBtn.addEventListener('click', async function () {
-      if (!confirm('Remove your profile photo and revert to initial?')) return;
+      var confirmed = await window.QFDialog.confirm({
+        title: 'Remove profile photo?',
+        message: 'Your avatar will revert to your account initial.',
+        confirmLabel: 'Remove',
+        cancelLabel: 'Cancel',
+        tone: 'danger'
+      });
+      if (!confirmed) return;
       removeBtn.disabled = true;
       removeBtn.textContent = 'Removing…';
       try {

@@ -436,9 +436,16 @@
       path.setAttribute('class', 'quantalflow-connector-path');
       path.setAttribute('data-conn-id', conn.id);
       path.setAttribute('marker-end', 'url(#quantalflow-arrow)');
-      path.addEventListener('click', function (e) {
+      path.addEventListener('click', async function (e) {
         e.stopPropagation();
-        if (confirm('Remove this connector line?')) {
+        var ok = await window.QFDialog.confirm({
+          title: 'Remove connector line?',
+          message: 'This connection between items will be removed.',
+          confirmLabel: 'Remove',
+          cancelLabel: 'Cancel',
+          tone: 'danger'
+        });
+        if (ok) {
           pushHistory();
           connectors = connectors.filter(function (c) { return c.id !== conn.id; });
           renderConnectors();
@@ -1449,7 +1456,30 @@
 
       if (isDelCol || isDelRow) {
         var what = isDelCol ? 'column' : 'row';
-        if (!confirm('Delete this ' + what + '?')) return;
+        window.QFDialog.confirm({
+          title: 'Delete this ' + what + '?',
+          message: 'All values in this ' + what + ' will be removed.',
+          confirmLabel: 'Delete',
+          cancelLabel: 'Cancel',
+          tone: 'danger'
+        }).then(function (ok) {
+          if (!ok) return;
+          pushHistory();
+          cells = readCells();
+          if (isDelCol) {
+            var dc = Number(btn.dataset.delCol);
+            if (cols > 1) {
+              cols -= 1;
+              colWidths.splice(dc, 1);
+            }
+          } else if (isDelRow) {
+            var dr = Number(btn.dataset.delRow);
+            if (rows > 1) rows -= 1;
+          }
+          renderTable();
+          markEdited();
+        });
+        return;
       }
       pushHistory();
       cells = readCells();
@@ -1850,10 +1880,21 @@
           document.execCommand('insertHTML', false,
             '<div class="doc-check-item"><input type="checkbox" class="doc-check-input"><span>New action item</span></div>');
         } else if (kind === 'link') {
-          var url = window.prompt('Enter URL (https://...)', 'https://');
-          if (url && /^https?:\/\//i.test(url.trim())) {
-            document.execCommand('createLink', false, url.trim());
-          }
+          window.QFDialog.prompt({
+            title: 'Insert link',
+            message: 'Enter the destination URL (https://...).',
+            defaultValue: 'https://',
+            placeholder: 'https://example.com',
+            confirmLabel: 'Insert',
+            cancelLabel: 'Cancel'
+          }).then(function (url) {
+            if (url && /^https?:\/\//i.test(url.trim())) {
+              editor.focus();
+              document.execCommand('createLink', false, url.trim());
+              markEdited();
+            }
+          });
+          return;
         }
         markEdited();
       }
@@ -3673,11 +3714,16 @@
     return itemsHtml;
   }
 
-  function removeWorkspaceModule(modToRemove) {
+  async function removeWorkspaceModule(modToRemove) {
     var modMeta = WORKSPACE_META[modToRemove] || { label: modToRemove };
-    if (!confirm('Remove "' + modMeta.label + '" from this workspace?\n\nIts items in this module will be cleared.')) {
-      return;
-    }
+    var confirmed = await window.QFDialog.confirm({
+      title: "Remove '" + modMeta.label + "' from this workspace?",
+      message: 'Its items in this module will be cleared.',
+      confirmLabel: 'Remove',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!confirmed) return;
     enabledModules = enabledModules.filter(function (m) { return m !== modToRemove; });
     if (boardModules && boardModules[modToRemove]) {
       delete boardModules[modToRemove];
@@ -3697,9 +3743,14 @@
   async function deleteCurrentWorkspace() {
     var titleEl = document.getElementById('board-title-input');
     var wsName = (titleEl && titleEl.value.trim()) || 'this workspace';
-    if (!confirm('Delete "' + wsName + '"?\n\nThis will permanently delete this workspace and all its data. This cannot be undone.')) {
-      return;
-    }
+    var confirmed = await window.QFDialog.confirm({
+      title: 'Delete "' + wsName + '"?',
+      message: 'This will permanently delete this workspace and all its data. This cannot be undone.',
+      confirmLabel: 'Delete Workspace',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!confirmed) return;
     if (!boardId) {
       window.location.href = '/dashboard/';
       return;
@@ -3714,7 +3765,12 @@
       } catch (err) {}
       window.location.href = '/dashboard/';
     } catch (err) {
-      alert('Could not delete this workspace. Please try again.');
+      await window.QFDialog.alert({
+        title: 'Delete failed',
+        message: 'Could not delete this workspace. Please try again.',
+        buttonLabel: 'OK',
+        tone: 'danger'
+      });
     }
   }
 
@@ -4621,7 +4677,12 @@
       if (res.status === 403) {
         var errData = await res.json().catch(function () { return {}; });
         if (errData && errData.revoked) {
-          alert('Your access to this board was removed by the Owner.');
+          await window.QFDialog.alert({
+            title: 'Access removed',
+            message: 'Your access to this board was removed by the Owner.',
+            buttonLabel: 'Return to Dashboard',
+            tone: 'danger'
+          });
           window.location.replace('/dashboard/');
         }
         return;
@@ -5226,8 +5287,15 @@
   });
 
   /* ---------- Clear Canvas ---------- */
-  document.getElementById('btn-clear')?.addEventListener('click', function () {
-    if (confirm('Clear all items from the canvas? (You can Undo with Ctrl+Z)')) {
+  document.getElementById('btn-clear')?.addEventListener('click', async function () {
+    var ok = await window.QFDialog.confirm({
+      title: 'Clear all items from the canvas?',
+      message: 'You can undo this action with Ctrl+Z.',
+      confirmLabel: 'Clear Canvas',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (ok) {
       pushHistory();
       clearCanvasElementsOnly();
       starterDismissedByUser = false;

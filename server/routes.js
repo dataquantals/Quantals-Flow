@@ -1,5 +1,17 @@
 ﻿import crypto from 'node:crypto';
 import {
+  buildPptxBuffer,
+  buildDocxBuffer,
+  buildHtmlDocument,
+  buildMarkdownDocument,
+  normalizeDocumentPayload
+} from './doc-exporter.js';
+import {
+  callAiRouter,
+  hasAnyAiProvider,
+  getAiRouterStatus
+} from './ai-router.js';
+import {
   hashPassword,
   verifyPassword,
   findUserByEmail,
@@ -59,6 +71,7 @@ import {
   getUserKnowledgeHub,
   saveUserKnowledgeHub,
   getKnowledgeEcosystemSnapshot,
+  getDocumentSourceContext,
   getUserOsWorkspace,
   saveUserOsWorkspace,
   getEffectiveWorkspaceRole,
@@ -863,14 +876,21 @@ export function createApi(limiter) {
       return sendJson(res, 200, { stats: getSystemStats() });
     },
 
-    /** POST /api/ai/generate - powered by DeepSeek AI */
+    /** GET /api/ai/status — Multi-agent AI router health (no secrets) */
+    async aiStatusApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      return sendJson(res, 200, { ok: true, ...getAiRouterStatus() });
+    },
+
+    /** POST /api/ai/generate - powered by Multi-Agent AI Router (DeepSeek + OpenRouter) */
     async generateAi(req, res) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
 
       let body;
       try {
-        body = await readJson(req);
+        body = await readJson(req, 512 * 1024);
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
@@ -879,9 +899,8 @@ export function createApi(limiter) {
       const mode = String(body.mode || 'stickies').trim().toLowerCase();
       if (!prompt) return sendJson(res, 400, { error: 'Prompt is required.' });
 
-      const apiKey = config.deepseekApiKey;
-      if (!apiKey) {
-        console.warn('[ai] DEEPSEEK_API_KEY is not set on this deployment; AI is unavailable.');
+      if (!hasAnyAiProvider()) {
+        console.warn('[ai] Neither DEEPSEEK_API_KEY nor OPENROUTER_API_KEY is set; AI is unavailable.');
         return sendJson(res, 503, { error: AI_UNAVAILABLE_MESSAGE });
       }
 
@@ -924,37 +943,18 @@ export function createApi(limiter) {
         : prompt;
 
       try {
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              {
-                role: 'system',
-                content: systemPrompt
-              },
-              {
-                role: 'user',
-                content: userContent
-              }
-            ],
-            temperature: 0.7,
-            max_tokens: 450
-          })
+        const ai = await callAiRouter({
+          systemPrompt,
+          userContent,
+          temperature: 0.7,
+          maxTokens: 650
         });
 
-        if (!response.ok) {
-          const errText = await response.text();
-          console.warn('[ai] DeepSeek request failed', response.status, errText.slice(0, 500));
+        if (!ai || !ai.content) {
           return sendJson(res, 502, { error: AI_UNAVAILABLE_MESSAGE });
         }
 
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content || '';
+        const content = ai.content;
 
         let ideas = [];
         let structured = null;
@@ -988,7 +988,9 @@ export function createApi(limiter) {
 
         return sendJson(res, 200, {
           success: true,
-          model: data.model || 'deepseek-chat',
+          model: ai.model || 'deepseek-chat',
+          provider: ai.provider || 'ai',
+          providerLabel: ai.label || ai.model || 'AI',
           mode,
           prompt,
           ideas,
@@ -1303,7 +1305,7 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
-        body = await readJson(req, 512 * 1024);
+        body = await readJson(req);
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
@@ -1381,7 +1383,7 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       let body;
       try {
-        body = await readJson(req, 512 * 1024);
+        body = await readJson(req);
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
@@ -1546,6 +1548,389 @@ export function createApi(limiter) {
         return sendJson(res, 200, { success: true, ...result });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** POST /api/documents/generate — AI-powered document & slide synthesis */
+    async generateDocumentApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+
+      let body;
+      try {
+        body = await readJson(req, 256 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+
+      const docType = String(body.type || 'Project Charter').trim();
+      const sourceCategory = String(body.source || '').trim();
+      const sourceLabel = String(body.sourceLabel || 'Projects').trim();
+      const rawSourceItems = Array.isArray(body.sourceItems) && body.sourceItems.length
+        ? body.sourceItems
+        : (Array.isArray(body.items) ? body.items : []);
+      const items = rawSourceItems
+        .map((x) => (typeof x === 'object' && x ? String(x.title || x.label || x.id || '').trim() : String(x || '').trim()))
+        .filter(Boolean);
+      const audience = String(body.audience || 'Executive team').trim();
+      const length = Math.max(1, Math.min(3, Number(body.length || 2)));
+      const notes = String(body.notes || '').trim();
+      const clientContext = String(body.sourceContext || '').trim();
+      const requestedTitle = String(body.title || '').trim();
+      const defaultSections = Array.isArray(body.defaultSections) && body.defaultSections.length
+        ? body.defaultSections.map((s) => String(s))
+        : ['Executive Summary', 'Context & Scope', 'Strategy & Plan', 'Risks & Mitigation', 'Next Steps'];
+
+      if (!rawSourceItems.length && !notes && !clientContext) {
+        return sendJson(res, 400, {
+          error: 'Please select at least one item from the source list (or provide instructions in Notes) before generating.'
+        });
+      }
+
+      const sourceCtx = rawSourceItems.length
+        ? getDocumentSourceContext(user.id, sourceCategory, rawSourceItems)
+        : { items: [], missingOrEmptyTitles: [], combinedContext: '' };
+
+      const primaryContext = [sourceCtx.combinedContext, clientContext].filter(Boolean).join('\n\n').trim();
+
+      if (rawSourceItems.length && !primaryContext) {
+        const missingList = sourceCtx.missingOrEmptyTitles.length
+          ? sourceCtx.missingOrEmptyTitles.join(', ')
+          : items.join(', ');
+        return sendJson(res, 422, {
+          error: `The selected source item (${missingList}) could not be loaded or contains no content yet. Add notes, cards, or tasks to it first, or select a different item.`
+        });
+      }
+
+      const srcDisplay = items.length ? items.join(', ') : sourceLabel;
+      const fallbackTitle = requestedTitle || `${docType}: ${items[0] || sourceLabel}`;
+
+      const contextSnippets = primaryContext
+        .split(/\r?\n/)
+        .map((l) => l.replace(/^\s*-\s*/, '').trim())
+        .filter((l) => l && !/^===/.test(l) && !/^Workspace Title:/i.test(l))
+        .slice(0, 18);
+
+      const buildFallback = () => ({
+        title: fallbackTitle,
+        aiProvider: 'local-engine',
+        sections: defaultSections.map((h, idx) => {
+          const snippet = contextSnippets[idx % Math.max(1, contextSnippets.length)] || srcDisplay;
+          const paragraphs = [
+            `Grounded in ${srcDisplay} (${sourceLabel}): ${snippet}. Written for ${audience.toLowerCase()} as part of ${h.toLowerCase()}.`
+          ];
+          if (length >= 2) {
+            paragraphs.push(notes
+              ? `Key operational focus: ${notes}`
+              : `Additional context from ${srcDisplay}: ${contextSnippets.slice(0, 3).join('; ') || snippet}.`);
+          }
+          if (length >= 3) {
+            paragraphs.push(`Cross-functional dependencies and governance reviews ensure ${srcDisplay} meets target quality, timeline, and compliance standards.`);
+          }
+          return {
+            heading: h,
+            kicker: `SECTION ${String(idx + 1).padStart(2, '0')}`,
+            paragraphs,
+            bullets: contextSnippets.length
+              ? contextSnippets.slice(idx * 2, idx * 2 + 3).concat(contextSnippets.slice(0, 3)).slice(0, 3)
+              : [
+                  `Primary objective for ${h.toLowerCase()} grounded in ${items[0] || sourceLabel}`,
+                  `Assigned owner and review checkpoint for ${audience.toLowerCase()}`,
+                  `Key risk mitigation and measurable success indicator`
+                ],
+            speakerNotes: `Present ${h} to ${audience}: highlight ${snippet}.`
+          };
+        })
+      });
+
+      if (!hasAnyAiProvider()) {
+        return sendJson(res, 200, { success: true, document: buildFallback() });
+      }
+
+      const parseAiDocumentResponse = (raw) => {
+        if (!raw || typeof raw !== 'string') return null;
+        let text = raw
+          .replace(/<think>[\s\S]*?<\/think>/gi, '')
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```\s*$/i, '')
+          .trim();
+
+        const tryParse = (candidate) => {
+          if (!candidate) return null;
+          try {
+            const p = JSON.parse(candidate);
+            if (p && Array.isArray(p.sections) && p.sections.length) return p;
+          } catch {}
+          // Repair common LLM JSON glitches: trailing commas and unescaped control chars inside strings
+          try {
+            let fixed = candidate.replace(/,\s*([}\]])/g, '$1');
+            // Escape raw newlines/tabs inside JSON string literals
+            let inStr = false;
+            let escNext = false;
+            let rebuilt = '';
+            for (let i = 0; i < fixed.length; i += 1) {
+              const ch = fixed[i];
+              if (escNext) {
+                rebuilt += ch;
+                escNext = false;
+                continue;
+              }
+              if (ch === '\\') {
+                rebuilt += ch;
+                escNext = true;
+                continue;
+              }
+              if (ch === '"') {
+                inStr = !inStr;
+                rebuilt += ch;
+                continue;
+              }
+              if (inStr && ch === '\n') {
+                rebuilt += '\\n';
+                continue;
+              }
+              if (inStr && ch === '\r') {
+                continue;
+              }
+              if (inStr && ch === '\t') {
+                rebuilt += ' ';
+                continue;
+              }
+              rebuilt += ch;
+            }
+            const p2 = JSON.parse(rebuilt);
+            if (p2 && Array.isArray(p2.sections) && p2.sections.length) return p2;
+          } catch {}
+          return null;
+        };
+
+        // 1. Direct parse
+        let parsed = tryParse(text);
+        if (parsed) return parsed;
+
+        // 2. Find JSON object containing "sections"
+        const secIdx = text.indexOf('"sections"');
+        if (secIdx !== -1) {
+          const startIdx = text.lastIndexOf('{', secIdx);
+          const endIdx = text.lastIndexOf('}');
+          if (startIdx !== -1 && endIdx > startIdx) {
+            parsed = tryParse(text.slice(startIdx, endIdx + 1));
+            if (parsed) return parsed;
+          }
+        }
+
+        // 3. Outermost braces fallback
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          parsed = tryParse(text.slice(firstBrace, lastBrace + 1));
+          if (parsed) return parsed;
+        }
+
+        // 4. Fallback: extract markdown headings if model returned markdown instead of JSON
+        const mdBlocks = text.split(/\n(?=#{1,3}\s+)/).map((b) => b.trim()).filter(Boolean);
+        if (mdBlocks.length >= 2 && /^#{1,3}\s+/.test(mdBlocks[0])) {
+          const mdSections = [];
+          let mdTitle = fallbackTitle;
+          for (const block of mdBlocks) {
+            const lines = block.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+            const hMatch = lines[0].match(/^(#{1,3})\s+(.+)/);
+            if (!hMatch) continue;
+            if (hMatch[1] === '#' && mdSections.length === 0) {
+              mdTitle = hMatch[2].replace(/\*\*/g, '').trim();
+              continue;
+            }
+            const heading = hMatch[2].replace(/\*\*/g, '').trim();
+            const paragraphs = [];
+            const bullets = [];
+            for (const ln of lines.slice(1)) {
+              if (/^[-*•]\s+/.test(ln)) bullets.push(ln.replace(/^[-*•]\s+/, '').trim());
+              else paragraphs.push(ln.replace(/\*\*/g, '').trim());
+            }
+            if (paragraphs.length || bullets.length) {
+              mdSections.push({
+                heading,
+                kicker: `SECTION ${String(mdSections.length + 1).padStart(2, '0')}`,
+                paragraphs: paragraphs.slice(0, 3),
+                bullets: bullets.slice(0, 5),
+                speakerNotes: `Present ${heading} to ${audience}.`
+              });
+            }
+          }
+          if (mdSections.length) return { title: mdTitle, sections: mdSections };
+        }
+
+        return null;
+      };
+
+      const systemPrompt = [
+        'You are a Principal Enterprise Document & Presentation Architect for QuantalFlow.',
+        'Generate a crisp, boardroom-ready business document that exports cleanly to PDF, DOCX, PPTX, HTML, and Markdown.',
+        'CRITICAL GROUNDING RULE: You MUST strictly rely on, reference, and synthesize the actual facts, ideas, numbers, examples, sticky notes, nodes, tasks, decisions, and content inside the SOURCE CONTENT provided in the user prompt.',
+        'Do NOT invent unrelated topics, generic business platitudes, or placeholder text. Every section must directly reflect and cite the specific items from the SOURCE CONTENT.',
+        'Return ONLY valid, strictly escaped JSON with no markdown code fences and no commentary before or after:',
+        '{"title":"string","sections":[{"heading":"string","kicker":"SHORT UPPERCASE EYEBROW","paragraphs":["1-2 concise executive paragraphs"],"bullets":["3-4 concrete, scannable takeaways"],"speakerNotes":"1-2 sentence presenter note for PPTX slides"}]}',
+        `Use these exact section headings: ${defaultSections.join(', ')}.`,
+        'Inside JSON strings, never use unescaped double quotes or raw line breaks.'
+      ].join('\n');
+
+      const userPrompt = [
+        `Document Type: ${docType}`,
+        `Title preference: ${requestedTitle || `Create a strong executive title grounded in "${items[0] || sourceLabel}"`}`,
+        `Source Category: ${sourceLabel}`,
+        `Selected Source Item(s): ${srcDisplay}`,
+        `Audience: ${audience}`,
+        `Detail Level: ${length === 1 ? 'Brief (1 paragraph + 3 concise bullets per section)' : length === 3 ? 'Detailed (2-3 rich paragraphs + 4 bullets per section)' : 'Standard (1-2 sharp paragraphs + 3-4 bullets per section)'}`,
+        notes ? `Additional Instructions: ${notes}` : '',
+        primaryContext ? `\nSOURCE CONTENT (PRIMARY GROUNDING DATA — SYNTHESIZE STRICTLY FROM THIS):\n${primaryContext.slice(0, 18000)}` : ''
+      ].filter(Boolean).join('\n');
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const ai = await callAiRouter({
+            systemPrompt,
+            userContent: attempt === 0
+              ? userPrompt
+              : `${userPrompt}\n\nIMPORTANT: Return ONLY valid JSON matching {"title":"...","sections":[...]}.`,
+            temperature: attempt === 0 ? 0.35 : 0.2,
+            maxTokens: 3200
+          });
+
+          const parsed = ai && ai.content ? parseAiDocumentResponse(ai.content) : null;
+          if (parsed && Array.isArray(parsed.sections) && parsed.sections.length) {
+            return sendJson(res, 200, {
+              success: true,
+              document: {
+                title: String(parsed.title || fallbackTitle).trim(),
+                aiProvider: ai.label,
+                sections: parsed.sections.map((s, idx) => ({
+                  heading: String(s.heading || defaultSections[idx] || `Section ${idx + 1}`).trim(),
+                  kicker: String(s.kicker || `SECTION ${String(idx + 1).padStart(2, '0')}`).trim(),
+                  paragraphs: Array.isArray(s.paragraphs) ? s.paragraphs.map((p) => String(p).trim()).filter(Boolean) : [],
+                  bullets: Array.isArray(s.bullets) ? s.bullets.map((b) => String(b).trim()).filter(Boolean) : [],
+                  speakerNotes: String(s.speakerNotes || '').trim()
+                }))
+              }
+            });
+          }
+          console.warn(`[documents/generate] Attempt ${attempt + 1} returned unparseable output from ${ai ? ai.label : 'unknown'}`);
+        } catch (err) {
+          console.warn(`[documents/generate] Attempt ${attempt + 1} error:`, err.message);
+        }
+      }
+
+      return sendJson(res, 200, { success: true, document: buildFallback() });
+    },
+
+    /** POST /api/documents/ai-edit — AI inline rewrite (Shorten / Expand / Grammar) */
+    async aiEditDocumentApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+
+      const action = String(body.action || 'Fix grammar').trim();
+      const title = String(body.title || 'Document').trim();
+      const html = String(body.html || '').trim();
+      if (!html) return sendJson(res, 400, { error: 'Document content is empty.' });
+
+      if (hasAnyAiProvider()) {
+        try {
+          const ai = await callAiRouter({
+            systemPrompt: 'You are an executive editor. Transform the provided HTML document according to the instruction while preserving clean <h2>, <p>, <ul>, <li> structure. Output ONLY the updated inner HTML with no markdown fences or outer <html> tags.',
+            userContent: `Instruction: ${action}\nDocument Title: ${title}\n\nHTML:\n${html.slice(0, 12000)}`,
+            temperature: 0.4,
+            maxTokens: 2000
+          });
+          if (ai && ai.content) {
+            const out = ai.content
+              .replace(/^```html?\s*/i, '')
+              .replace(/\s*```$/i, '')
+              .trim();
+            if (out && out.includes('<')) {
+              return sendJson(res, 200, { success: true, html: out, aiProvider: ai.label });
+            }
+          }
+        } catch {}
+      }
+
+      // Deterministic local refinement fallback
+      const norm = normalizeDocumentPayload({ title, html });
+      const refined = norm.sections.map((s) => {
+        let paras = s.paragraphs.slice();
+        let bullets = s.bullets.slice();
+        if (/short/i.test(action)) {
+          paras = paras.slice(0, 1).map((p) => p.split(/(?<=[.!?])\s+/).slice(0, 2).join(' '));
+          bullets = bullets.slice(0, 3);
+        } else if (/expand/i.test(action)) {
+          paras.push(`Additional operational detail for ${s.heading.toLowerCase()}: confirm milestone owners, governance sign-off criteria, and measurable KPI targets.`);
+          if (!bullets.length) bullets.push(`Key deliverable for ${s.heading}`, 'Owner & target date', 'Success metric');
+        } else {
+          paras = paras.map((p) => p.replace(/\s+/g, ' ').trim().replace(/^[a-z]/, (c) => c.toUpperCase()));
+        }
+        return `<h2>${s.heading}</h2>` +
+          paras.map((p) => `<p>${p}</p>`).join('') +
+          (bullets.length ? `<ul>${bullets.map((b) => `<li>${b}</li>`).join('')}</ul>` : '');
+      }).join('');
+
+      return sendJson(res, 200, { success: true, html: refined, aiProvider: 'local-engine' });
+    },
+
+    /** POST /api/documents/export — Binary PPTX, DOCX, HTML, and Markdown generator */
+    async exportDocumentApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+
+      let body;
+      try {
+        body = await readJson(req, 2 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+
+      const format = String(body.format || 'pptx').toLowerCase().trim();
+      const doc = body.document || body;
+      const safeName = String(doc.title || 'QuantalFlow_Document').replace(/[^\w-]+/g, '_').slice(0, 72) || 'QuantalFlow_Document';
+
+      try {
+        let buf;
+        let mime;
+        let ext;
+        if (format === 'pptx') {
+          buf = buildPptxBuffer(doc);
+          mime = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+          ext = 'pptx';
+        } else if (format === 'docx') {
+          buf = buildDocxBuffer(doc);
+          mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          ext = 'docx';
+        } else if (format === 'html') {
+          buf = Buffer.from(buildHtmlDocument(doc), 'utf8');
+          mime = 'text/html; charset=utf-8';
+          ext = 'html';
+        } else if (format === 'md' || format === 'markdown') {
+          buf = Buffer.from(buildMarkdownDocument(doc), 'utf8');
+          mime = 'text/markdown; charset=utf-8';
+          ext = 'md';
+        } else {
+          return sendJson(res, 400, { error: 'Unsupported export format.' });
+        }
+
+        res.writeHead(200, {
+          'Content-Type': mime,
+          'Content-Length': buf.length,
+          'Content-Disposition': `attachment; filename="${safeName}.${ext}"`,
+          'Cache-Control': 'no-store'
+        });
+        return res.end(buf);
+      } catch (err) {
+        console.error('[documents/export] failed:', err);
+        return sendJson(res, 500, { error: 'Export failed: ' + (err.message || 'Unknown error') });
       }
     },
 

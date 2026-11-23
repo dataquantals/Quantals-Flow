@@ -3176,8 +3176,16 @@
         if (kind === 'upload') {
           if (fileInp) fileInp.click();
         } else if (kind === 'embed') {
-          var url = window.prompt('Enter URL to embed as a card:', 'https://quantalflow.com');
-          if (url && url.trim()) addObjectToCenter('embed', { url: url.trim(), title: url.trim().replace(/^https?:\/\//, '').split('/')[0] });
+          window.QFDialog.prompt({
+            title: 'Embed URL as card',
+            message: 'Enter the URL you want to embed on the whiteboard.',
+            defaultValue: 'https://quantalflow.com',
+            placeholder: 'https://...',
+            confirmLabel: 'Embed',
+            cancelLabel: 'Cancel'
+          }).then(function (url) {
+            if (url && url.trim()) addObjectToCenter('embed', { url: url.trim(), title: url.trim().replace(/^https?:\/\//, '').split('/')[0] });
+          });
         } else {
           addObjectToCenter(kind);
         }

@@ -846,7 +846,14 @@
   async function deleteFolder(folderId) {
     var folder = folderById(folderId);
     if (!folder) return;
-    if (!confirm('Delete the folder "' + folder.name + '"?\n\nFiles and folders inside it move up one level. Nothing is deleted.')) return;
+    var confirmed = await window.QFDialog.confirm({
+      title: 'Delete folder "' + folder.name + '"?',
+      message: 'Files and folders inside it move up one level. Nothing is deleted.',
+      confirmLabel: 'Delete Folder',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!confirmed) return;
     var parentId = folder.parentId || null;
     var beforeFolders = state.folders.slice();
     var beforeFiles = state.files.slice();
@@ -909,7 +916,14 @@
   async function deleteFile(fileId) {
     var file = state.files.find(function (f) { return f.id === fileId; });
     var label = (file && file.name) || 'this file';
-    if (!confirm('Delete "' + label + '"?\n\nIt will be removed from Cloudinary and from your file list. This cannot be undone.')) return;
+    var confirmed = await window.QFDialog.confirm({
+      title: 'Delete "' + label + '"?',
+      message: 'It will be removed from Cloudinary and from your file list. This cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      tone: 'danger'
+    });
+    if (!confirmed) return;
     try {
       var res = await fetch('/api/files/' + encodeURIComponent(fileId) + '/delete', {
         method: 'POST',
@@ -1264,8 +1278,14 @@
         } else if (action === 'rename') {
           if (target.type === 'folder') {
             var folder = folderById(target.id);
-            var next = prompt('Rename folder', folder ? folder.name : '');
-            if (next != null) renameFolder(target.id, next);
+            window.QFDialog.prompt({
+              title: 'Rename folder',
+              defaultValue: folder ? folder.name : '',
+              confirmLabel: 'Rename',
+              cancelLabel: 'Cancel'
+            }).then(function (next) {
+              if (next != null) renameFolder(target.id, next);
+            });
           }
         } else if (action === 'download') {
           if (target.type === 'file') downloadFile(target.id);
@@ -1352,8 +1372,14 @@
         var action = btn.getAttribute('data-folder-action');
         if (action === 'rename') {
           var folder = folderById(id);
-          var next = prompt('Rename folder', folder ? folder.name : '');
-          if (next != null) renameFolder(id, next);
+          window.QFDialog.prompt({
+            title: 'Rename folder',
+            defaultValue: folder ? folder.name : '',
+            confirmLabel: 'Rename',
+            cancelLabel: 'Cancel'
+          }).then(function (next) {
+            if (next != null) renameFolder(id, next);
+          });
         } else if (action === 'delete') {
           deleteFolder(id);
         } else if (action === 'context') {
@@ -1495,8 +1521,14 @@
             var fid = fRow && fRow.getAttribute('data-folder-id');
             if (fAct === 'rename') {
               var folder = folderById(fid);
-              var next = prompt('Rename folder', folder ? folder.name : '');
-              if (next != null) renameFolder(fid, next);
+              window.QFDialog.prompt({
+                title: 'Rename folder',
+                defaultValue: folder ? folder.name : '',
+                confirmLabel: 'Rename',
+                cancelLabel: 'Cancel'
+              }).then(function (next) {
+                if (next != null) renameFolder(fid, next);
+              });
             } else if (fAct === 'delete') deleteFolder(fid);
             return;
           }
