@@ -46,6 +46,275 @@
       .catch(function () {});
   }
 
+  var WORKSPACE_CHILD_LABELS = [
+    'whiteboarding',
+    'project planning',
+    'mind map',
+    'kanban board',
+    'perspective',
+    'brainstorm',
+    'document generation'
+  ];
+
+  function initWorkspacesDropdown(sidebar) {
+    if (!sidebar) return;
+    var navEl = sidebar.querySelector('.dash-nav');
+    if (!navEl || navEl.querySelector('.dash-nav-group[data-ws-group="workspaces-pages"]')) return;
+
+    var labels = Array.prototype.slice.call(navEl.querySelectorAll('.dash-sidebar__section-label'));
+    var wsLabel = null;
+    for (var i = 0; i < labels.length; i += 1) {
+      if ((labels[i].textContent || '').trim().toLowerCase() === 'workspaces & pages') {
+        wsLabel = labels[i];
+        break;
+      }
+    }
+    if (!wsLabel) return;
+
+    // Collect the exact 7 child links belonging to Workspaces & Pages (leaving Templates outside)
+    var foundMap = Object.create(null);
+    var node = wsLabel.nextElementSibling;
+    while (node && !node.classList.contains('dash-sidebar__section-label')) {
+      var next = node.nextElementSibling;
+      if (node.tagName === 'A' && node.classList.contains('dash-nav__item')) {
+        var text = (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (WORKSPACE_CHILD_LABELS.indexOf(text) !== -1 && !foundMap[text]) {
+          foundMap[text] = node;
+        }
+      }
+      node = next;
+    }
+
+    var childLinks = [];
+    for (var j = 0; j < WORKSPACE_CHILD_LABELS.length; j += 1) {
+      var key = WORKSPACE_CHILD_LABELS[j];
+      if (foundMap[key]) childLinks.push(foundMap[key]);
+    }
+    if (!childLinks.length) return;
+
+    // Build the collapsible dropdown group
+    var group = document.createElement('div');
+    group.className = 'dash-nav-group';
+    group.setAttribute('data-ws-group', 'workspaces-pages');
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'dash-nav__item dash-nav-group__trigger';
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', 'dash-ws-children');
+    trigger.innerHTML =
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<polygon points="12 2 2 7 12 12 22 7 12 2"/>' +
+        '<polyline points="2 17 12 22 22 17"/>' +
+        '<polyline points="2 12 12 17 22 12"/>' +
+      '</svg>' +
+      '<span class="dash-nav-group__label">Workspaces &amp; Pages</span>' +
+      '<span class="dash-nav-group__chevron" aria-hidden="true">' +
+        '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<polyline points="6 9 12 15 18 9"/>' +
+        '</svg>' +
+      '</span>';
+
+    var list = document.createElement('div');
+    list.className = 'dash-nav-group__list';
+    list.id = 'dash-ws-children';
+    list.hidden = true;
+
+    wsLabel.parentNode.insertBefore(group, wsLabel);
+    wsLabel.remove();
+    group.appendChild(trigger);
+    group.appendChild(list);
+
+    var hasActiveChild = false;
+    childLinks.forEach(function (link) {
+      link.classList.add('dash-nav-group__child');
+      if (link.classList.contains('is-active')) hasActiveChild = true;
+      list.appendChild(link);
+    });
+
+    function setInlineExpanded(expanded) {
+      trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      group.classList.toggle('is-open', expanded);
+      list.hidden = !expanded;
+    }
+
+    if (hasActiveChild) {
+      trigger.classList.add('has-active-child');
+      setInlineExpanded(true);
+    }
+
+    // Build floating hover dialog popup mounted on document.body (never clipped by sidebar scroll)
+    var existingPopover = document.getElementById('dash-ws-popover');
+    if (existingPopover) existingPopover.remove();
+
+    var popover = document.createElement('div');
+    popover.id = 'dash-ws-popover';
+    popover.className = 'dash-ws-popover';
+    popover.setAttribute('role', 'dialog');
+    popover.setAttribute('aria-label', 'Workspaces & Pages');
+    popover.hidden = true;
+
+    var popHead = document.createElement('div');
+    popHead.className = 'dash-ws-popover__head';
+    popHead.innerHTML =
+      '<span class="dash-ws-popover__title">Workspaces &amp; Pages</span>' +
+      '<span class="dash-ws-popover__count">' + childLinks.length + '</span>';
+
+    var popList = document.createElement('div');
+    popList.className = 'dash-ws-popover__list';
+
+    var popoverPairs = [];
+    childLinks.forEach(function (origLink) {
+      var item = document.createElement('a');
+      item.className = 'dash-ws-popover__item';
+      item.href = origLink.getAttribute('href') || '#';
+      if (origLink.hasAttribute('data-create-framework')) {
+        item.setAttribute('data-create-framework', origLink.getAttribute('data-create-framework'));
+      }
+      var svg = origLink.querySelector('svg');
+      var labelSpan = origLink.querySelector('span');
+      if (svg) item.appendChild(svg.cloneNode(true));
+      var textSpan = document.createElement('span');
+      textSpan.className = 'dash-ws-popover__item-label';
+      textSpan.textContent = labelSpan ? labelSpan.textContent.trim() : (origLink.textContent || '').trim();
+      item.appendChild(textSpan);
+
+      item.addEventListener('click', function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        hidePopover(true);
+        origLink.click();
+      });
+
+      popList.appendChild(item);
+      popoverPairs.push({ orig: origLink, item: item });
+    });
+
+    popover.appendChild(popHead);
+    popover.appendChild(popList);
+    document.body.appendChild(popover);
+
+    var closeTimer = null;
+    var popoverVisible = false;
+    var finePointerMq = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+    function syncPopoverActive() {
+      var anyActive = false;
+      popoverPairs.forEach(function (pair) {
+        var active = pair.orig.classList.contains('is-active');
+        pair.item.classList.toggle('is-active', active);
+        if (active) anyActive = true;
+      });
+      trigger.classList.toggle('has-active-child', anyActive);
+    }
+
+    function positionPopover() {
+      var triggerRect = trigger.getBoundingClientRect();
+      var sidebarRect = sidebar.getBoundingClientRect();
+      var gap = 10;
+      var left = Math.round(sidebarRect.right + gap);
+      var popHeight = popover.offsetHeight || 320;
+      var popWidth = popover.offsetWidth || 248;
+
+      if (left + popWidth > window.innerWidth - 12) {
+        left = Math.max(12, Math.round(triggerRect.right + 8));
+      }
+      var top = Math.round(triggerRect.top - 8);
+      if (top + popHeight > window.innerHeight - 12) {
+        top = Math.max(12, window.innerHeight - popHeight - 12);
+      }
+      if (top < 12) top = 12;
+
+      popover.style.left = left + 'px';
+      popover.style.top = top + 'px';
+    }
+
+    function showPopover() {
+      if (closeTimer) {
+        clearTimeout(closeTimer);
+        closeTimer = null;
+      }
+      syncPopoverActive();
+      popover.hidden = false;
+      positionPopover();
+      popoverVisible = true;
+      requestAnimationFrame(function () {
+        if (popoverVisible) popover.classList.add('is-open');
+      });
+    }
+
+    function hidePopover(immediate) {
+      if (closeTimer) {
+        clearTimeout(closeTimer);
+        closeTimer = null;
+      }
+      if (!popoverVisible && popover.hidden) return;
+      popoverVisible = false;
+      popover.classList.remove('is-open');
+      if (immediate) {
+        popover.hidden = true;
+      } else {
+        closeTimer = setTimeout(function () {
+          if (!popoverVisible) popover.hidden = true;
+          closeTimer = null;
+        }, 160);
+      }
+    }
+
+    function scheduleHidePopover() {
+      if (closeTimer) clearTimeout(closeTimer);
+      closeTimer = setTimeout(function () {
+        hidePopover(false);
+      }, 180);
+    }
+
+    trigger.addEventListener('mouseenter', function () {
+      if (!finePointerMq.matches) return;
+      if (sidebar.classList.contains('is-drawer-open')) return;
+      showPopover();
+    });
+
+    trigger.addEventListener('mouseleave', function () {
+      if (!finePointerMq.matches) return;
+      scheduleHidePopover();
+    });
+
+    popover.addEventListener('mouseenter', function () {
+      if (closeTimer) {
+        clearTimeout(closeTimer);
+        closeTimer = null;
+      }
+    });
+
+    popover.addEventListener('mouseleave', function () {
+      scheduleHidePopover();
+    });
+
+    trigger.addEventListener('click', function (e) {
+      e.preventDefault();
+      var nextExpanded = trigger.getAttribute('aria-expanded') !== 'true';
+      hidePopover(true);
+      setInlineExpanded(nextExpanded);
+    });
+
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && popoverVisible) {
+        hidePopover(true);
+        trigger.focus();
+      }
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!popoverVisible) return;
+      if (popover.contains(e.target) || trigger.contains(e.target)) return;
+      hidePopover(true);
+    });
+
+    window.addEventListener('resize', function () {
+      if (popoverVisible) positionPopover();
+    });
+  }
+
   function initWorkspaceNav() {
     var sidebar = document.querySelector('.dash-sidebar');
     var topbar = document.querySelector('.dash-top');
@@ -110,6 +379,9 @@
       mainLabel.textContent = 'Main';
       navEl.insertBefore(mainLabel, navEl.firstChild);
     }
+
+    // 3b. Convert "Workspaces & Pages" into a dropdown group with hover popup dialog
+    initWorkspacesDropdown(sidebar);
 
     // 4. Wrap scrollable body (CTA + nav) so header & footer stay pinned on mobile
     if (!sidebar.querySelector('.dash-sidebar__scroll')) {
@@ -217,6 +489,7 @@
 
     sidebar.addEventListener('click', function (e) {
       if (!isOpen) return;
+      if (e.target.closest('.dash-nav-group__trigger')) return;
       var item = e.target.closest('.dash-nav__item, .dash-sidebar__create, .dash-drawer-user, .dash-drawer-footer__btn');
       if (item) closeDrawer(false);
     });
