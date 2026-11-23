@@ -71,6 +71,7 @@ import {
   getUserKnowledgeHub,
   saveUserKnowledgeHub,
   getKnowledgeEcosystemSnapshot,
+  hydrateEcosystemFromConvex,
   getDocumentSourceContext,
   getUserOsWorkspace,
   saveUserOsWorkspace,
@@ -1478,6 +1479,7 @@ export function createApi(limiter) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
+        await hydrateEcosystemFromConvex(user.id);
         const saved = getUserKnowledgeHub(user.id);
         const ecosystem = getKnowledgeEcosystemSnapshot(user.id);
         return sendJson(res, 200, {
@@ -1514,6 +1516,7 @@ export function createApi(limiter) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
+        await hydrateEcosystemFromConvex(user.id);
         const saved = getUserOsWorkspace(user.id);
         const ecosystem = getKnowledgeEcosystemSnapshot(user.id);
         const knowledge = getUserKnowledgeHub(user.id);
@@ -1585,6 +1588,20 @@ export function createApi(limiter) {
         return sendJson(res, 400, {
           error: 'Please select at least one item from the source list (or provide instructions in Notes) before generating.'
         });
+      }
+
+      if (rawSourceItems.length) {
+        const requestedBoardIds = rawSourceItems
+          .map((x) => {
+            if (!x || typeof x !== 'object') return '';
+            if (x.boardId) return String(x.boardId).trim();
+            const idStr = String(x.id || '').trim();
+            if (idStr.startsWith('doc:')) return idStr.split(':')[1] || '';
+            if (idStr.startsWith('ECO-BRD-')) return idStr.slice('ECO-BRD-'.length);
+            return idStr;
+          })
+          .filter(Boolean);
+        await hydrateEcosystemFromConvex(user.id, requestedBoardIds);
       }
 
       const sourceCtx = rawSourceItems.length
@@ -1785,6 +1802,7 @@ export function createApi(limiter) {
         primaryContext ? `\nSOURCE CONTENT (PRIMARY GROUNDING DATA — SYNTHESIZE STRICTLY FROM THIS):\n${primaryContext.slice(0, 18000)}` : ''
       ].filter(Boolean).join('\n');
 
+      let lastAiError = '';
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
           const ai = await callAiRouter({
@@ -1813,13 +1831,19 @@ export function createApi(limiter) {
               }
             });
           }
+          lastAiError = `Unparseable AI response from ${ai ? ai.label : 'provider'}`;
           console.warn(`[documents/generate] Attempt ${attempt + 1} returned unparseable output from ${ai ? ai.label : 'unknown'}`);
         } catch (err) {
+          lastAiError = err.message || 'AI provider error';
           console.warn(`[documents/generate] Attempt ${attempt + 1} error:`, err.message);
         }
       }
 
-      return sendJson(res, 200, { success: true, document: buildFallback() });
+      return sendJson(res, 200, {
+        success: true,
+        aiWarning: lastAiError || 'AI providers unavailable — configure OPENROUTER_API_KEY or DEEPSEEK_API_KEY in deployment environment.',
+        document: buildFallback()
+      });
     },
 
     /** POST /api/documents/ai-edit — AI inline rewrite (Shorten / Expand / Grammar) */

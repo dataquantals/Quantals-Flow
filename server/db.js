@@ -8,6 +8,7 @@ import {
   fetchBoardFromConvex,
   deleteBoardFromConvex,
   syncProjectPlanToConvex,
+  fetchProjectPlanFromConvex,
   deleteProjectPlanFromConvex,
   syncFolderToConvex,
   deleteFolderFromConvex,
@@ -1706,6 +1707,59 @@ export function saveUserOsWorkspace(userId, state) {
   return { updatedAt: now };
 }
 
+export async function hydrateEcosystemFromConvex(userId, specificBoardIds = []) {
+  if (userId == null || config.isTest) return;
+  try {
+    await hydrateUserBoardsFromConvex(userId);
+  } catch {}
+
+  try {
+    const idsToHydrate = new Set();
+    for (const rawId of (Array.isArray(specificBoardIds) ? specificBoardIds : [])) {
+      const clean = String(rawId || '').trim();
+      if (clean) idsToHydrate.add(clean);
+    }
+
+    // On cold serverless instances (Vercel), hydrate board state_json for recent boards that only have empty '{}'
+    const emptyRows = db.prepare(
+      "SELECT id FROM boards WHERE (user_id = ? OR user_id IS NULL) AND (state_json IS NULL OR state_json = '{}' OR length(state_json) < 10) ORDER BY updated_at DESC LIMIT 10"
+    ).all(userId);
+    for (const r of emptyRows) {
+      if (r && r.id) idsToHydrate.add(r.id);
+    }
+
+    if (idsToHydrate.size) {
+      await Promise.allSettled(
+        Array.from(idsToHydrate).map((bid) => hydrateBoardFromConvex(bid, userId))
+      );
+    }
+
+    // Hydrate project plans from Convex for specifically requested boards if not already cached locally
+    if (Array.isArray(specificBoardIds) && specificBoardIds.length) {
+      await Promise.allSettled(
+        specificBoardIds.map(async (rawId) => {
+          const bid = String(rawId || '').trim();
+          if (!bid) return;
+          const scoped = scopeBoardId(bid, userId);
+          const existing = db.prepare('SELECT 1 AS ok FROM project_plans WHERE board_id IN (?, ?)').get(bid, scoped);
+          if (existing) return;
+          const remotePlan = await fetchProjectPlanFromConvex(scoped, userId) || await fetchProjectPlanFromConvex(bid, userId);
+          if (remotePlan && typeof remotePlan === 'object') {
+            const now = Date.now();
+            db.prepare(`
+              INSERT INTO project_plans (board_id, user_id, plan_json, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?)
+              ON CONFLICT(board_id) DO UPDATE SET plan_json = excluded.plan_json, updated_at = excluded.updated_at
+            `).run(scoped, userId, JSON.stringify(remotePlan), now, now);
+          }
+        })
+      );
+    }
+  } catch (err) {
+    console.warn('[db] hydrateEcosystemFromConvex failed:', err.message);
+  }
+}
+
 export function getKnowledgeEcosystemSnapshot(userId) {
   const boards = [];
   const workspaceDocs = [];
@@ -2200,14 +2254,16 @@ export function getDocumentSourceContext(userId, sourceCategory, selectedItems) 
     const lines = [];
     let found = false;
 
-    // 1. Check boards (by refBoardId / refId first, then exact title, then embedded doc.title across user boards)
+    // 1. Check boards (by refBoardId / refId — both raw and user-scoped — then exact title, then embedded doc.title across user boards)
     let boardRow = null;
     try {
       const lookupBoardId = refBoardId || (refId && !refId.startsWith('doc:') ? refId : '');
       if (lookupBoardId) {
+        const scopedId = scopeBoardId(lookupBoardId, userId);
+        const baseId = lookupBoardId.includes('~') ? lookupBoardId.split('~')[0] : lookupBoardId;
         boardRow = db.prepare(
-          'SELECT id, title, category, state_json FROM boards WHERE id = ? AND (user_id = ? OR user_id IS NULL)'
-        ).get(lookupBoardId, userId);
+          'SELECT id, title, category, state_json FROM boards WHERE id IN (?, ?, ?) AND (user_id = ? OR user_id IS NULL) ORDER BY length(state_json) DESC LIMIT 1'
+        ).get(lookupBoardId, scopedId, baseId, userId);
       }
       if (!boardRow && refTitle) {
         boardRow = db.prepare(

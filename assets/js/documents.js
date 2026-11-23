@@ -661,9 +661,13 @@
             var undoBtn = document.getElementById('dg-btn-undo-ai');
             if (undoBtn) undoBtn.hidden = true;
             openDoc(id);
-            toast(out.aiProvider && out.aiProvider !== 'local-engine'
-              ? ('Document generated with ' + out.aiProvider)
-              : 'Executive document generated');
+            if (res.aiWarning) {
+              toast('Generated from source (AI unavailable: ' + res.aiWarning + ')');
+            } else {
+              toast(out.aiProvider && out.aiProvider !== 'local-engine'
+                ? ('Document generated with ' + out.aiProvider)
+                : 'Executive document generated');
+            }
           })
           .catch(function (err) {
             var errMsg = (err && err.message) ? err.message : 'Could not generate document from the selected source.';
