@@ -1590,6 +1590,9 @@ export function createApi(limiter) {
         });
       }
 
+      const reqStartedAt = Date.now();
+      const maxWallMs = process.env.VERCEL ? 25000 : 50000;
+
       if (rawSourceItems.length) {
         const requestedBoardIds = rawSourceItems
           .map((x) => {
@@ -1601,7 +1604,10 @@ export function createApi(limiter) {
             return idStr;
           })
           .filter(Boolean);
-        await hydrateEcosystemFromConvex(user.id, requestedBoardIds);
+        await hydrateEcosystemFromConvex(user.id, requestedBoardIds, {
+          onlySpecific: requestedBoardIds.length > 0,
+          maxWaitMs: 5000
+        });
       }
 
       const sourceCtx = rawSourceItems.length
@@ -1804,6 +1810,8 @@ export function createApi(limiter) {
 
       let lastAiError = '';
       for (let attempt = 0; attempt < 2; attempt += 1) {
+        const remainingMs = maxWallMs - (Date.now() - reqStartedAt);
+        if (attempt > 0 && remainingMs < 7000) break;
         try {
           const ai = await callAiRouter({
             systemPrompt,
@@ -1811,7 +1819,9 @@ export function createApi(limiter) {
               ? userPrompt
               : `${userPrompt}\n\nIMPORTANT: Return ONLY valid JSON matching {"title":"...","sections":[...]}.`,
             temperature: attempt === 0 ? 0.35 : 0.2,
-            maxTokens: 3200
+            maxTokens: 2800,
+            timeoutMs: Math.min(16000, Math.max(5000, remainingMs - 1000)),
+            totalBudgetMs: Math.max(6000, remainingMs - 1000)
           });
 
           const parsed = ai && ai.content ? parseAiDocumentResponse(ai.content) : null;

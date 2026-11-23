@@ -1707,39 +1707,36 @@ export function saveUserOsWorkspace(userId, state) {
   return { updatedAt: now };
 }
 
-export async function hydrateEcosystemFromConvex(userId, specificBoardIds = []) {
+export async function hydrateEcosystemFromConvex(userId, specificBoardIds = [], options = {}) {
   if (userId == null || config.isTest) return;
-  try {
-    await hydrateUserBoardsFromConvex(userId);
-  } catch {}
+  const onlySpecific = Boolean(options && options.onlySpecific);
+  const maxWaitMs = Number(options && options.maxWaitMs) || (process.env.VERCEL ? 6000 : 8000);
 
-  try {
-    const idsToHydrate = new Set();
-    for (const rawId of (Array.isArray(specificBoardIds) ? specificBoardIds : [])) {
-      const clean = String(rawId || '').trim();
-      if (clean) idsToHydrate.add(clean);
-    }
+  const work = (async () => {
+    const requested = Array.isArray(specificBoardIds)
+      ? specificBoardIds.map((id) => String(id || '').trim()).filter(Boolean)
+      : [];
 
-    // On cold serverless instances (Vercel), hydrate board state_json for recent boards that only have empty '{}'
-    const emptyRows = db.prepare(
-      "SELECT id FROM boards WHERE (user_id = ? OR user_id IS NULL) AND (state_json IS NULL OR state_json = '{}' OR length(state_json) < 10) ORDER BY updated_at DESC LIMIT 10"
-    ).all(userId);
-    for (const r of emptyRows) {
-      if (r && r.id) idsToHydrate.add(r.id);
-    }
-
-    if (idsToHydrate.size) {
+    if (onlySpecific && requested.length) {
+      // Fast path for /api/documents/generate: only hydrate requested boards that are missing/empty locally
+      const missingBoardIds = [];
+      for (const bid of requested) {
+        const scoped = scopeBoardId(bid, userId);
+        const base = bid.includes('~') ? bid.split('~')[0] : bid;
+        const row = db.prepare(
+          "SELECT id, length(state_json) AS len FROM boards WHERE id IN (?, ?, ?) AND (user_id = ? OR user_id IS NULL) ORDER BY len DESC LIMIT 1"
+        ).get(bid, scoped, base, userId);
+        if (!row || (row.len || 0) < 10) {
+          missingBoardIds.push(bid);
+        }
+      }
+      if (missingBoardIds.length) {
+        await Promise.allSettled(
+          missingBoardIds.map((bid) => hydrateBoardFromConvex(bid, userId))
+        );
+      }
       await Promise.allSettled(
-        Array.from(idsToHydrate).map((bid) => hydrateBoardFromConvex(bid, userId))
-      );
-    }
-
-    // Hydrate project plans from Convex for specifically requested boards if not already cached locally
-    if (Array.isArray(specificBoardIds) && specificBoardIds.length) {
-      await Promise.allSettled(
-        specificBoardIds.map(async (rawId) => {
-          const bid = String(rawId || '').trim();
-          if (!bid) return;
+        requested.map(async (bid) => {
           const scoped = scopeBoardId(bid, userId);
           const existing = db.prepare('SELECT 1 AS ok FROM project_plans WHERE board_id IN (?, ?)').get(bid, scoped);
           if (existing) return;
@@ -1754,10 +1751,37 @@ export async function hydrateEcosystemFromConvex(userId, specificBoardIds = []) 
           }
         })
       );
+      return;
     }
-  } catch (err) {
-    console.warn('[db] hydrateEcosystemFromConvex failed:', err.message);
-  }
+
+    try {
+      await hydrateUserBoardsFromConvex(userId);
+    } catch {}
+
+    try {
+      const idsToHydrate = new Set(requested);
+      const emptyRows = db.prepare(
+        "SELECT id FROM boards WHERE (user_id = ? OR user_id IS NULL) AND (state_json IS NULL OR state_json = '{}' OR length(state_json) < 10) ORDER BY updated_at DESC LIMIT 6"
+      ).all(userId);
+      for (const r of emptyRows) {
+        if (r && r.id) idsToHydrate.add(r.id);
+      }
+
+      if (idsToHydrate.size) {
+        await Promise.allSettled(
+          Array.from(idsToHydrate).map((bid) => hydrateBoardFromConvex(bid, userId))
+        );
+      }
+    } catch (err) {
+      console.warn('[db] hydrateEcosystemFromConvex failed:', err.message);
+    }
+  })();
+
+  // Never let a slow Convex query block a serverless request past maxWaitMs
+  await Promise.race([
+    work,
+    new Promise((resolve) => setTimeout(resolve, maxWaitMs))
+  ]);
 }
 
 export function getKnowledgeEcosystemSnapshot(userId) {

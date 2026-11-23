@@ -59,7 +59,7 @@ async function discoverOpenRouterFreeModels() {
 
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
+    const timer = setTimeout(() => controller.abort(), 2500);
     const res = await fetch('https://openrouter.ai/api/v1/models', {
       headers: { 'Authorization': `Bearer ${config.openrouterApiKey}` },
       signal: controller.signal
@@ -196,16 +196,30 @@ export function getAiRouterStatus() {
  * Execute an AI chat completion across the multi-agent pool with automatic
  * failover on quota exhaustion (402), rate limits (429), or transient errors.
  */
-export async function callAiRouter({ systemPrompt, userContent, temperature = 0.6, maxTokens = 1600, timeoutMs = 28000 }) {
+export async function callAiRouter({
+  systemPrompt,
+  userContent,
+  temperature = 0.6,
+  maxTokens = 1600,
+  timeoutMs = 18000,
+  totalBudgetMs = process.env.VERCEL ? 24000 : 45000
+}) {
+  const startedAt = Date.now();
   const candidates = await buildCandidates();
   if (!candidates.length) return null;
 
   const attempts = [];
 
   for (const cand of candidates) {
+    const remaining = totalBudgetMs - (Date.now() - startedAt);
+    if (remaining < 3000) {
+      console.warn(`[ai-router] overall time budget (${totalBudgetMs}ms) reached after ${attempts.length} attempts.`);
+      break;
+    }
+    const perCallTimeout = Math.max(3000, Math.min(timeoutMs, remaining));
     const key = `${cand.provider}:${cand.model}`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), perCallTimeout);
 
     try {
       const response = await fetch(cand.url, {
