@@ -1962,6 +1962,9 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 22px;
+  max-height: 310px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 #modal-create-board .template-pick-card--visual {
   padding: 8px 8px 10px;

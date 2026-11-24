@@ -115,7 +115,7 @@ export const upsertInvoice = mutation({
 
     const existing = await ctx.db
       .query('invoices')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .withIndex('by_user_ino', (q) => q.eq('userId', userId).eq('invoiceNumber', ino))
       .first();
 
     const now = args.updatedAt || Date.now();
@@ -166,10 +166,10 @@ export const upsertInvoice = mutation({
       invoiceId = await ctx.db.insert('invoices', doc);
     }
 
-    // Replace existing line items for this user in invoiceItems
+    // Replace existing line items for this invoice in invoiceItems
     const oldItems = await ctx.db
       .query('invoiceItems')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .withIndex('by_user_ino', (q) => q.eq('userId', userId).eq('invoiceNumber', ino))
       .collect();
     for (const old of oldItems) {
       await ctx.db.delete(old._id);

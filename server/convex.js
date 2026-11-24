@@ -558,6 +558,103 @@ export async function getNotepadFromConvex(userId) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Leaf Workspace (leafWorkspaces)
+ * ------------------------------------------------------------------ */
+
+export async function getLeafFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('leaf:getWorkspace', { userId: String(userId) });
+  if (!doc || !doc.spacesJson || !doc.pagesJson) return null;
+  try {
+    return {
+      spaces: JSON.parse(doc.spacesJson),
+      pages: JSON.parse(doc.pagesJson),
+      cur: doc.curPageId || undefined,
+      curSpace: doc.curSpaceId || undefined,
+      uid: doc.uid || undefined,
+      cid: doc.cid || undefined,
+      updatedAt: Number(doc.updatedAt || Date.now())
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function syncLeafToConvex(userId, payload, updatedAt) {
+  if (!userId || !payload || config.isTest) return Promise.resolve(null);
+  return convexMutation('leaf:saveWorkspace', {
+    userId: String(userId),
+    spacesJson: JSON.stringify(payload.spaces || {}),
+    pagesJson: JSON.stringify(payload.pages || {}),
+    curPageId: payload.cur ? String(payload.cur) : undefined,
+    curSpaceId: payload.curSpace ? String(payload.curSpace) : undefined,
+    uid: Number.isFinite(Number(payload.uid)) ? Number(payload.uid) : undefined,
+    cid: Number.isFinite(Number(payload.cid)) ? Number(payload.cid) : undefined,
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Knowledge Hub & Organisational OS (knowledgeHubs, osWorkspaces)
+ * ------------------------------------------------------------------ */
+
+export async function getKnowledgeHubFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('knowledge:getHub', { userId: String(userId) });
+  if (!doc || !doc.stateJson) return null;
+  try {
+    return { state: JSON.parse(doc.stateJson), updatedAt: Number(doc.updatedAt || Date.now()) };
+  } catch {
+    return null;
+  }
+}
+
+export function syncKnowledgeHubToConvex(userId, state, updatedAt) {
+  if (!userId || !state || config.isTest) return Promise.resolve(null);
+  return convexMutation('knowledge:saveHub', {
+    userId: String(userId),
+    stateJson: JSON.stringify(state),
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+export async function getOsWorkspaceFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('osWorkspace:getWorkspace', { userId: String(userId) });
+  if (!doc || !doc.stateJson) return null;
+  try {
+    return { state: JSON.parse(doc.stateJson), updatedAt: Number(doc.updatedAt || Date.now()) };
+  } catch {
+    return null;
+  }
+}
+
+export function syncOsWorkspaceToConvex(userId, state, updatedAt) {
+  if (!userId || !state || config.isTest) return Promise.resolve(null);
+  return convexMutation('osWorkspace:saveWorkspace', {
+    userId: String(userId),
+    stateJson: JSON.stringify(state),
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Marketing & Enterprise Leads (contactLeads)
+ * ------------------------------------------------------------------ */
+
+export function createLeadInConvex({ source, email, name, company, teamSize, message }) {
+  if (!email || config.isTest) return Promise.resolve(null);
+  return convexMutation('leads:createLead', {
+    source: source === 'enterprise_contact' ? 'enterprise_contact' : 'hero',
+    email: String(email).trim().toLowerCase(),
+    name: name ? String(name).trim() : undefined,
+    company: company ? String(company).trim() : undefined,
+    teamSize: teamSize ? String(teamSize).trim() : undefined,
+    message: message ? String(message).trim() : undefined
+  });
+}
+
 export async function checkConvexConnection() {
   const info = {
     configured: Boolean(config.convex.cloudUrl),

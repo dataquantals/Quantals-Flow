@@ -98,7 +98,14 @@ import {
   getConvexFileUrl,
   saveConvexAvatar,
   uploadBufferToConvex,
-  fetchProjectPlanFromConvex
+  fetchProjectPlanFromConvex,
+  getLeafFromConvex,
+  syncLeafToConvex,
+  getKnowledgeHubFromConvex,
+  syncKnowledgeHubToConvex,
+  getOsWorkspaceFromConvex,
+  syncOsWorkspaceToConvex,
+  createLeadInConvex
 } from './convex.js';
 import {
   readJson,
@@ -1480,7 +1487,14 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         await hydrateEcosystemFromConvex(user.id);
-        const saved = getUserKnowledgeHub(user.id);
+        let saved = getUserKnowledgeHub(user.id);
+        if (!saved) {
+          const remote = await getKnowledgeHubFromConvex(user.id);
+          if (remote && remote.state) {
+            saveUserKnowledgeHub(user.id, remote.state);
+            saved = remote;
+          }
+        }
         const ecosystem = getKnowledgeEcosystemSnapshot(user.id);
         return sendJson(res, 200, {
           success: true,
@@ -1505,7 +1519,8 @@ export function createApi(limiter) {
       }
       try {
         const result = saveUserKnowledgeHub(user.id, body && body.state);
-        return sendJson(res, 200, { success: true, ...result });
+        const convexRes = await syncKnowledgeHubToConvex(user.id, body && body.state, result.updatedAt);
+        return sendJson(res, 200, { success: true, ...result, convexSynced: Boolean(convexRes) });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
@@ -1517,7 +1532,14 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         await hydrateEcosystemFromConvex(user.id);
-        const saved = getUserOsWorkspace(user.id);
+        let saved = getUserOsWorkspace(user.id);
+        if (!saved) {
+          const remote = await getOsWorkspaceFromConvex(user.id);
+          if (remote && remote.state) {
+            saveUserOsWorkspace(user.id, remote.state);
+            saved = remote;
+          }
+        }
         const ecosystem = getKnowledgeEcosystemSnapshot(user.id);
         const knowledge = getUserKnowledgeHub(user.id);
         return sendJson(res, 200, {
@@ -1548,9 +1570,98 @@ export function createApi(limiter) {
       }
       try {
         const result = saveUserOsWorkspace(user.id, body && body.state);
-        return sendJson(res, 200, { success: true, ...result });
+        const convexRes = await syncOsWorkspaceToConvex(user.id, body && body.state, result.updatedAt);
+        return sendJson(res, 200, { success: true, ...result, convexSynced: Boolean(convexRes) });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** GET /api/leaf — Load Leaf workspace from Convex */
+    async getLeafApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const saved = await getLeafFromConvex(user.id);
+        return sendJson(res, 200, { ok: true, workspace: saved || null });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to load Leaf workspace.' });
+      }
+    },
+
+    /** PUT /api/leaf — Save Leaf workspace to Convex */
+    async saveLeafApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 6 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      if (!body || typeof body.spaces !== 'object' || typeof body.pages !== 'object') {
+        return sendJson(res, 400, { error: 'spaces and pages objects are required.' });
+      }
+      try {
+        const now = Date.now();
+        const synced = await syncLeafToConvex(user.id, body, now);
+        return sendJson(res, 200, { ok: true, updatedAt: now, convexSynced: Boolean(synced) });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to save Leaf workspace.' });
+      }
+    },
+
+    /** POST /api/leaf/image — Upload embedded Leaf image to Convex Cloud Storage (<= 8MB) */
+    async uploadLeafImageApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const rawContentType = (req.headers['content-type'] || '').toLowerCase();
+      const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+      const mimeType = rawContentType.split(';')[0].trim();
+      if (!ALLOWED.includes(mimeType)) {
+        return sendJson(res, 400, { error: 'Unsupported image format. Use PNG, JPG, WebP, GIF, or SVG.' });
+      }
+      let buffer;
+      try {
+        buffer = await readBuffer(req, 8 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message || 'Image exceeds 8MB limit.' });
+      }
+      if (!buffer || !buffer.length) {
+        return sendJson(res, 400, { error: 'No image data provided.' });
+      }
+      try {
+        const { storageId, url } = await uploadBufferToConvex(buffer, mimeType, user.id);
+        return sendJson(res, 200, { ok: true, url: url || '', storageId: storageId || '' });
+      } catch (err) {
+        return sendJson(res, 502, { error: 'Failed to upload image to Convex: ' + (err.message || 'Unknown error') });
+      }
+    },
+
+    /** POST /api/leads — Persist marketing / enterprise contact form leads to Convex */
+    async createLeadApi(req, res) {
+      let body;
+      try {
+        body = await readJson(req, 64 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      const email = String(body?.email || '').trim().toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+        return sendJson(res, 400, { error: 'Please enter a valid email address.' });
+      }
+      try {
+        const saved = await createLeadInConvex({
+          source: body?.source === 'enterprise_contact' ? 'enterprise_contact' : 'hero',
+          email,
+          name: body?.name,
+          company: body?.company,
+          teamSize: body?.teamSize,
+          message: body?.message
+        });
+        return sendJson(res, 201, { ok: true, convexSynced: Boolean(saved) });
+      } catch (err) {
+        return sendJson(res, 500, { error: err.message || 'Failed to save inquiry.' });
       }
     },
 

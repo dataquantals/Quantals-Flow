@@ -199,9 +199,9 @@ export const save = mutation({
     for (const key of Object.keys(SECTIONS)) sections[key] = args[key] || [];
 
     const counts = {
-      taskCount: sections.tasks.length,
-      milestoneCount: sections.milestones.length,
-      resourceCount: sections.resources.length
+      taskCount: args.tasks !== undefined ? args.tasks.length : (existing ? existing.taskCount : 0),
+      milestoneCount: args.milestones !== undefined ? args.milestones.length : (existing ? existing.milestoneCount : 0),
+      resourceCount: args.resources !== undefined ? args.resources.length : (existing ? existing.resourceCount : 0)
     };
 
     const existing = await ctx.db
@@ -235,7 +235,9 @@ export const save = mutation({
 
     const stats = {};
     for (const [key, table] of Object.entries(SECTIONS)) {
-      stats[key] = await syncSection(ctx, table, args.boardId, userId, sections[key], now);
+      if (args[key] !== undefined) {
+        stats[key] = await syncSection(ctx, table, args.boardId, userId, sections[key], now);
+      }
     }
 
     return {

@@ -18,6 +18,7 @@
     { path: '/dashboard/notepad/',   key: 'notepad',   shell: 'notepad',   markerId: 'admin-view-notes' },
     { path: '/dashboard/knowledge/', key: 'knowledge', shell: 'knowledge', markerId: 'km-app' },
     { path: '/dashboard/documents/', key: 'documents', shell: 'documents', markerId: 'docgen-app' },
+    { path: '/dashboard/leaf/',      key: 'leaf',      shell: 'leaf',      markerId: 'leaf-app' },
     { path: '/dashboard/quotation/', key: 'quotation', shell: 'quotation', markerId: 'sheet' },
     { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice',   markerId: 'sheet' }
   ];
@@ -26,6 +27,7 @@
     '/notepad/': '/dashboard/notepad/',
     '/knowledge/': '/dashboard/knowledge/',
     '/documents/': '/dashboard/documents/',
+    '/leaf/': '/dashboard/leaf/',
     '/dashboard/os/': '/dashboard/documents/',
     '/os/': '/dashboard/documents/',
     '/quotation/': '/dashboard/quotation/',
@@ -46,7 +48,9 @@
     { match: /\/assets\/js\/notepad\.js/i, globalCheck: function () { return typeof window.initNotepad === 'function'; }, reinit: function () { window.initNotepad(); } },
     { match: /\/assets\/js\/knowledge-data\.js/i, globalCheck: function () { return typeof window.QFKnowledgeSeed !== 'undefined'; } },
     { match: /\/assets\/js\/knowledge\.js/i, globalCheck: function () { return typeof window.initKnowledgeHub === 'function'; }, reinit: function () { window.initKnowledgeHub(); } },
-    { match: /\/assets\/js\/documents\.js/i, globalCheck: function () { return typeof window.initDocumentGeneration === 'function'; }, reinit: function () { window.initDocumentGeneration(); } }
+    { match: /\/assets\/js\/documents\.js/i, globalCheck: function () { return typeof window.initDocumentGeneration === 'function'; }, reinit: function () { window.initDocumentGeneration(); } },
+    { match: /lucide/i,                      globalCheck: function () { return typeof window.lucide !== 'undefined'; } },
+    { match: /\/assets\/js\/leaf\.js/i,      globalCheck: function () { return typeof window.initLeafWorkspace === 'function'; }, reinit: function () { window.initLeafWorkspace(); } }
   ];
 
   var htmlCache = new Map();

@@ -613,6 +613,31 @@
     return null;
   };
 
+  // Merge imported EdrawMax Mind Map / Concept Map / Bubble Diagram templates
+  if (Array.isArray(window.QFEdrawMindMapTemplates) && window.QFEdrawMindMapTemplates.length) {
+    var mmFw = null;
+    for (var fi = 0; fi < window.WorkspaceFrameworks.length; fi += 1) {
+      if (window.WorkspaceFrameworks[fi].id === 'mindmap') { mmFw = window.WorkspaceFrameworks[fi]; break; }
+    }
+    if (mmFw && Array.isArray(mmFw.templates)) {
+      window.QFEdrawMindMapTemplates.forEach(function (tpl) {
+        if (!tpl || !tpl.id) return;
+        var safeAlt = String(tpl.label || 'Mind Map Template').replace(/"/g, '&quot;');
+        mmFw.templates.push({
+          id: tpl.id,
+          label: tpl.label,
+          tag: tpl.tag || 'Mind Map',
+          defaultTitle: tpl.defaultTitle || tpl.label,
+          blurb: tpl.blurb || '',
+          structure: tpl.structure || '',
+          previewSvg: tpl.previewImg
+            ? '<img src="' + tpl.previewImg + '" alt="' + safeAlt + '" loading="lazy" style="width:100%;height:74px;object-fit:contain;background:#ffffff;display:block;" />'
+            : ''
+        });
+      });
+    }
+  }
+
   window.WorkspaceFrameworks.findTemplate = function (frameworkId, templateId) {
     var fw = window.WorkspaceFrameworks.byId(frameworkId);
     if (!fw || !Array.isArray(fw.templates)) return null;
@@ -636,6 +661,52 @@
     var connectors = [];
 
     if (frameworkId === 'mindmap') {
+      var edrawTpl = null;
+      if (Array.isArray(window.QFEdrawMindMapTemplates)) {
+        for (var ei = 0; ei < window.QFEdrawMindMapTemplates.length; ei += 1) {
+          if (window.QFEdrawMindMapTemplates[ei].id === templateId) {
+            edrawTpl = window.QFEdrawMindMapTemplates[ei];
+            break;
+          }
+        }
+      }
+
+      if (edrawTpl && Array.isArray(edrawTpl.nodes) && edrawTpl.nodes.length) {
+        items.push({
+          id: 'mm-frame-1',
+          type: 'frame',
+          x: sx - 50,
+          y: sy - 50,
+          w: Math.max(960, Number(edrawTpl.width) || 1080),
+          h: Math.max(540, Number(edrawTpl.height) || 680),
+          color: 'blue',
+          shapeType: 'rect',
+          text: cleanTitle + (cleanDesc ? ' — ' + cleanDesc : ''),
+          votes: 0
+        });
+        edrawTpl.nodes.forEach(function (node) {
+          items.push({
+            id: node.id,
+            type: 'shape',
+            x: sx + (Number(node.x) || 0),
+            y: sy + (Number(node.y) || 0),
+            w: Number(node.w) || 150,
+            color: node.color || 'blue',
+            shapeType: node.shapeType || 'round',
+            text: node.isRoot ? ('<strong>' + node.text + '</strong>') : node.text,
+            votes: 0
+          });
+        });
+        (edrawTpl.connectors || []).forEach(function (c, idx) {
+          connectors.push({
+            id: 'mm-edraw-conn-' + (idx + 1),
+            fromId: c.fromId,
+            toId: c.toId
+          });
+        });
+        return { items: items, connectors: connectors, plan: null };
+      }
+
       items.push({
         id: 'mm-frame-1',
         type: 'frame',

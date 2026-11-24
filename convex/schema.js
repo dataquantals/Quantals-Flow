@@ -299,5 +299,51 @@ export default defineSchema({
     noteCount: v.number(),
     updatedAt: v.number()
   })
-    .index('by_user', ['userId'])
+    .index('by_user', ['userId']),
+
+  /* ================================================================== *
+   * Leaf Workspace (collaborative docs, spaces & pages per user)
+   * ================================================================== */
+  leafWorkspaces: defineTable({
+    userId: v.string(),
+    spacesJson: v.string(),
+    pagesJson: v.string(),
+    curPageId: v.optional(v.string()),
+    curSpaceId: v.optional(v.string()),
+    uid: v.optional(v.number()),
+    cid: v.optional(v.number()),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId']),
+
+  /* ================================================================== *
+   * Knowledge Hub & Organisational OS Workspaces
+   * ================================================================== */
+  knowledgeHubs: defineTable({
+    userId: v.string(),
+    stateJson: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId']),
+
+  osWorkspaces: defineTable({
+    userId: v.string(),
+    stateJson: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId']),
+
+  /* ================================================================== *
+   * Marketing / Enterprise Contact Leads
+   * ================================================================== */
+  contactLeads: defineTable({
+    source: v.union(v.literal('hero'), v.literal('enterprise_contact')),
+    email: v.string(),
+    name: v.optional(v.string()),
+    company: v.optional(v.string()),
+    teamSize: v.optional(v.string()),
+    message: v.optional(v.string()),
+    createdAt: v.number()
+  })
+    .index('by_email', ['email'])
 });

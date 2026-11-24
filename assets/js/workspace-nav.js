@@ -53,7 +53,8 @@
     'kanban board',
     'perspective',
     'brainstorm',
-    'document generation'
+    'document generation',
+    'leaf'
   ];
 
   function initWorkspacesDropdown(sidebar) {

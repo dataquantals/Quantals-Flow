@@ -115,7 +115,7 @@ export const upsertQuotation = mutation({
 
     const existing = await ctx.db
       .query('quotations')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .withIndex('by_user_qno', (q) => q.eq('userId', userId).eq('quotationNumber', qno))
       .first();
 
     const now = args.updatedAt || Date.now();
@@ -166,10 +166,10 @@ export const upsertQuotation = mutation({
       quotationId = await ctx.db.insert('quotations', doc);
     }
 
-    // Replace existing line items for this user in quotationItems
+    // Replace existing line items for this quotation in quotationItems
     const oldItems = await ctx.db
       .query('quotationItems')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .withIndex('by_user_qno', (q) => q.eq('userId', userId).eq('quotationNumber', qno))
       .collect();
     for (const old of oldItems) {
       await ctx.db.delete(old._id);

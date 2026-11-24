@@ -455,14 +455,29 @@
       heroForm.classList.remove('is-error');
       var btn = heroForm.querySelector('button');
       var original = btn.textContent;
-      btn.textContent = 'Check your inbox';
+      btn.textContent = 'Submitting...';
       btn.disabled = true;
-      if (window.SaveState) window.SaveState.clear(heroForm);
-      setTimeout(function () {
-        btn.textContent = original;
-        btn.disabled = false;
-        heroForm.reset();
-      }, 2200);
+      fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'hero', email: value })
+      })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('Request failed')); })
+        .then(function () {
+          btn.textContent = 'Check your inbox';
+          if (window.SaveState) window.SaveState.clear(heroForm);
+          heroForm.reset();
+        })
+        .catch(function () {
+          btn.textContent = 'Try again';
+          heroForm.classList.add('is-error');
+        })
+        .finally(function () {
+          setTimeout(function () {
+            btn.textContent = original;
+            btn.disabled = false;
+          }, 2200);
+        });
     });
   }
 
@@ -581,10 +596,35 @@
       if (!(company.value || '').trim()) { markField(company, 'Enter your company name.'); ok = false; }
       if (!ok) return;
 
-      // No CRM is wired up in this clone, so acknowledge locally.
-      showMessage(contactMsg, 'Thanks — we\'ll be in touch within one business day.', true);
-      if (window.SaveState) window.SaveState.clear(contactForm);
-      contactForm.reset();
+      var submitBtn = contactForm.querySelector('button[type="submit"]');
+      var origLabel = submitBtn ? submitBtn.textContent : '';
+      var sizeEl = document.getElementById('c-size');
+      var msgEl = document.getElementById('c-message');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending...'; }
+      fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'enterprise_contact',
+          name: (name.value || '').trim(),
+          email: (email.value || '').trim(),
+          company: (company.value || '').trim(),
+          teamSize: sizeEl ? (sizeEl.value || '').trim() : '',
+          message: msgEl ? (msgEl.value || '').trim() : ''
+        })
+      })
+        .then(function (r) { return r.ok ? r.json() : r.json().then(function (d) { return Promise.reject(new Error(d.error || 'Failed to send')); }); })
+        .then(function () {
+          showMessage(contactMsg, 'Thanks — we\'ll be in touch within one business day.', true);
+          if (window.SaveState) window.SaveState.clear(contactForm);
+          contactForm.reset();
+        })
+        .catch(function (err) {
+          showMessage(contactMsg, err.message || 'Could not submit inquiry. Please try again.', false);
+        })
+        .finally(function () {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = origLabel; }
+        });
     });
   }
 
