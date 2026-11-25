@@ -3242,6 +3242,12 @@
     updateTransform();
   }
 
+  window.QFMobileCanvasBridge = {
+    getScale: function () { return zoom; },
+    panBy: function (dx, dy) { panX += dx; panY += dy; updateTransform(); },
+    zoomAt: function (nextZoom, fx, fy) { zoomAt(nextZoom, fx, fy); }
+  };
+
   function resetZoom() {
     zoom = 1;
     panX = 80;
@@ -5022,21 +5028,54 @@
     var focusNode = null;
 
     if (type === 'mindmap') {
-      // Mind Map: Empty starter with "Main Idea" in the exact middle and connected empty branch nodes around it
-      createFrame(sx - 60, sy - 60, 'Mind Map', 860, 460);
-      var center = createShape(sx + 275, sy + 135, '<strong>Main Idea</strong>', 'round', 'blue', 190);
-      var b1 = createShape(sx + 20, sy + 35, 'Topic 1', 'round', 'yellow', 155);
-      var b2 = createShape(sx + 20, sy + 235, 'Topic 2', 'round', 'mint', 155);
-      var b3 = createShape(sx + 565, sy + 35, 'Topic 3', 'round', 'violet', 155);
-      var b4 = createShape(sx + 565, sy + 235, 'Topic 4', 'round', 'orange', 155);
-      connectors.push(
-        { id: nextId('conn'), fromId: center.dataset.id, toId: b1.dataset.id },
-        { id: nextId('conn'), fromId: center.dataset.id, toId: b2.dataset.id },
-        { id: nextId('conn'), fromId: center.dataset.id, toId: b3.dataset.id },
-        { id: nextId('conn'), fromId: center.dataset.id, toId: b4.dataset.id }
-      );
-      renderConnectors();
-      focusNode = center;
+      var edrawId = new URLSearchParams(window.location.search || '').get('edraw');
+      var edrawTpl = null;
+      if (edrawId && Array.isArray(window.QFEdrawMindMapTemplates)) {
+        for (var ei = 0; ei < window.QFEdrawMindMapTemplates.length; ei += 1) {
+          if (window.QFEdrawMindMapTemplates[ei].id === edrawId) {
+            edrawTpl = window.QFEdrawMindMapTemplates[ei];
+            break;
+          }
+        }
+      }
+      if (edrawTpl && Array.isArray(edrawTpl.nodes) && edrawTpl.nodes.length) {
+        createFrame(sx - 50, sy - 50, edrawTpl.label || 'Mind Map', Math.max(960, Number(edrawTpl.width) || 1080), Math.max(540, Number(edrawTpl.height) || 680));
+        var idMap = {};
+        edrawTpl.nodes.forEach(function (node) {
+          var el = createShape(
+            sx + (Number(node.x) || 0),
+            sy + (Number(node.y) || 0),
+            node.isRoot ? ('<strong>' + escapeHtml(node.text || '') + '</strong>') : escapeHtml(node.text || ''),
+            node.shapeType || 'round',
+            node.color || 'white',
+            Number(node.w) || 156
+          );
+          idMap[node.id] = el.dataset.id;
+          if (node.isRoot && !focusNode) focusNode = el;
+        });
+        (edrawTpl.connectors || []).forEach(function (c) {
+          var fId = idMap[c.fromId];
+          var tId = idMap[c.toId];
+          if (fId && tId) connectors.push({ id: nextId('conn'), fromId: fId, toId: tId });
+        });
+        renderConnectors();
+      } else {
+        // Mind Map: Empty starter with "Main Idea" in the exact middle and connected empty branch nodes around it
+        createFrame(sx - 60, sy - 60, 'Mind Map', 860, 460);
+        var center = createShape(sx + 275, sy + 135, '<strong>Main Idea</strong>', 'round', 'blue', 190);
+        var b1 = createShape(sx + 20, sy + 35, 'Topic 1', 'round', 'yellow', 155);
+        var b2 = createShape(sx + 20, sy + 235, 'Topic 2', 'round', 'mint', 155);
+        var b3 = createShape(sx + 565, sy + 35, 'Topic 3', 'round', 'violet', 155);
+        var b4 = createShape(sx + 565, sy + 235, 'Topic 4', 'round', 'orange', 155);
+        connectors.push(
+          { id: nextId('conn'), fromId: center.dataset.id, toId: b1.dataset.id },
+          { id: nextId('conn'), fromId: center.dataset.id, toId: b2.dataset.id },
+          { id: nextId('conn'), fromId: center.dataset.id, toId: b3.dataset.id },
+          { id: nextId('conn'), fromId: center.dataset.id, toId: b4.dataset.id }
+        );
+        renderConnectors();
+        focusNode = center;
+      }
     } else if (type === 'flow') {
       // Flowchart: Clean Start -> Process -> Decision? -> Outcomes structure
       createFrame(sx - 50, sy - 50, 'Flowchart', 880, 360);

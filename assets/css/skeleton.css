@@ -1,0 +1,214 @@
+/* ==========================================================================
+   QuantalFlow — Skeleton loader for the dashboard board grid + stats
+   --------------------------------------------------------------------------
+   Presentation only: no data, no props, no JS. Drop the matching fragment
+   from src/partials/skeleton-dashboard.html in place of `#dash-boards-view`
+   while the API request is in flight.
+
+   Geometry is copied from the real components so the swap causes no layout
+   shift:
+     styles.css  .dash__grid / .dash-card / .dash__stats / .dash-stat
+     pages.css   .dash-card__actions / .dash-icon-btn / .dash-card__link
+   ========================================================================== */
+
+.qf-skeleton {
+  /* Local tokens with fallbacks, so the component also works in isolation. */
+  --qf-sk-base: #e7eaf1;
+  --qf-sk-sheen: rgba(255, 255, 255, 0.78);
+  --qf-sk-line: var(--line-soft, #f1f2f5);
+  --qf-sk-shadow: var(--shadow-sm, 0 1px 2px rgba(28, 28, 30, .06), 0 4px 14px rgba(28, 28, 30, .05));
+  --qf-sk-radius: var(--radius-xl, 24px);
+  --qf-sk-ease: var(--ease, cubic-bezier(.22, .61, .36, 1));
+  --qf-sk-duration: 1.55s;
+
+  display: block;
+  pointer-events: none; /* a loading state is never interactive */
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   Shared placeholder shape.
+   Only `transform` animates, on one small pseudo-element per shape. The shape
+   itself never repaints, and `contain: paint` keeps the moving sheen clipped
+   to its own box — this is the part that keeps a grid of skeletons cheap.
+   -------------------------------------------------------------------------- */
+.qf-sk {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  contain: paint;
+  border-radius: var(--qf-sk-shape-radius, 6px);
+  background: var(--qf-sk-base);
+}
+
+.qf-sk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--qf-sk-sheen) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: qf-sk-shimmer var(--qf-sk-duration) var(--qf-sk-ease) infinite;
+  /* One compositor layer per sheen, promoted only while it exists. */
+  will-change: transform;
+}
+
+@keyframes qf-sk-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* --------------------------------------------------------------------------
+   Grid — exact match for .dash__grid (styles.css:904, 939-967).
+   -------------------------------------------------------------------------- */
+.qf-skeleton__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 900px) {
+  .qf-skeleton__grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .qf-skeleton__grid { grid-template-columns: 1fr; }
+}
+
+/* --------------------------------------------------------------------------
+   Card — exact match for .dash-card (styles.css:905-914).
+   -------------------------------------------------------------------------- */
+.qf-skeleton__card {
+  position: relative;
+  min-height: 148px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--qf-sk-line);
+  border-radius: var(--qf-sk-radius);
+  box-shadow: var(--qf-sk-shadow);
+}
+
+/* Star / delete controls: same 28px footprint and 10px corner offsets as
+   .dash-card__actions + .dash-icon-btn (pages.css:2415-2440). */
+.qf-skeleton__actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+}
+
+.qf-sk--icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%; /* circle reads as an icon/avatar placeholder */
+  background: #eef0f6;
+}
+
+/* Mirrors .dash-card__link: flex column, fills the card, reserves 64px on the
+   right so placeholders never sit under the corner controls. */
+.qf-skeleton__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-right: 64px;
+}
+
+.qf-sk--title {
+  width: 72%;
+  height: 16px; /* ≈ the 17px/600 card title */
+  margin-top: 2px;
+}
+
+.qf-sk--meta {
+  width: 90%;
+  height: 11px; /* ≈ the 13px metadata line */
+  margin-top: auto; /* .dash-card__meta sits at the bottom of the card */
+  border-radius: 4px;
+}
+
+/* Vary the strip widths so the grid reads like content, not a repeated tile.
+   Widths are set here rather than with inline styles to keep the markup prop-free. */
+.qf-skeleton__card:nth-child(2) .qf-sk--title { width: 58%; }
+.qf-skeleton__card:nth-child(3) .qf-sk--title { width: 80%; }
+.qf-skeleton__card:nth-child(4) .qf-sk--title { width: 64%; }
+.qf-skeleton__card:nth-child(2) .qf-sk--meta  { width: 76%; }
+.qf-skeleton__card:nth-child(3) .qf-sk--meta  { width: 84%; }
+.qf-skeleton__card:nth-child(4) .qf-sk--meta  { width: 70%; }
+
+/* Stagger the sweep by card so the grid does not pulse as one block. Negative
+   delays keep every card in phase with a single shared animation clock. */
+.qf-skeleton__card:nth-child(2) .qf-sk::after { animation-delay: -0.31s; }
+.qf-skeleton__card:nth-child(3) .qf-sk::after { animation-delay: -0.62s; }
+.qf-skeleton__card:nth-child(4) .qf-sk::after { animation-delay: -0.93s; }
+
+/* --------------------------------------------------------------------------
+   Stats row — exact match for .dash__stats / .dash-stat (styles.css:931-937).
+   -------------------------------------------------------------------------- */
+.qf-skeleton__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .qf-skeleton__stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .qf-skeleton__stats { grid-template-columns: 1fr; }
+}
+
+.qf-skeleton__stat {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--qf-sk-line);
+  border-radius: var(--qf-sk-radius);
+}
+
+.qf-sk--stat-num {
+  width: 56px;
+  height: 30px; /* ≈ the 32px/700 statistic */
+  border-radius: 6px;
+}
+
+.qf-sk--stat-label {
+  width: 96px;
+  height: 12px; /* ≈ the 14px muted caption */
+  border-radius: 4px;
+}
+
+.qf-skeleton__stat:nth-child(2) .qf-sk--stat-num   { width: 40px; }
+.qf-skeleton__stat:nth-child(3) .qf-sk--stat-label { width: 84px; }
+.qf-skeleton__stat:nth-child(4) .qf-sk--stat-label { width: 68px; }
+
+/* --------------------------------------------------------------------------
+   Motion preferences.
+   Reduced motion: hold a static fill — no sweep, no pulse, no layers.
+   Higher contrast: deepen the placeholder against white card surfaces.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .qf-sk::after {
+    animation: none;
+    transform: none;
+    opacity: 0.32;
+  }
+  .qf-sk { background: #d5dae5; }
+}
+
+@media (prefers-contrast: more) {
+  .qf-skeleton { --qf-sk-base: #b9c0cf; --qf-sk-sheen: rgba(255, 255, 255, 0.9); }
+  .qf-skeleton__card,
+  .qf-skeleton__stat { border-color: #9aa3b5; }
+}

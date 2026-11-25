@@ -359,7 +359,10 @@
   function renderSuggestedTemplates() {
     if (!templatesGrid) return;
     var f = selectedFramework();
-    var list = (f && Array.isArray(f.templates)) ? f.templates.slice(0, 3) : [];
+    var list = (f && Array.isArray(f.templates)) ? f.templates.slice() : [];
+    if (modalTemplatesHeadingEl) {
+      modalTemplatesHeadingEl.textContent = list.length > 3 ? ('Start from (' + list.length + ' templates)') : 'Start from';
+    }
     if (!list.length) {
       templatesGrid.innerHTML = '';
       return;

@@ -178,13 +178,31 @@
 
     function pushWorkspaceToConvex(keepalive) {
       var snapshot = buildWorkspaceSnapshot();
+      if (!navigator.onLine) {
+        if (window.QFSyncStatus) {
+          window.QFSyncStatus.enqueue('/api/leaf', 'PUT', snapshot);
+          window.QFSyncStatus.set('offline');
+        }
+        return Promise.resolve();
+      }
+      if (window.QFSyncStatus && !keepalive) window.QFSyncStatus.set('syncing');
       return fetch('/api/leaf', {
         method: 'PUT',
         credentials: 'same-origin',
         keepalive: Boolean(keepalive),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(snapshot)
-      }).catch(function () {});
+      })
+        .then(function (r) {
+          if (r && r.ok && window.QFSyncStatus && !keepalive) window.QFSyncStatus.set('saved');
+          return r;
+        })
+        .catch(function () {
+          if (window.QFSyncStatus) {
+            window.QFSyncStatus.enqueue('/api/leaf', 'PUT', snapshot);
+            if (!navigator.onLine) window.QFSyncStatus.set('offline');
+          }
+        });
     }
 
     function persistStore() {
@@ -193,6 +211,7 @@
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       } catch (e) {}
+      if (window.QFSyncStatus) window.QFSyncStatus.set(navigator.onLine ? 'saving' : 'offline');
       clearTimeout(convexSyncTimer);
       convexSyncTimer = setTimeout(function () {
         pushWorkspaceToConvex(false);

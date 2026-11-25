@@ -1,0 +1,586 @@
+/* ==========================================================================
+   QuantalFlow & Leaf — Mobile-First Native Experience System
+   Covers iOS & Android platform polish, 44px touch targets, safe areas,
+   bottom navigation, FAB, bottom sheets, floating editor bar, pull-to-refresh,
+   offline/auto-save status pill, and full-screen media viewer.
+   ========================================================================== */
+
+:root {
+  --qf-kb-h: 0px;
+  --qf-mob-nav-h: 62px;
+  --qf-safe-b: env(safe-area-inset-bottom, 0px);
+  --qf-safe-t: env(safe-area-inset-top, 0px);
+  --qf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 1. Native Platform Layer (Mobile-Native Guidelines) */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Eliminate 300ms tap delay & prevent long-press text selection on controls */
+button, a, [role="button"], .lf-tb, .lf-ib, .lf-btn, .dash-nav__item, .qf-mob-tab, .qf-mob-fab__btn {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Instant tactile press feedback on touch */
+@media (pointer: coarse) {
+  button:active, [role="button"]:active, .qf-mob-tab:active {
+    transform: scale(0.96);
+    transition: transform 100ms var(--qf-ease-out);
+  }
+  /* Prevent iOS Safari auto-zoom on form inputs */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  /* Feature 14: 44x44px minimum touch targets on mobile */
+  .dash-nav__item,
+  #leaf-app .lf-ib,
+  #leaf-app .lf-tb,
+  .tool-btn,
+  .qf-sheet__item {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* 2. Dynamic Viewport Height for App Shells */
+@media (max-width: 860px) {
+  body.dash-body,
+  body.app-body {
+    min-height: 100dvh;
+  }
+  .dash-shell {
+    min-height: calc(100dvh - 56px);
+  }
+  /* Reserve space at bottom for persistent Mobile Bottom Navigation */
+  body.qf-has-mob-nav .dash,
+  body.qf-has-mob-nav .lf-scroller,
+  body.qf-has-mob-nav .lf-home {
+    padding-bottom: calc(var(--qf-mob-nav-h) + var(--qf-safe-b) + 20px) !important;
+  }
+  /* Hide desktop sidebar by default on mobile; slides in as drawer when open */
+  body.qf-has-mob-nav .dash-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 950;
+    width: min(290px, 84vw);
+    transform: translateX(-105%);
+    transition: transform 240ms var(--qf-ease-out);
+    padding-top: calc(14px + var(--qf-safe-t));
+    padding-bottom: calc(16px + var(--qf-safe-b));
+    box-shadow: 12px 0 36px rgba(15, 23, 42, 0.22);
+    overscroll-behavior: contain;
+  }
+  body.qf-has-mob-nav.qf-drawer-open .dash-sidebar {
+    transform: translateX(0);
+  }
+  /* Leaf inner layout on mobile */
+  #leaf-app .lf-rpanel {
+    display: none;
+  }
+  #leaf-app .lf-sidebar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    bottom: calc(var(--qf-mob-nav-h) + var(--qf-safe-b));
+    z-index: 220;
+    width: min(270px, 82vw);
+    box-shadow: 8px 0 28px rgba(15, 23, 42, 0.16);
+  }
+  #leaf-app .lf-sheet {
+    padding: 20px 16px;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+  #leaf-app .lf-sheet-wrap {
+    margin: 0;
+    padding: 0;
+  }
+  #leaf-app #lf-ribbon {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #leaf-app #lf-ribbon::-webkit-scrollbar { display: none; }
+}
+
+/* Drawer backdrop */
+.qf-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 940;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+body.qf-drawer-open .qf-drawer-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 3. Feature 8: Persistent Mobile Bottom Navigation */
+.qf-mob-nav {
+  display: none;
+}
+@media (max-width: 860px) {
+  .qf-mob-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 900;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    align-items: center;
+    height: calc(var(--qf-mob-nav-h) + var(--qf-safe-b));
+    padding: 4px 6px var(--qf-safe-b);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
+  }
+  .qf-mob-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 48px;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 4px 2px;
+    cursor: pointer;
+  }
+  .qf-mob-tab svg {
+    width: 21px;
+    height: 21px;
+    stroke-width: 2;
+  }
+  .qf-mob-tab.is-active {
+    color: #1868db;
+  }
+  .qf-mob-tab.is-active svg {
+    stroke: #1868db;
+  }
+}
+
+/* 4. Feature 6: Material Floating Action Button (FAB) */
+.qf-mob-fab {
+  display: none;
+}
+@media (max-width: 860px) {
+  .qf-mob-fab {
+    display: block;
+    position: fixed;
+    right: 16px;
+    bottom: calc(var(--qf-mob-nav-h) + var(--qf-safe-b) + 14px);
+    z-index: 910;
+  }
+  .qf-mob-fab__btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+    border: 0;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.38), 0 2px 6px rgba(15, 23, 42, 0.14);
+    cursor: pointer;
+    transition: transform 200ms var(--qf-ease-out), box-shadow 200ms ease;
+  }
+  .qf-mob-fab.is-open .qf-mob-fab__btn {
+    transform: rotate(45deg);
+    background: #0f172a;
+  }
+  .qf-mob-fab__menu {
+    position: absolute;
+    right: 0;
+    bottom: 68px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    opacity: 0;
+    transform: translateY(14px) scale(0.95);
+    pointer-events: none;
+    transition: opacity 180ms var(--qf-ease-out), transform 200ms var(--qf-ease-out);
+  }
+  .qf-mob-fab.is-open .qf-mob-fab__menu {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .qf-mob-fab__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .qf-mob-fab__item svg {
+    width: 17px;
+    height: 17px;
+    color: #2563eb;
+  }
+}
+
+/* 5. Feature 5 & 17: Native Bottom Sheet Panel & Long-Press Menu */
+.qf-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.qf-sheet-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.qf-sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 88dvh;
+  background: #ffffff;
+  border-radius: 20px 20px 0 0;
+  padding: 10px 16px calc(18px + var(--qf-safe-b));
+  box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.22);
+  transform: translateY(100%);
+  transition: transform 260ms var(--qf-ease-out);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.qf-sheet-backdrop.is-open .qf-sheet {
+  transform: translateY(0);
+}
+.qf-sheet__handle-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 12px;
+  cursor: grab;
+  touch-action: none;
+}
+.qf-sheet__handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+.qf-sheet__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 4px 12px;
+}
+.qf-sheet__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qf-sheet__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.qf-sheet__item:active {
+  background: #f1f5f9;
+}
+.qf-sheet__item.is-danger {
+  color: #dc2626;
+}
+.qf-sheet__item svg {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+
+/* 6. Feature 10 & 19: Floating Mobile Editor Toolbar (Above Virtual Keyboard) */
+.qf-mob-edbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--qf-kb-h, 0px);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px calc(6px + var(--qf-safe-b));
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid #e2e8f0;
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.1);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  transform: translateY(120%);
+  transition: transform 180ms var(--qf-ease-out);
+}
+.qf-mob-edbar::-webkit-scrollbar { display: none; }
+.qf-mob-edbar.is-visible {
+  transform: translateY(0);
+}
+.qf-mob-edbar button {
+  flex: none;
+  min-width: 40px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.qf-mob-edbar button:active,
+.qf-mob-edbar button.is-on {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.qf-mob-edbar__sep {
+  flex: none;
+  width: 1px;
+  height: 22px;
+  background: #e2e8f0;
+  margin: 0 3px;
+}
+
+/* 7. Feature 11: Pull-to-Refresh Indicator */
+.qf-ptr {
+  position: fixed;
+  top: calc(8px + var(--qf-safe-t));
+  left: 50%;
+  transform: translate(-50%, -64px);
+  z-index: 1100;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14);
+  border: 1px solid #e2e8f0;
+  pointer-events: none;
+  transition: transform 160ms var(--qf-ease-out);
+}
+.qf-ptr__spin {
+  width: 15px;
+  height: 15px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+}
+.qf-ptr.is-loading .qf-ptr__spin {
+  animation: qf-spin 0.7s linear infinite;
+}
+@keyframes qf-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 8. Feature 13 & 15: Offline & Auto-Save Status Pill */
+.qf-sync-pill {
+  position: fixed;
+  top: calc(10px + var(--qf-safe-t));
+  right: 12px;
+  z-index: 1080;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: opacity 200ms ease, transform 200ms var(--qf-ease-out);
+}
+.qf-sync-pill.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.qf-sync-pill.is-offline {
+  background: #b91c1c;
+}
+.qf-sync-pill.is-saved {
+  background: #15803d;
+}
+
+/* 9. Feature 16 & 18: Full-Screen Mobile Media / PDF / Image Viewer */
+.qf-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: #0b0f19;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  touch-action: none;
+}
+.qf-viewer__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: calc(10px + var(--qf-safe-t)) 14px 10px;
+  background: rgba(15, 23, 42, 0.85);
+}
+.qf-viewer__title {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qf-viewer__stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+.qf-viewer__stage img {
+  max-width: 96vw;
+  max-height: 76dvh;
+  transform-origin: center center;
+  transition: transform 80ms linear;
+  user-select: none;
+}
+.qf-viewer__stage iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+.qf-viewer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px calc(12px + var(--qf-safe-b));
+  background: rgba(15, 23, 42, 0.9);
+}
+.qf-viewer__btn {
+  min-width: 44px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 10. Feature 20: PWA Install Banner */
+.qf-pwa-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--qf-mob-nav-h) + var(--qf-safe-b) + 12px);
+  z-index: 920;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.3);
+}
+.qf-pwa-banner__text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.qf-pwa-banner__text b { display: block; font-size: 14px; }
+.qf-pwa-banner__cta {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 0;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qf-pwa-banner__close {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  min-width: 36px;
+  min-height: 36px;
+}
+
+/* High contrast & reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .qf-sheet, .qf-mob-fab__menu, .qf-mob-edbar, .qf-ptr, .qf-sync-pill {
+    transition: none !important;
+  }
+}
+@media (prefers-contrast: more) {
+  .qf-mob-nav, .qf-sheet, .qf-mob-edbar {
+    border-color: #0f172a;
+  }
+}

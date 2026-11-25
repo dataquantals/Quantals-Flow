@@ -1,0 +1,73 @@
+  <!-- ============ DASHBOARD SKELETON (presentation only) ============
+       Swap in while /api/boards is in flight. Mirrors #dash-boards-view.
+       Requires assets/css/skeleton.css; uses .sr-only from styles.css. -->
+  <div class="qf-skeleton" role="status" aria-busy="true" aria-live="polite">
+    <span class="sr-only">Loading your boards and workspace stats&hellip;</span>
+
+    <!-- Mirrors .dash__grid: the real "Start New" card stays outside this
+         fragment in the host page and is not part of the loading state. -->
+    <div class="qf-skeleton__grid" aria-hidden="true">
+      <div class="qf-skeleton__card">
+        <div class="qf-skeleton__actions">
+          <span class="qf-sk qf-sk--icon"></span>
+          <span class="qf-sk qf-sk--icon"></span>
+        </div>
+        <div class="qf-skeleton__body">
+          <span class="qf-sk qf-sk--title"></span>
+          <span class="qf-sk qf-sk--meta"></span>
+        </div>
+      </div>
+
+      <div class="qf-skeleton__card">
+        <div class="qf-skeleton__actions">
+          <span class="qf-sk qf-sk--icon"></span>
+        </div>
+        <div class="qf-skeleton__body">
+          <span class="qf-sk qf-sk--title"></span>
+          <span class="qf-sk qf-sk--meta"></span>
+        </div>
+      </div>
+
+      <div class="qf-skeleton__card">
+        <div class="qf-skeleton__actions">
+          <span class="qf-sk qf-sk--icon"></span>
+          <span class="qf-sk qf-sk--icon"></span>
+        </div>
+        <div class="qf-skeleton__body">
+          <span class="qf-sk qf-sk--title"></span>
+          <span class="qf-sk qf-sk--meta"></span>
+        </div>
+      </div>
+
+      <div class="qf-skeleton__card">
+        <div class="qf-skeleton__actions">
+          <span class="qf-sk qf-sk--icon"></span>
+          <span class="qf-sk qf-sk--icon"></span>
+        </div>
+        <div class="qf-skeleton__body">
+          <span class="qf-sk qf-sk--title"></span>
+          <span class="qf-sk qf-sk--meta"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mirrors .dash__stats -->
+    <div class="qf-skeleton__stats" aria-hidden="true">
+      <div class="qf-skeleton__stat">
+        <span class="qf-sk qf-sk--stat-num"></span>
+        <span class="qf-sk qf-sk--stat-label"></span>
+      </div>
+      <div class="qf-skeleton__stat">
+        <span class="qf-sk qf-sk--stat-num"></span>
+        <span class="qf-sk qf-sk--stat-label"></span>
+      </div>
+      <div class="qf-skeleton__stat">
+        <span class="qf-sk qf-sk--stat-num"></span>
+        <span class="qf-sk qf-sk--stat-label"></span>
+      </div>
+      <div class="qf-skeleton__stat">
+        <span class="qf-sk qf-sk--stat-num"></span>
+        <span class="qf-sk qf-sk--stat-label"></span>
+      </div>
+    </div>
+  </div>

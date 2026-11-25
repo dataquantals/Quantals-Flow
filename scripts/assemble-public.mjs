@@ -23,7 +23,7 @@ const EXCLUDED = new Set([
   '_verify-pp', 'dashboard-preview-tmp'
 ]);
 
-const ROOT_FILES = ['index.html', 'robots.txt', 'sitemap.xml'];
+const ROOT_FILES = ['index.html', 'robots.txt', 'sitemap.xml', 'manifest.webmanifest', 'sw.js'];
 const ASSET_DIRS = ['assets'];
 
 function copyDir(from, to) {

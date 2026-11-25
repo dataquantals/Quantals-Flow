@@ -1,8 +1,9 @@
 ---
 title: Template Library | QuantalFlow
-description: Twelve hand-built starting points for planning, mapping and aligning — agile workspaces and board templates that open ready to use.
+description: Hand-built starting points for planning, mapping and aligning — agile workspaces, board templates, and 26 EdrawMax mind map, concept map, and bubble diagram templates.
 route: /resources/templates/
 nav: resources
+scripts: /assets/js/mindmap-templates-catalog.js
 ---
     <section class="tpl-hero">
       <div class="tpl-container">
@@ -243,8 +244,38 @@ nav: resources
         var count = document.getElementById('tpl-count');
         if (!input || !grid || !count) return;
 
+        // Append all 26 imported EdrawMax Mind Map / Concept Map / Bubble Diagram templates
+        if (Array.isArray(window.QFEdrawMindMapTemplates) && window.QFEdrawMindMapTemplates.length) {
+          var esc = function (s) {
+            return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+              return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+            });
+          };
+          var frag = document.createDocumentFragment();
+          window.QFEdrawMindMapTemplates.forEach(function (tpl) {
+            if (!tpl || !tpl.id) return;
+            var a = document.createElement('a');
+            a.className = 'tpl-card';
+            a.href = '/app/?board=' + encodeURIComponent(tpl.id) + '&template=mindmap&module=mindmap&edraw=' + encodeURIComponent(tpl.id);
+            a.dataset.tpl = ('mind map edraw ' + (tpl.tag || '') + ' ' + (tpl.label || '') + ' ' + (tpl.blurb || '')).toLowerCase();
+            a.innerHTML =
+              '<span class="tpl-card__preview" style="padding:8px;background:#ffffff;">' +
+                (tpl.previewImg
+                  ? '<img src="' + esc(tpl.previewImg) + '" alt="' + esc(tpl.label) + '" loading="lazy" style="width:100%;height:100%;object-fit:contain;display:block;" />'
+                  : '') +
+              '</span>' +
+              '<span class="tpl-card__body">' +
+                '<span class="tpl-card__row"><span class="tpl-card__title">' + esc(tpl.label) + '</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>' +
+                '<span class="tpl-card__desc">' + esc(tpl.tag || 'Mind Map') + ' · ' + esc(tpl.structure || tpl.blurb || '') + '</span>' +
+              '</span>';
+            frag.appendChild(a);
+          });
+          grid.appendChild(frag);
+        }
+
         var cards = Array.prototype.slice.call(grid.querySelectorAll('.tpl-card'));
         var total = cards.length;
+        count.textContent = 'Showing all ' + total;
 
         function apply() {
           var q = input.value.trim().toLowerCase();
