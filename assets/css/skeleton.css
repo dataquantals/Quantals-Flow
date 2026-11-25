@@ -171,7 +171,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  /* No gap: the margins below reproduce the real line boxes exactly —
+     48px stat line + 4px margin + 21px caption line = 73px of content,
+     which is what makes these cards 119px tall like .dash-stat. */
   background: #fff;
   border: 1px solid var(--qf-sk-line);
   border-radius: var(--qf-sk-radius);
@@ -179,13 +181,16 @@
 
 .qf-sk--stat-num {
   width: 56px;
-  height: 30px; /* ≈ the 32px/700 statistic */
+  height: 30px; /* strip inside the 48px line box of the 32px/700 statistic */
+  margin-bottom: 18px;
   border-radius: 6px;
 }
 
 .qf-sk--stat-label {
   width: 96px;
-  height: 12px; /* ≈ the 14px muted caption */
+  height: 12px; /* strip inside the 21px line box of the 14px muted caption */
+  margin-top: 4px;
+  margin-bottom: 9px;
   border-radius: 4px;
 }
 
