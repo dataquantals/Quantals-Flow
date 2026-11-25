@@ -172,22 +172,40 @@
     var convexSyncTimer = null;
     var localUpdatedAt = 0;
 
+    function buildWorkspaceSnapshot() {
+      return { pages: pages, spaces: spaces, cur: cur, curSpace: curSpace, uid: uid, cid: cid, updatedAt: localUpdatedAt || Date.now() };
+    }
+
+    function pushWorkspaceToConvex(keepalive) {
+      var snapshot = buildWorkspaceSnapshot();
+      return fetch('/api/leaf', {
+        method: 'PUT',
+        credentials: 'same-origin',
+        keepalive: Boolean(keepalive),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(snapshot)
+      }).catch(function () {});
+    }
+
     function persistStore() {
       localUpdatedAt = Date.now();
-      var snapshot = { pages: pages, spaces: spaces, cur: cur, curSpace: curSpace, uid: uid, cid: cid, updatedAt: localUpdatedAt };
+      var snapshot = buildWorkspaceSnapshot();
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
       } catch (e) {}
       clearTimeout(convexSyncTimer);
       convexSyncTimer = setTimeout(function () {
-        fetch('/api/leaf', {
-          method: 'PUT',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(snapshot)
-        }).catch(function () {});
+        pushWorkspaceToConvex(false);
       }, 750);
     }
+
+    window.addEventListener('beforeunload', function () {
+      if (convexSyncTimer) {
+        clearTimeout(convexSyncTimer);
+        convexSyncTimer = null;
+        pushWorkspaceToConvex(true);
+      }
+    });
 
     function applyWorkspaceData(parsed) {
       if (!parsed || !parsed.pages || !parsed.spaces || !Object.keys(parsed.pages).length) return false;
@@ -217,7 +235,13 @@
       fetch('/api/leaf', { credentials: 'same-origin' })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
-          if (!d || !d.workspace) return;
+          if (!d) return;
+          if (!d.workspace) {
+            // First time connecting this account to Convex — push existing local spaces/pages up
+            localUpdatedAt = localUpdatedAt || Date.now();
+            pushWorkspaceToConvex(false);
+            return;
+          }
           var remoteTs = Number(d.workspace.updatedAt) || 0;
           if (!localUpdatedAt || remoteTs > localUpdatedAt) {
             if (applyWorkspaceData(d.workspace)) {
@@ -225,6 +249,9 @@
               if (view === 'home') showHome(true);
               else load();
             }
+          } else if (localUpdatedAt > remoteTs) {
+            // Local has newer unsynced edits — push them to Convex
+            pushWorkspaceToConvex(false);
           }
         })
         .catch(function () {});
