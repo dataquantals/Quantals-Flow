@@ -105,6 +105,8 @@ import {
   syncKnowledgeHubToConvex,
   getOsWorkspaceFromConvex,
   syncOsWorkspaceToConvex,
+  getCrmFromConvex,
+  syncCrmToConvex,
   createLeadInConvex
 } from './convex.js';
 import {
@@ -1635,6 +1637,40 @@ export function createApi(limiter) {
         return sendJson(res, 200, { ok: true, url: url || '', storageId: storageId || '' });
       } catch (err) {
         return sendJson(res, 502, { error: 'Failed to upload image to Convex: ' + (err.message || 'Unknown error') });
+      }
+    },
+
+    /** GET /api/crm — Load CRM workspace from Convex */
+    async getCrmApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const saved = await getCrmFromConvex(user.id);
+        return sendJson(res, 200, { ok: true, data: saved ? saved.data : null, updatedAt: saved ? saved.updatedAt : null });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to load CRM data.' });
+      }
+    },
+
+    /** PUT /api/crm — Save CRM workspace to Convex */
+    async saveCrmApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req, 6 * 1024 * 1024);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      if (!body || typeof body.data !== 'object') {
+        return sendJson(res, 400, { error: 'CRM data object is required.' });
+      }
+      try {
+        const now = Number(body.updatedAt) || Date.now();
+        const synced = await syncCrmToConvex(user.id, body.data, now);
+        return sendJson(res, 200, { ok: true, updatedAt: now, convexSynced: Boolean(synced) });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to save CRM data.' });
       }
     },
 

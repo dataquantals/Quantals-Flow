@@ -334,6 +334,17 @@ export default defineSchema({
     .index('by_user', ['userId']),
 
   /* ================================================================== *
+   * CRM Workspace (contacts, pipeline, conversations, calendar,
+   * automations, campaigns, tasks, notes & activity per user)
+   * ================================================================== */
+  crmWorkspaces: defineTable({
+    userId: v.string(),
+    dataJson: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId']),
+
+  /* ================================================================== *
    * Marketing / Enterprise Contact Leads
    * ================================================================== */
   contactLeads: defineTable({

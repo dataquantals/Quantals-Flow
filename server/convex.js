@@ -640,6 +640,30 @@ export function syncOsWorkspaceToConvex(userId, state, updatedAt) {
 }
 
 /* ------------------------------------------------------------------ *
+ * CRM Workspace (crmWorkspaces)
+ * ------------------------------------------------------------------ */
+
+export async function getCrmFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('crm:getWorkspace', { userId: String(userId) });
+  if (!doc || !doc.dataJson) return null;
+  try {
+    return { data: JSON.parse(doc.dataJson), updatedAt: Number(doc.updatedAt || Date.now()) };
+  } catch {
+    return null;
+  }
+}
+
+export function syncCrmToConvex(userId, dataObj, updatedAt) {
+  if (!userId || !dataObj || config.isTest) return Promise.resolve(null);
+  return convexMutation('crm:saveWorkspace', {
+    userId: String(userId),
+    dataJson: JSON.stringify(dataObj),
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+/* ------------------------------------------------------------------ *
  * Marketing & Enterprise Leads (contactLeads)
  * ------------------------------------------------------------------ */
 

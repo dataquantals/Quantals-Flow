@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as boards from "../boards.js";
+import type * as crm from "../crm.js";
 import type * as files from "../files.js";
 import type * as invoices from "../invoices.js";
 import type * as knowledge from "../knowledge.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authHelpers: typeof authHelpers;
   boards: typeof boards;
+  crm: typeof crm;
   files: typeof files;
   invoices: typeof invoices;
   knowledge: typeof knowledge;

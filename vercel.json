@@ -20,6 +20,8 @@
     { "source": "/dashboard/os/", "destination": "/documents/index.html" },
     { "source": "/dashboard/leaf", "destination": "/leaf/index.html" },
     { "source": "/dashboard/leaf/", "destination": "/leaf/index.html" },
+    { "source": "/dashboard/crm", "destination": "/crm/index.html" },
+    { "source": "/dashboard/crm/", "destination": "/crm/index.html" },
     { "source": "/dashboard/(.*)", "destination": "/dashboard/index.html" }
   ],
   "functions": {

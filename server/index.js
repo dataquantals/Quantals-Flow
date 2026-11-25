@@ -35,7 +35,8 @@ const DASHBOARD_CHILD_PAGES = {
   knowledge: path.join(config.root, 'knowledge', 'index.html'),
   documents: path.join(config.root, 'documents', 'index.html'),
   os: path.join(config.root, 'documents', 'index.html'),
-  leaf: path.join(config.root, 'leaf', 'index.html')
+  leaf: path.join(config.root, 'leaf', 'index.html'),
+  crm: path.join(config.root, 'crm', 'index.html')
 };
 
 // Sweep expired sessions hourly so the table does not grow without bound.
@@ -217,6 +218,8 @@ export async function handleApi(req, res) {
   if (pathname === '/api/leaf' && req.method === 'GET') return api.getLeafApi(req, res);
   if (pathname === '/api/leaf' && req.method === 'PUT') return api.saveLeafApi(req, res);
   if (pathname === '/api/leaf/image' && req.method === 'POST') return api.uploadLeafImageApi(req, res);
+  if (pathname === '/api/crm' && req.method === 'GET') return api.getCrmApi(req, res);
+  if (pathname === '/api/crm' && req.method === 'PUT') return api.saveCrmApi(req, res);
   if (pathname === '/api/leads' && req.method === 'POST') return api.createLeadApi(req, res);
   if (pathname === '/api/documents/generate' && req.method === 'POST') return api.generateDocumentApi(req, res);
   if (pathname === '/api/documents/ai-edit' && req.method === 'POST') return api.aiEditDocumentApi(req, res);
@@ -254,7 +257,7 @@ export async function handleApi(req, res) {
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
 // session, so gate it here rather than letting the page flash and bounce.
-const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad', '/knowledge', '/documents', '/os', '/leaf'];
+const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad', '/knowledge', '/documents', '/os', '/leaf', '/crm'];
 
 function isProtected(pathname) {
   return protectedRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -327,7 +330,7 @@ const server = http.createServer(async (req, res) => {
         return sendFile(res, appShellPage);
       }
       // Dedicated child modules under /dashboard/<module>/ (notepad, quotation, invoice, knowledge, documents, os)
-      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice|knowledge|documents|os|leaf)(\/)?$/);
+      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice|knowledge|documents|os|leaf|crm)(\/)?$/);
       if (dashChildMatch) {
         const childKey = dashChildMatch[1];
         const childFile = DASHBOARD_CHILD_PAGES[childKey];

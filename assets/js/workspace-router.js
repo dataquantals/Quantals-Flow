@@ -19,6 +19,7 @@
     { path: '/dashboard/knowledge/', key: 'knowledge', shell: 'knowledge', markerId: 'km-app' },
     { path: '/dashboard/documents/', key: 'documents', shell: 'documents', markerId: 'docgen-app' },
     { path: '/dashboard/leaf/',      key: 'leaf',      shell: 'leaf',      markerId: 'leaf-app' },
+    { path: '/dashboard/crm/',       key: 'crm',       shell: 'crm',       markerId: 'crm-app' },
     { path: '/dashboard/quotation/', key: 'quotation', shell: 'quotation', markerId: 'sheet' },
     { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice',   markerId: 'sheet' }
   ];
@@ -28,6 +29,7 @@
     '/knowledge/': '/dashboard/knowledge/',
     '/documents/': '/dashboard/documents/',
     '/leaf/': '/dashboard/leaf/',
+    '/crm/': '/dashboard/crm/',
     '/dashboard/os/': '/dashboard/documents/',
     '/os/': '/dashboard/documents/',
     '/quotation/': '/dashboard/quotation/',
@@ -50,7 +52,8 @@
     { match: /\/assets\/js\/knowledge\.js/i, globalCheck: function () { return typeof window.initKnowledgeHub === 'function'; }, reinit: function () { window.initKnowledgeHub(); } },
     { match: /\/assets\/js\/documents\.js/i, globalCheck: function () { return typeof window.initDocumentGeneration === 'function'; }, reinit: function () { window.initDocumentGeneration(); } },
     { match: /lucide/i,                      globalCheck: function () { return typeof window.lucide !== 'undefined'; } },
-    { match: /\/assets\/js\/leaf\.js/i,      globalCheck: function () { return typeof window.initLeafWorkspace === 'function'; }, reinit: function () { window.initLeafWorkspace(); } }
+    { match: /\/assets\/js\/leaf\.js/i,      globalCheck: function () { return typeof window.initLeafWorkspace === 'function'; }, reinit: function () { window.initLeafWorkspace(); } },
+    { match: /\/assets\/js\/crm\.js/i,       globalCheck: function () { return typeof window.initCrmWorkspace === 'function'; }, reinit: function () { window.initCrmWorkspace(); } }
   ];
 
   var htmlCache = new Map();
