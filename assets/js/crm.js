@@ -116,15 +116,24 @@
       return Boolean(data.contacts[0] && data.contacts[0].name === 'Chanda Mulenga' && data.contacts[0].company === 'Lusaka Medical Centre');
     }
 
+    function setSyncBadge(state, label) {
+      var b = $('#crm-sync-badge');
+      if (!b) return;
+      b.className = 'badge ' + (state === 'ok' ? 'b-green' : state === 'err' ? 'b-red' : 'b-blue');
+      b.textContent = label;
+    }
+
     function pushToConvex(keepalive) {
       var payload = { data: db, updatedAt: localUpdatedAt || Date.now() };
       if (!navigator.onLine) {
+        setSyncBadge('err', 'Offline');
         if (window.QFSyncStatus) {
           window.QFSyncStatus.enqueue('/api/crm', 'PUT', payload);
           window.QFSyncStatus.set('offline');
         }
         return Promise.resolve();
       }
+      if (!keepalive) setSyncBadge('sync', 'Syncing to Convex…');
       if (window.QFSyncStatus && !keepalive) window.QFSyncStatus.set('syncing');
       return fetch('/api/crm', {
         method: 'PUT',
@@ -133,11 +142,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-        .then(function (r) {
-          if (r && r.ok && window.QFSyncStatus && !keepalive) window.QFSyncStatus.set('saved');
-          return r;
+        .then(function (r) { return r && r.ok ? r.json() : Promise.reject(new Error('Sync failed')); })
+        .then(function (res) {
+          if (res && res.convexSynced) {
+            setSyncBadge('ok', 'Synced with Convex');
+            if (window.QFSyncStatus && !keepalive) window.QFSyncStatus.set('saved');
+          } else {
+            setSyncBadge('err', 'Convex sync pending');
+          }
+          return res;
         })
         .catch(function () {
+          setSyncBadge('err', 'Sync error — retrying');
           if (window.QFSyncStatus) window.QFSyncStatus.enqueue('/api/crm', 'PUT', payload);
         });
     }
@@ -168,8 +184,9 @@
     });
 
     function hydrateFromConvex() {
+      setSyncBadge('sync', 'Syncing with Convex…');
       fetch('/api/crm', { credentials: 'same-origin' })
-        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('Load failed')); })
         .then(function (res) {
           if (!res) return;
           if (!res.data || !Array.isArray(res.data.contacts) || isLegacyDemoData(res.data)) {
@@ -178,6 +195,8 @@
               localUpdatedAt = Date.now();
               pushToConvex(false);
               render();
+            } else {
+              setSyncBadge('ok', 'Synced with Convex');
             }
             return;
           }
@@ -187,11 +206,16 @@
             localUpdatedAt = remoteTs;
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ data: db, updatedAt: localUpdatedAt })); } catch (e) {}
             render();
+            setSyncBadge('ok', 'Synced with Convex');
           } else if (localUpdatedAt > remoteTs) {
             pushToConvex(false);
+          } else {
+            setSyncBadge('ok', 'Synced with Convex');
           }
         })
-        .catch(function () {});
+        .catch(function () {
+          setSyncBadge('err', 'Offline / Local cache');
+        });
     }
 
     loadLocal();

@@ -334,12 +334,123 @@ export default defineSchema({
     .index('by_user', ['userId']),
 
   /* ================================================================== *
-   * CRM Workspace (contacts, pipeline, conversations, calendar,
-   * automations, campaigns, tasks, notes & activity per user)
+   * CRM Workspace (snapshot + normalized queryable entity tables)
    * ================================================================== */
   crmWorkspaces: defineTable({
     userId: v.string(),
     dataJson: v.string(),
+    contactCount: v.optional(v.number()),
+    dealCount: v.optional(v.number()),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId']),
+
+  crmContacts: defineTable({
+    userId: v.string(),
+    contactId: v.string(),
+    name: v.string(),
+    company: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    source: v.optional(v.string()),
+    status: v.string(),
+    score: v.number(),
+    owner: v.optional(v.string()),
+    tags: v.array(v.string()),
+    note: v.optional(v.string()),
+    created: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_contact', ['userId', 'contactId']),
+
+  crmDeals: defineTable({
+    userId: v.string(),
+    dealId: v.string(),
+    contactId: v.string(),
+    title: v.string(),
+    value: v.number(),
+    stage: v.string(),
+    created: v.string(),
+    closed: v.optional(v.string()),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_stage', ['userId', 'stage'])
+    .index('by_user_deal', ['userId', 'dealId']),
+
+  crmMessages: defineTable({
+    userId: v.string(),
+    messageId: v.string(),
+    contactId: v.string(),
+    channel: v.string(),
+    dir: v.string(),
+    text: v.string(),
+    at: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_contact', ['userId', 'contactId']),
+
+  crmAppointments: defineTable({
+    userId: v.string(),
+    apptId: v.string(),
+    contactId: v.string(),
+    title: v.string(),
+    date: v.string(),
+    time: v.string(),
+    duration: v.number(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_date', ['userId', 'date']),
+
+  crmTasks: defineTable({
+    userId: v.string(),
+    taskId: v.string(),
+    contactId: v.string(),
+    text: v.string(),
+    due: v.string(),
+    done: v.boolean(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_done', ['userId', 'done']),
+
+  crmWorkflows: defineTable({
+    userId: v.string(),
+    workflowId: v.string(),
+    name: v.string(),
+    active: v.boolean(),
+    runs: v.number(),
+    triggerJson: v.string(),
+    stepsJson: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId']),
+
+  crmCampaigns: defineTable({
+    userId: v.string(),
+    campaignId: v.string(),
+    name: v.string(),
+    channel: v.string(),
+    tag: v.optional(v.string()),
+    subject: v.optional(v.string()),
+    body: v.string(),
+    status: v.string(),
+    sent: v.number(),
+    opened: v.number(),
+    clicked: v.number(),
+    at: v.string(),
+    updatedAt: v.number()
+  })
+    .index('by_user', ['userId']),
+
+  crmActivity: defineTable({
+    userId: v.string(),
+    position: v.number(),
+    text: v.string(),
+    at: v.string(),
     updatedAt: v.number()
   })
     .index('by_user', ['userId']),
