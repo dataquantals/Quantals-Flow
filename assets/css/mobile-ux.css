@@ -65,24 +65,6 @@ button, a, [role="button"], .lf-tb, .lf-ib, .lf-btn, .dash-nav__item, .qf-mob-ta
   body.qf-has-mob-nav .lf-home {
     padding-bottom: calc(var(--qf-mob-nav-h) + var(--qf-safe-b) + 20px) !important;
   }
-  /* Hide desktop sidebar by default on mobile; slides in as drawer when open */
-  body.qf-has-mob-nav .dash-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 950;
-    width: min(290px, 84vw);
-    transform: translateX(-105%);
-    transition: transform 240ms var(--qf-ease-out);
-    padding-top: calc(14px + var(--qf-safe-t));
-    padding-bottom: calc(16px + var(--qf-safe-b));
-    box-shadow: 12px 0 36px rgba(15, 23, 42, 0.22);
-    overscroll-behavior: contain;
-  }
-  body.qf-has-mob-nav.qf-drawer-open .dash-sidebar {
-    transform: translateX(0);
-  }
   /* Leaf inner layout on mobile */
   #leaf-app .lf-rpanel {
     display: none;
@@ -115,20 +97,10 @@ button, a, [role="button"], .lf-tb, .lf-ib, .lf-btn, .dash-nav__item, .qf-mob-ta
   #leaf-app #lf-ribbon::-webkit-scrollbar { display: none; }
 }
 
-/* Drawer backdrop */
-.qf-drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 940;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(2px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 200ms ease;
-}
-body.qf-drawer-open .qf-drawer-backdrop {
-  opacity: 1;
-  pointer-events: auto;
+/* Canvas viewport: own all touch gestures (pinch-to-zoom & pan) without browser snap-back */
+#quantalflow-viewport {
+  touch-action: none !important;
+  overscroll-behavior: none;
 }
 
 /* 3. Feature 8: Persistent Mobile Bottom Navigation */

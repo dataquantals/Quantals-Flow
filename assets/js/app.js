@@ -2895,7 +2895,7 @@
       var newMidX = (pair[0].x + pair[1].x) / 2;
       var newMidY = (pair[0].y + pair[1].y) / 2;
       var vpRect = viewport.getBoundingClientRect();
-      var nextZoom = Math.max(0.25, Math.min(2.5, viewportPinch.startZoom * (newDist / viewportPinch.dist)));
+      var nextZoom = Math.max(0.25, Math.min(3.0, viewportPinch.startZoom * (newDist / viewportPinch.dist)));
       var worldMidX = (viewportPinch.midX - vpRect.left - viewportPinch.startPanX) / viewportPinch.startZoom;
       var worldMidY = (viewportPinch.midY - vpRect.top - viewportPinch.startPanY) / viewportPinch.startZoom;
       zoom = nextZoom;
@@ -2996,6 +2996,9 @@
   }
   window.addEventListener('pointerup', finishViewportPointer);
   window.addEventListener('pointercancel', finishViewportPointer);
+  viewport.addEventListener('touchmove', function (e) {
+    if (e.touches && e.touches.length >= 2) e.preventDefault();
+  }, { passive: false });
 
   /* ---------- Context Toolbar Actions ---------- */
   document.querySelectorAll('[data-ctx-color]').forEach(function (btn) {
@@ -3228,7 +3231,7 @@
 
   /* ---------- Zoom & Fit Controls ---------- */
   function zoomAt(newZoom, focalClientX, focalClientY) {
-    var clamped = Math.max(0.25, Math.min(2.5, newZoom));
+    var clamped = Math.max(0.25, Math.min(3.0, newZoom));
     var vpRect = viewport.getBoundingClientRect();
     var fx = (focalClientX !== undefined ? focalClientX : vpRect.left + vpRect.width / 2) - vpRect.left;
     var fy = (focalClientY !== undefined ? focalClientY : vpRect.top + vpRect.height / 2) - vpRect.top;

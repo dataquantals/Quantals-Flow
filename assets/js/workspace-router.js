@@ -40,7 +40,9 @@
   var SHARED_SCRIPT_PATTERNS = [
     /workspace-nav\.js/i,
     /workspace-router\.js/i,
-    /qf-dialog\.js/i
+    /qf-dialog\.js/i,
+    /save-state\.js/i,
+    /mobile-ux\.js/i
   ];
 
   // Heavy libraries loaded lazily once and reused across route visits.
@@ -142,6 +144,7 @@
     var sidebar = document.querySelector('.dash-sidebar');
     if (!sidebar || !route) return;
     sidebar.querySelectorAll('.dash-nav__item').forEach(function (item) {
+      if (item.classList.contains('dash-nav-group__trigger')) return;
       var href = item.getAttribute('href');
       var filter = item.getAttribute('data-filter');
       var isMatch = false;
@@ -155,6 +158,13 @@
       if (isMatch) item.setAttribute('aria-current', 'page');
       else item.removeAttribute('aria-current');
     });
+    // Keep Workspaces & Pages dropdown trigger highlight in sync
+    var group = sidebar.querySelector('.dash-nav-group[data-ws-group="workspaces-pages"]');
+    if (group) {
+      var trigger = group.querySelector('.dash-nav-group__trigger');
+      var hasActiveChild = Boolean(group.querySelector('.dash-nav-group__child.is-active'));
+      if (trigger) trigger.classList.toggle('has-active-child', hasActiveChild);
+    }
   }
 
   function syncMetadata(doc) {
@@ -166,8 +176,10 @@
     }
     if (doc.body && doc.body.className) {
       var locked = document.body.classList.contains('dash-drawer-locked');
+      var hasMobNav = document.body.classList.contains('qf-has-mob-nav');
       document.body.className = doc.body.className;
       if (locked) document.body.classList.add('dash-drawer-locked');
+      if (hasMobNav) document.body.classList.add('qf-has-mob-nav');
     }
   }
 
@@ -303,9 +315,24 @@
       } catch (e) {}
     }
 
-    // Intercept clicks on workspace navigation links
+    // Intercept clicks on workspace navigation links AND dashboard filter buttons
+    // when the user is currently on a swapped child page (CRM, Leaf, Documents, etc.)
+    var FILTER_ROUTES = {
+      all: '/dashboard/',
+      starred: '/dashboard/starred/',
+      files: '/dashboard/files/',
+      team: '/dashboard/team/'
+    };
     document.addEventListener('click', function (e) {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+        return;
+      }
+      var filterBtn = e.target.closest('.dash-sidebar button[data-filter]');
+      if (filterBtn && !document.getElementById('dash-boards-view')) {
+        var fKey = filterBtn.getAttribute('data-filter') || 'all';
+        var fTarget = FILTER_ROUTES[fKey] || '/dashboard/';
+        e.preventDefault();
+        window.location.assign(fTarget);
         return;
       }
       var link = e.target.closest('.dash-sidebar a[href], a[data-ws-route]');

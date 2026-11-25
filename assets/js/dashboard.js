@@ -126,14 +126,19 @@
   }
 
   function applyFilterState(filterName, pushHistoryEntry) {
+    if (!document.getElementById('dash-boards-view')) return;
     activeFilter = filterName || 'all';
-    document.querySelectorAll('.dash-nav__item[data-filter]').forEach(function (btn) {
-      var isActive = btn.dataset.filter === activeFilter;
-      btn.classList.toggle('is-active', isActive);
+    document.querySelectorAll('.dash-sidebar .dash-nav__item').forEach(function (item) {
+      if (item.classList.contains('dash-nav-group__trigger')) {
+        item.classList.remove('has-active-child');
+        return;
+      }
+      var isActive = Boolean(item.dataset && item.dataset.filter && item.dataset.filter === activeFilter);
+      item.classList.toggle('is-active', isActive);
       if (isActive) {
-        btn.setAttribute('aria-current', 'page');
+        item.setAttribute('aria-current', 'page');
       } else {
-        btn.removeAttribute('aria-current');
+        item.removeAttribute('aria-current');
       }
     });
 

@@ -281,12 +281,6 @@
     if (!isWorkspaceRoute || document.getElementById('qf-mob-nav')) return;
     document.body.classList.add('qf-has-mob-nav');
 
-    // Drawer backdrop for sidebar
-    var backdrop = document.createElement('div');
-    backdrop.className = 'qf-drawer-backdrop';
-    backdrop.onclick = function () { document.body.classList.remove('qf-drawer-open'); };
-    document.body.appendChild(backdrop);
-
     // Bottom Navigation (5 persistent tabs)
     var nav = document.createElement('nav');
     nav.id = 'qf-mob-nav';
@@ -349,7 +343,7 @@
     document.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) return;
       // Don't hijack canvas touch gestures
-      if (e.target.closest('#viewport, #canvas, .qf-viewer, .qf-sheet')) return;
+      if (e.target.closest('#quantalflow-viewport, #viewport, #canvas, .qf-viewer, .qf-sheet')) return;
       sx = e.touches[0].clientX;
       sy = e.touches[0].clientY;
       edgeSwipe = sx < 24 || sx > window.innerWidth - 24;
@@ -373,18 +367,16 @@
       var dx = e.changedTouches[0].clientX - sx;
       var dy = e.changedTouches[0].clientY - sy;
 
-      // Edge swipe navigation
+      // Edge swipe navigation (delegates to workspace-nav.js real drawer)
       if (edgeSwipe && Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-        if (dx > 0 && sx < 24) {
-          document.body.classList.add('qf-drawer-open');
-          Haptics.light();
-        } else if (dx < 0) {
-          if (document.body.classList.contains('qf-drawer-open')) {
-            document.body.classList.remove('qf-drawer-open');
-          } else {
-            document.body.classList.add('qf-drawer-open');
-          }
-          Haptics.light();
+        var sidebar = document.querySelector('.dash-sidebar');
+        var isDrawerOpen = sidebar && sidebar.classList.contains('is-drawer-open');
+        if (dx > 0 && sx < 24 && !isDrawerOpen) {
+          var toggleBtn = document.getElementById('dash-menu-toggle');
+          if (toggleBtn) { toggleBtn.click(); Haptics.light(); }
+        } else if (dx < 0 && isDrawerOpen) {
+          var closeBtn = sidebar.querySelector('.dash-sidebar__close');
+          if (closeBtn) { closeBtn.click(); Haptics.light(); }
         }
       }
 
@@ -486,43 +478,32 @@
   }
 
   /* ========================================================================
-   * FEATURE 1, 2, 3, 4: CANVAS PINCH-TO-ZOOM, 2-FINGER PAN + MOMENTUM, DOUBLE-TAP
+   * FEATURE 3: CANVAS DOUBLE-TAP SMART ZOOM & iOS GESTURE GUARD
+   * (Two-finger pinch-to-zoom & pan are owned by app.js pointermove so there
+   * is a single source of truth with zero zoom snap-back.)
    * ======================================================================== */
   function initCanvasTouchGestures() {
-    var vp = document.getElementById('viewport');
+    var vp = document.getElementById('quantalflow-viewport');
     if (!vp) return;
 
-    var pinchActive = false;
-    var startDist = 0, startScale = 1, lastMidX = 0, lastMidY = 0;
-    var velX = 0, velY = 0, lastMoveTime = 0, momentumRaf = 0;
+    // Prevent iOS Safari native gesture rubber-banding on the canvas
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (evName) {
+      vp.addEventListener(evName, function (e) { e.preventDefault(); }, { passive: false });
+    });
+
     var lastTapTime = 0, lastTapX = 0, lastTapY = 0;
 
-    function getBridge() { return window.QFMobileCanvasBridge || null; }
-
     vp.addEventListener('touchstart', function (e) {
-      cancelAnimationFrame(momentumRaf);
-      var b = getBridge();
+      var b = window.QFMobileCanvasBridge || null;
       if (!b) return;
-
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        pinchActive = true;
-        var t0 = e.touches[0], t1 = e.touches[1];
-        startDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY) || 1;
-        startScale = b.getScale();
-        lastMidX = (t0.clientX + t1.clientX) / 2;
-        lastMidY = (t0.clientY + t1.clientY) / 2;
-        velX = 0; velY = 0;
-        lastMoveTime = performance.now();
-      } else if (e.touches.length === 1 && !e.target.closest('.item, .sticky, .shape, .frame, .text-item, button, input')) {
-        // Feature 3: Double-tap smart zoom on empty canvas
+      if (e.touches.length === 1 && !e.target.closest('.canvas-sticky, .canvas-shape, .canvas-text, .canvas-comment, .canvas-icon, .canvas-clipart, .canvas-table, .canvas-doc, .quantalflow-toolbar, button, input, textarea')) {
         var now = Date.now();
         var tx = e.touches[0].clientX, ty = e.touches[0].clientY;
-        if (now - lastTapTime < 300 && Math.hypot(tx - lastTapX, ty - lastTapY) < 36) {
+        if (now - lastTapTime < 280 && Math.hypot(tx - lastTapX, ty - lastTapY) < 36) {
           e.preventDefault();
           var cur = b.getScale();
           var targetScale = cur < 1.3 ? 1.75 : 1.0;
-          b.zoomAt(targetScale, tx, ty, true);
+          b.zoomAt(targetScale, tx, ty);
           Haptics.light();
           lastTapTime = 0;
         } else {
@@ -530,50 +511,10 @@
           lastTapX = tx;
           lastTapY = ty;
         }
+      } else if (e.touches.length > 1) {
+        lastTapTime = 0;
       }
     }, { passive: false });
-
-    vp.addEventListener('touchmove', function (e) {
-      if (!pinchActive || e.touches.length !== 2) return;
-      e.preventDefault();
-      var b = getBridge();
-      if (!b) return;
-      var t0 = e.touches[0], t1 = e.touches[1];
-      var dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY) || 1;
-      var midX = (t0.clientX + t1.clientX) / 2;
-      var midY = (t0.clientY + t1.clientY) / 2;
-      var dx = midX - lastMidX;
-      var dy = midY - lastMidY;
-      var now = performance.now();
-      var dt = Math.max(8, now - lastMoveTime);
-      velX = (dx / dt) * 16;
-      velY = (dy / dt) * 16;
-
-      var nextScale = Math.max(0.25, Math.min(3.0, startScale * (dist / startDist)));
-      b.panBy(dx, dy);
-      b.zoomAt(nextScale, midX, midY, false);
-
-      lastMidX = midX;
-      lastMidY = midY;
-      lastMoveTime = now;
-    }, { passive: false });
-
-    vp.addEventListener('touchend', function (e) {
-      if (pinchActive && e.touches.length < 2) {
-        pinchActive = false;
-        var b = getBridge();
-        if (b && (Math.abs(velX) > 1 || Math.abs(velY) > 1)) {
-          var step = function () {
-            velX *= 0.92;
-            velY *= 0.92;
-            if (Math.abs(velX) < 0.3 && Math.abs(velY) < 0.3) return;
-            b.panBy(velX, velY);
-            momentumRaf = requestAnimationFrame(step);
-          };
-          momentumRaf = requestAnimationFrame(step);
-        }
-      }
-    }, { passive: true });
   }
 
   /* ========================================================================
