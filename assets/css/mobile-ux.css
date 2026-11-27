@@ -16,22 +16,52 @@
 /* 1. Native Platform Layer (Mobile-Native Guidelines) */
 html {
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
+/* Keep smooth native vertical scroll on document pages (Quotation, Invoice, Dashboard),
+   while preventing horizontal swipe-back jitter and pull-to-refresh hijack on app shells. */
 html, body {
+  overscroll-behavior-x: none;
+}
+body.quantalflow-app-body,
+body.app-body,
+#leaf-app {
   overscroll-behavior: none;
 }
+.dash-sidebar,
+.qf-sheet,
+.quote-dialog-card,
+.quantalflow-modal,
+.qf-dialog,
+.lf-scroller,
+.lf-home {
+  overscroll-behavior: contain;
+}
 
-/* Eliminate 300ms tap delay & prevent long-press text selection on controls */
-button, a, [role="button"], .lf-tb, .lf-ib, .lf-btn, .dash-nav__item, .qf-mob-tab, .qf-mob-fab__btn {
+/* Safe-area top inset for fixed headers on notched iPhones */
+.dash-top,
+.quantalflow-topbar {
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+}
+
+/* Eliminate 300ms tap delay & prevent long-press text selection on controls and canvas chrome */
+button, a, [role="button"], .lf-tb, .lf-ib, .lf-btn, .dash-nav__item, .qf-mob-tab, .qf-mob-fab__btn,
+.quantalflow-toolbar, .quantalflow-sidenav, .qf-mob-reset-zoom, #quantalflow-viewport {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
+/* Keep content editable / text inputs freely selectable */
+input, textarea, select, [contenteditable="true"], .quote-sheet p, .lf-sheet {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Instant tactile press feedback on touch */
 @media (pointer: coarse) {
-  button:active, [role="button"]:active, .qf-mob-tab:active {
+  button:active, [role="button"]:active, .qf-mob-tab:active, .qf-mob-reset-zoom:active {
     transform: scale(0.96);
     transition: transform 100ms var(--qf-ease-out);
   }
@@ -40,14 +70,25 @@ button, a, [role="button"], .lf-tb, .lf-ib, .lf-btn, .dash-nav__item, .qf-mob-ta
     font-size: 16px !important;
   }
   /* Feature 14: 44x44px minimum touch targets on mobile */
+  button,
+  .btn,
   .dash-nav__item,
+  .dash-hamburger,
   #leaf-app .lf-ib,
   #leaf-app .lf-tb,
   .tool-btn,
-  .qf-sheet__item {
+  .sidenav-btn,
+  .qf-sheet__item,
+  .qf-mob-reset-zoom {
     min-width: 44px;
     min-height: 44px;
   }
+}
+
+/* Hide persistent mobile bottom chrome while virtual keyboard is open */
+body.qf-kb-open .qf-mob-nav,
+body.qf-kb-open .qf-mob-fab {
+  display: none !important;
 }
 
 /* 2. Dynamic Viewport Height for App Shells */
@@ -547,12 +588,97 @@ button, a, [role="button"], .lf-tb, .lf-ib, .lf-btn, .dash-nav__item, .qf-mob-ta
 
 /* High contrast & reduced motion accessibility */
 @media (prefers-reduced-motion: reduce) {
-  .qf-sheet, .qf-mob-fab__menu, .qf-mob-edbar, .qf-ptr, .qf-sync-pill {
+  .qf-sheet, .qf-mob-fab__menu, .qf-mob-edbar, .qf-ptr, .qf-sync-pill, .qf-mob-reset-zoom {
     transition: none !important;
   }
 }
 @media (prefers-contrast: more) {
-  .qf-mob-nav, .qf-sheet, .qf-mob-edbar {
+  .qf-mob-nav, .qf-sheet, .qf-mob-edbar, .qf-mob-reset-zoom {
     border-color: #0f172a;
+  }
+}
+
+/* 11. Floating Mobile Canvas Reset-Zoom Button */
+.qf-mob-reset-zoom {
+  display: none;
+}
+@media (max-width: 860px) {
+  .qf-mob-reset-zoom {
+    position: fixed;
+    left: 16px;
+    bottom: calc(var(--qf-mob-nav-h) + var(--qf-safe-b) + 16px);
+    z-index: 910;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.16);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+}
+
+/* 12. Global Desktop Modal -> Thumb-Friendly Slide-Up Bottom Sheet (< 768px) */
+@media (max-width: 767px) {
+  .quantalflow-modal-backdrop,
+  .qf-dialog-overlay,
+  .crm-modal-backdrop,
+  .crm-modal-overlay,
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .quantalflow-modal-backdrop .quantalflow-modal,
+  #modal-create-board .quantalflow-modal,
+  .qf-dialog-overlay .qf-dialog,
+  .crm-modal-backdrop .crm-modal,
+  .crm-modal-overlay .crm-modal,
+  .modal-overlay .modal-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 88dvh !important;
+    margin: 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    animation: qfModalSheetUp 240ms var(--qf-ease-out);
+  }
+  .quantalflow-modal-backdrop .quantalflow-modal::before,
+  .qf-dialog-overlay .qf-dialog::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    margin: 0 auto 14px;
+  }
+}
+@keyframes qfModalSheetUp {
+  from { opacity: 0.7; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 13. Tablet & Foldable Adaptive Support */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .dash-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+}
+@media (horizontal-viewport-segments: 2) {
+  .dash-layout {
+    column-gap: env(viewport-segment-left 1 0, 24px);
   }
 }

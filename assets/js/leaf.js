@@ -114,6 +114,166 @@
     var uid = 100, cid = 10, cur = 'q4', curSpace = 'kb', view = 'page';
     var rootsOf = function () { return spaces[curSpace].roots; };
 
+    /* ---------- Board-Scoped Workspace Connection (?board=<id>&title=<title>) ---------- */
+    var urlParams = new URLSearchParams(window.location.search || '');
+    var linkedBoardId = (urlParams.get('board') || '').trim();
+    var linkedBoardTitle = (urlParams.get('title') || '').trim() || 'Workspace Docs';
+    var linkedModulesParam = (urlParams.get('modules') || '').trim();
+    var isBoardScoped = Boolean(linkedBoardId);
+    var boardSpaceId = isBoardScoped
+      ? ('board_' + linkedBoardId.replace(/[^a-zA-Z0-9_-]/g, '_'))
+      : null;
+
+    function getVisibleSpaces() {
+      if (isBoardScoped && boardSpaceId && spaces[boardSpaceId]) {
+        return [spaces[boardSpaceId]];
+      }
+      return Object.values(spaces).filter(function (s) { return !s.boardId; });
+    }
+
+    function getVisiblePages() {
+      if (isBoardScoped && boardSpaceId) {
+        return Object.values(pages).filter(function (p) { return p.space === boardSpaceId; });
+      }
+      return Object.values(pages).filter(function (p) {
+        return spaces[p.space] && !spaces[p.space].boardId;
+      });
+    }
+
+    function ensureBoardSpace(titleOverride) {
+      if (!isBoardScoped || !boardSpaceId) return false;
+      if (titleOverride && String(titleOverride).trim()) {
+        linkedBoardTitle = String(titleOverride).trim();
+      }
+      var created = false;
+      if (!spaces[boardSpaceId]) {
+        spaces[boardSpaceId] = {
+          id: boardSpaceId,
+          name: linkedBoardTitle,
+          icon: '🌿',
+          color: '#15803d',
+          desc: 'Collaborative Leaf pages linked to ' + linkedBoardTitle + '.',
+          boardId: linkedBoardId,
+          roots: []
+        };
+        created = true;
+      } else {
+        spaces[boardSpaceId].name = linkedBoardTitle;
+        spaces[boardSpaceId].boardId = linkedBoardId;
+      }
+      if (!spaces[boardSpaceId].roots || !spaces[boardSpaceId].roots.length) {
+        var pid = 'bp_' + boardSpaceId + '_home';
+        if (!pages[pid]) {
+          mk(pid, '🌿', linkedBoardTitle, {
+            sp: boardSpaceId,
+            sub: 'Workspace documentation linked to ' + linkedBoardTitle + '.',
+            status: 'Draft',
+            author: ME.n,
+            ago: 0,
+            html: '<h1>' + esc(linkedBoardTitle) + '</h1><p>This Leaf workspace is linked directly to <b>' + esc(linkedBoardTitle) + '</b>. Only pages created in this board appear here. Press <b>/</b> on a new line to insert blocks.</p>'
+          });
+        }
+        spaces[boardSpaceId].roots = [pid];
+        created = true;
+      }
+      curSpace = boardSpaceId;
+      if (!pages[cur] || pages[cur].space !== boardSpaceId) {
+        cur = spaces[boardSpaceId].roots[0];
+      }
+      var titleBadge = document.getElementById('leaf-board-title');
+      if (titleBadge) titleBadge.textContent = linkedBoardTitle;
+      return created;
+    }
+
+    function initBoardTopnavSwitcher() {
+      if (!isBoardScoped) return;
+      var bar = document.getElementById('leaf-board-bar');
+      var titleElTop = document.getElementById('leaf-board-title');
+      var dd = document.getElementById('leaf-ws-dropdown');
+      var btn = document.getElementById('leaf-ws-dropdown-btn');
+      var menu = document.getElementById('leaf-ws-dropdown-menu');
+      if (!bar || !dd || !btn || !menu) return;
+
+      bar.hidden = false;
+      if (titleElTop) titleElTop.textContent = linkedBoardTitle;
+
+      var ALL_MODS = [
+        { id: 'whiteboard', label: 'Whiteboarding', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>' },
+        { id: 'project-planning', label: 'Project Planning', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h10"/><path d="M6 12h9"/><path d="M11 18h7"/></svg>' },
+        { id: 'mindmap', label: 'Mind Map', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg>' },
+        { id: 'kanban', label: 'Kanban Board', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>' },
+        { id: 'perspective', label: 'Perspective', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>' },
+        { id: 'brainstorm', label: 'Brainstorm', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>' },
+        { id: 'leaf', label: 'Leaf', icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>' }
+      ];
+      var allowedSet = linkedModulesParam
+        ? new Set(linkedModulesParam.split(',').map(function (m) { return m.trim().toLowerCase(); }).filter(Boolean))
+        : null;
+      if (allowedSet) allowedSet.add('leaf');
+
+      var modsToShow = allowedSet
+        ? ALL_MODS.filter(function (m) { return allowedSet.has(m.id); })
+        : ALL_MODS;
+
+      menu.innerHTML = modsToShow.map(function (m) {
+        var isAct = m.id === 'leaf';
+        return '<div class="topbar-ws-dropdown__row">' +
+          '<button class="topbar-ws-dropdown__item' + (isAct ? ' is-active' : '') + '" data-leaf-switch-mod="' + m.id + '" type="button" role="menuitem">' +
+            '<span class="topbar-ws-dropdown__icon" aria-hidden="true">' + m.icon + '</span>' +
+            '<span>' + esc(m.label) + '</span>' +
+            (isAct ? '<span class="topbar-ws-dropdown__item-check" aria-hidden="true">&#10003;</span>' : '') +
+          '</button>' +
+        '</div>';
+      }).join('');
+
+      var closeDd = function () {
+        menu.hidden = true;
+        dd.classList.remove('is-open');
+        btn.setAttribute('aria-expanded', 'false');
+      };
+
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var willOpen = menu.hidden;
+        if (willOpen) {
+          menu.hidden = false;
+          dd.classList.add('is-open');
+          btn.setAttribute('aria-expanded', 'true');
+        } else {
+          closeDd();
+        }
+      });
+
+      menu.addEventListener('click', function (e) {
+        var item = e.target.closest('[data-leaf-switch-mod]');
+        if (!item) return;
+        var mod = item.getAttribute('data-leaf-switch-mod');
+        closeDd();
+        if (!mod || mod === 'leaf') return;
+        saveCur();
+        pushWorkspaceToConvex(true);
+        window.location.href = '/app/?board=' + encodeURIComponent(linkedBoardId) +
+          '&module=' + encodeURIComponent(mod) +
+          '&template=' + encodeURIComponent(mod);
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!dd.contains(e.target)) closeDd();
+      });
+
+      // Sync exact live board title from server in case the board was renamed
+      fetch('/api/boards/' + encodeURIComponent(linkedBoardId), { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && d.board && d.board.title && d.board.title.trim()) {
+            ensureBoardSpace(d.board.title.trim());
+            renderSpace();
+            renderCrumbs();
+          }
+        })
+        .catch(function () {});
+    }
+
     function stub(t) {
       return '<h1>' + esc(t || 'Untitled') + '</h1><p>This page has no content yet. Press <b>/</b> on a new line to insert a block, or use the ribbon above to format text.</p>';
     }
@@ -265,7 +425,10 @@
           if (!localUpdatedAt || remoteTs > localUpdatedAt) {
             if (applyWorkspaceData(d.workspace)) {
               try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d.workspace)); } catch (e) {}
-              if (view === 'home') showHome(true);
+              if (isBoardScoped) {
+                ensureBoardSpace();
+                load();
+              } else if (view === 'home') showHome(true);
               else load();
             }
           } else if (localUpdatedAt > remoteTs) {
@@ -1933,9 +2096,13 @@
       icons();
     }
     function spaceMenu(anchor) {
-      pop(anchor, Object.values(spaces).map(function (s) {
+      var visSpaces = getVisibleSpaces();
+      var footerHtml = isBoardScoped
+        ? ''
+        : '<div style="height:1px;background:#ebecf0;margin:4px 0"></div><button class="lf-pi" data-sp="__home">' + ic('layout-grid') + 'Browse all spaces</button><button class="lf-pi" data-sp="__new">' + ic('plus') + 'Create space</button>';
+      pop(anchor, visSpaces.map(function (s) {
         return '<button class="lf-pi" data-sp="' + s.id + '"><span style="width:26px;height:26px;border-radius:6px;background:' + s.color + '22;display:flex;align-items:center;justify-content:center">' + s.icon + '</span><span style="flex:1"><b style="font-weight:600;display:block">' + esc(s.name) + '</b><small style="color:#626f86">' + pageCount(s.id) + ' pages</small></span>' + (s.id === curSpace && view === 'page' ? ic('check') : '') + '</button>';
-      }).join('') + '<div style="height:1px;background:#ebecf0;margin:4px 0"></div><button class="lf-pi" data-sp="__home">' + ic('layout-grid') + 'Browse all spaces</button><button class="lf-pi" data-sp="__new">' + ic('plus') + 'Create space</button>', function (p) {
+      }).join('') + footerHtml, function (p) {
         p.style.minWidth = '270px';
         p.onclick = function (ev) {
           var b = ev.target.closest('[data-sp]'); if (!b) return;
@@ -1995,14 +2162,15 @@
       if (panelWas) $('#lf-rpanel').classList.remove('lf-hidden');
     }
     function renderHome() {
-      var all = Object.values(pages);
+      var all = getVisiblePages();
+      var visSpaces = getVisibleSpaces();
       var recent = all.slice().sort(function (a, b) { return new Date(b.updated) - new Date(a.updated); }).slice(0, 8);
       var stars = all.filter(function (p) { return p.star; });
       var card = function (s) { return '<button class="lf-spc" data-space="' + s.id + '"><span class="spi" style="background:' + s.color + '1f">' + s.icon + '</span><b>' + esc(s.name) + '</b><span class="spd">' + esc(s.desc || '') + '</span><span class="spm">' + pageCount(s.id) + ' pages</span></button>'; };
       var row = function (p) { return '<button class="lf-hrow" data-page="' + p.id + '"><span class="ti">' + p.icon + '</span><span class="lf-hrt"><b>' + esc(p.title || 'Untitled') + '</b><small>' + esc(spaces[p.space].name) + ' &middot; ' + esc(p.author) + ' &middot; ' + rel(new Date(p.updated)) + '</small></span><span class="lf-stb ' + stClass(p.status) + '">' + p.status + '</span></button>'; };
       $('#lf-home').innerHTML = '<div class="lf-home-inner"><h1 style="font-size:26px;font-weight:700;margin:0">Leaf Workspace</h1><p style="color:#626f86;margin:4px 0 18px">Spaces, favorites, and recent collaborative docs across your workspace.</p>' +
         '<button id="lf-homeSearch" class="lf-hs">' + ic('search') + '<span>Search pages in all spaces</span><kbd>Ctrl Shift F</kbd></button>' +
-        '<div class="lf-hh"><h2>Spaces</h2></div><div class="lf-spgrid">' + Object.values(spaces).map(card).join('') + '<button class="lf-spc new" id="lf-newSpace">' + ic('plus') + '<b>Create space</b></button></div>' +
+        '<div class="lf-hh"><h2>Spaces</h2></div><div class="lf-spgrid">' + visSpaces.map(card).join('') + '<button class="lf-spc new" id="lf-newSpace">' + ic('plus') + '<b>Create space</b></button></div>' +
         '<div class="lf-hh"><h2>Starred</h2></div>' + (stars.length ? '<div class="lf-hlist">' + stars.map(row).join('') + '</div>' : '<p style="color:#626f86">No starred pages yet. Select the star in a page header to add one.</p>') +
         '<div class="lf-hh"><h2>Recently updated</h2></div><div class="lf-hlist">' + recent.map(row).join('') + '</div></div>';
       icons();
@@ -2033,7 +2201,10 @@
       o.addEventListener('mousedown', function (e) { if (e.target === o) close(); });
       o.querySelector('[data-x]').onclick = close;
       var draw = function () {
-        o.querySelector('#lf-schips').innerHTML = [['all', 'All spaces', '']].concat(Object.values(spaces).map(function (s) { return [s.id, s.name, s.icon]; })).map(function (c) {
+        var chipList = isBoardScoped
+          ? getVisibleSpaces().map(function (s) { return [s.id, s.name, s.icon]; })
+          : [['all', 'All spaces', '']].concat(getVisibleSpaces().map(function (s) { return [s.id, s.name, s.icon]; }));
+        o.querySelector('#lf-schips').innerHTML = chipList.map(function (c) {
           return '<button class="lf-chip ' + (st.f === c[0] ? 'on' : '') + '" data-f="' + c[0] + '">' + c[2] + ' ' + esc(c[1]) + '</button>';
         }).join('');
         o.querySelector('#lf-sres').innerHTML = st.res.length
@@ -2046,7 +2217,7 @@
       };
       var run = function () {
         var ws = st.q.toLowerCase().split(/\s+/).filter(Boolean); st.ws = ws;
-        var list = Object.values(pages).filter(function (p) { return st.f === 'all' || p.space === st.f; });
+        var list = getVisiblePages().filter(function (p) { return st.f === 'all' || p.space === st.f; });
         if (!ws.length) st.res = list.sort(function (a, b) { return new Date(b.updated) - new Date(a.updated); }).slice(0, 8).map(function (p) { return { p: p, snip: '' }; });
         else st.res = list.map(function (p) {
           var t = (p.title || 'Untitled').toLowerCase(), sb = (p.sub || '').toLowerCase(), txt = pageText(p), tl = txt.toLowerCase();
@@ -2081,7 +2252,13 @@
 
     var searchBtn = $('#lf-btnSearch');
     if (searchBtn) searchBtn.onclick = function () { openSearch(); };
-    $('#lf-btnLogo').onclick = function () { showHome(); };
+    $('#lf-btnLogo').onclick = function () {
+      if (isBoardScoped && boardSpaceId && spaces[boardSpaceId] && spaces[boardSpaceId].roots.length) {
+        selectPage(spaces[boardSpaceId].roots[0]);
+      } else {
+        showHome();
+      }
+    };
     $('#lf-spaceBtn').onclick = function (e) { spaceMenu(e.currentTarget); };
 
     var topSearch = document.getElementById('leaf-top-search');
@@ -2164,7 +2341,14 @@
       }
     });
 
-    showHome(true);
+    if (isBoardScoped) {
+      var createdBoardSpace = ensureBoardSpace();
+      initBoardTopnavSwitcher();
+      load();
+      if (createdBoardSpace) persistStore();
+    } else {
+      showHome(true);
+    }
     icons();
     hydrateFromConvex();
   }

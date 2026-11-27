@@ -51,6 +51,10 @@ const ASSETS = [
   '/assets/css/quotation.css',
   '/assets/css/leaf.css',
   '/assets/css/crm.css',
+  '/assets/css/activity.css',
+  '/assets/css/onboarding.css',
+  '/assets/css/org-switcher.css',
+  '/assets/css/people.css',
   '/assets/css/mobile-ux.css',
   '/assets/js/save-state.js',
   '/assets/js/qf-dialog.js',
@@ -82,6 +86,11 @@ const ASSETS = [
   '/assets/js/notepad-page.js',
   '/assets/js/leaf.js',
   '/assets/js/crm.js',
+  '/assets/js/activity.js',
+  '/assets/js/onboarding.js',
+  '/assets/js/org-switcher.js',
+  '/assets/js/people.js',
+  '/assets/js/clerk-auth-bridge.js',
   '/assets/js/dash-shell.js',
   '/assets/img/logo.png',
   '/assets/img/quotation-logo.jpg',
@@ -158,7 +167,7 @@ function render(page) {
     .replace(/\{\{DESCRIPTION\}\}/g, meta.description || '')
     .replace(/\{\{CANONICAL\}\}/g, SITE + route)
     .replace(/\{\{BODY_CLASS\}\}/g, meta.body_class || '')
-    .replace(/\{\{VIEWPORT\}\}/g, meta.viewport || 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+    .replace(/\{\{VIEWPORT\}\}/g, meta.viewport || 'width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content');
 
     html = versionAssets(html);
 

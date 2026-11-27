@@ -1,0 +1,52 @@
+{
+  "name": "QuantalFlow — Visual Workspace & Leaf Docs",
+  "short_name": "QuantalFlow",
+  "description": "Collaborative mind maps, whiteboards, project planning, quotations, CRM, AI documents, and Leaf knowledge workspace.",
+  "start_url": "/dashboard/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "categories": ["productivity", "business", "utilities"],
+  "icons": [
+    {
+      "src": "/assets/img/favicon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/img/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quotation Builder",
+      "short_name": "Quotation",
+      "url": "/dashboard/quotation/",
+      "icons": [{ "src": "/assets/img/favicon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Leaf Workspace",
+      "short_name": "Leaf",
+      "url": "/dashboard/leaf/",
+      "icons": [{ "src": "/assets/img/favicon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "New Mind Map",
+      "short_name": "Mind Map",
+      "url": "/app/?template=mindmap&module=mindmap",
+      "icons": [{ "src": "/assets/img/favicon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "CRM Workspace",
+      "short_name": "CRM",
+      "url": "/dashboard/crm/",
+      "icons": [{ "src": "/assets/img/favicon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

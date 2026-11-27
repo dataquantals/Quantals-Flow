@@ -110,6 +110,50 @@ import {
   createLeadInConvex
 } from './convex.js';
 import {
+  cacheGet,
+  cacheSet,
+  cacheDel,
+  checkRedisConnection
+} from './redis.js';
+import {
+  recordActivity,
+  queryActivityLogs,
+  getActivityLogById,
+  exportActivityLogsCsv,
+  isActivityAdmin
+} from './activity-log.js';
+import {
+  ORG_ROLES,
+  ORG_TYPES,
+  ORG_MODULES,
+  BILLING_PLANS,
+  getActiveOrgContext,
+  switchActiveOrganization,
+  createOrganization,
+  updateOrganization,
+  deleteOrganization,
+  createDepartment,
+  deleteDepartment,
+  createTeam,
+  deleteTeam,
+  createOrgInvitation,
+  acceptPendingOrgInvitationsForUser,
+  updateOrgMember,
+  removeOrgMember,
+  addOrgMemoryItem,
+  getOrgDirectoryAndAnalytics,
+  searchOrgExperts
+} from './orgs.js';
+import {
+  indexBoardInRedis,
+  removeBoardFromRedis,
+  searchBoardsInRedis,
+  indexCrmContactsInRedis,
+  searchCrmContactsInRedis,
+  indexLeafPagesInRedis,
+  searchLeafPagesInRedis
+} from './redis-om.js';
+import {
   readJson,
   readBuffer,
   sendJson,
@@ -325,6 +369,14 @@ export function createApi(limiter) {
       }
 
       if (!user || !ok) {
+        recordActivity({
+          req,
+          actor: user || 'System',
+          actionType: 'Error',
+          description: `Failed sign-in attempt for ${email || 'unknown email'}`,
+          target: { name: 'Authentication', link: '/login/', id: email || 'login' },
+          extra: { email: email || '', reason: 'invalid_credentials' }
+        });
         return sendJson(res, 401, { error: 'Incorrect email or password.' });
       }
 
@@ -343,6 +395,14 @@ export function createApi(limiter) {
       loginLimiter.reset(`login:${ip}`);
 
       const wsRole = getEffectiveWorkspaceRole(user);
+      recordActivity({
+        req,
+        actor: user,
+        actionType: 'Auth',
+        description: `Signed in to QuantalFlow (${wsRole})`,
+        target: { name: 'Workspace Session', link: '/dashboard/', id: String(user.id) },
+        extra: { role: wsRole }
+      });
       const userPayload = { ...publicUser(user), workspaceRole: wsRole, workspaceRoleLabel: capabilitiesForRole(wsRole).label };
       return sendJson(res, 200, { user: userPayload, token, authProvider: 'convex' }, {
         'Set-Cookie': buildSessionCookie(token)
@@ -351,8 +411,18 @@ export function createApi(limiter) {
 
     /** POST /api/auth/logout */
     async logout(req, res) {
+      const user = await auth(req, res);
       const token = extractSessionToken(req);
       await deleteSessionAsync(token);
+      if (user) {
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Auth',
+          description: 'Signed out of QuantalFlow',
+          target: { name: 'Workspace Session', link: '/login/', id: String(user.id) }
+        });
+      }
       return sendJson(res, 200, { ok: true }, { 'Set-Cookie': buildClearCookie() });
     },
 
@@ -361,14 +431,21 @@ export function createApi(limiter) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       acceptPendingInvitationsForUser(user);
+      acceptPendingOrgInvitationsForUser(user);
       const wsRole = getEffectiveWorkspaceRole(user);
       const caps = capabilitiesForRole(wsRole);
+      const orgCtx = getActiveOrgContext(user.id);
       return sendJson(res, 200, {
         user: {
           ...publicUser(user),
           workspaceRole: wsRole,
           workspaceRoleLabel: caps.label,
-          capabilities: caps
+          capabilities: caps,
+          activeOrg: orgCtx.activeOrg,
+          organizations: orgCtx.organizations,
+          orgRole: orgCtx.permissions ? orgCtx.permissions.role : null,
+          orgPermissions: orgCtx.permissions,
+          needsOnboarding: orgCtx.needsOnboarding
         },
         authProvider: 'convex'
       });
@@ -641,10 +718,28 @@ export function createApi(limiter) {
       }
 
       const user = await findOrCreateClerkUser({ email, name });
+      if (identity && identity.clerkUserId) {
+        try { db.prepare('UPDATE users SET clerk_user_id = ? WHERE id = ?').run(identity.clerkUserId, user.id); } catch {}
+      }
+      acceptPendingOrgInvitationsForUser(user);
+      const orgCtx = getActiveOrgContext(user.id);
       const token = await createSessionAsync(user.id, user);
       loginLimiter.reset(`login:${ip}`);
+      recordActivity({
+        req,
+        actor: user,
+        actionType: 'Auth',
+        description: 'Signed in via Clerk Authentication',
+        target: { name: 'Clerk Auth', link: '/dashboard/', id: String(user.id) }
+      });
 
-      return sendJson(res, 200, { user: publicUser(user), token, provider: 'clerk', authProvider: 'convex' }, {
+      return sendJson(res, 200, {
+        user: { ...publicUser(user), activeOrg: orgCtx.activeOrg, needsOnboarding: orgCtx.needsOnboarding },
+        token,
+        provider: 'clerk',
+        authProvider: 'convex',
+        needsOnboarding: orgCtx.needsOnboarding
+      }, {
         'Set-Cookie': buildSessionCookie(token)
       });
     },
@@ -661,15 +756,56 @@ export function createApi(limiter) {
       });
     },
 
+    /** GET /api/redis/status — Redis Cloud health check */
+    async redisStatusApi(req, res) {
+      const status = await checkRedisConnection();
+      return sendJson(res, 200, { ok: status.connected, ...status });
+    },
+
+    /** GET /api/redis/search?scope=boards|crm|leaf&q=... — RediSearch full-text query */
+    async redisSearchApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const scope = (url.searchParams.get('scope') || 'boards').toLowerCase();
+      const q = (url.searchParams.get('q') || '').trim();
+      const status = (url.searchParams.get('status') || '').trim();
+      const tag = (url.searchParams.get('tag') || '').trim();
+      const spaceId = (url.searchParams.get('space') || '').trim();
+      const starredOnly = url.searchParams.get('starred') === '1';
+
+      let results = null;
+      if (scope === 'crm') results = await searchCrmContactsInRedis(user.id, q, status, tag);
+      else if (scope === 'leaf') results = await searchLeafPagesInRedis(user.id, q, spaceId);
+      else results = await searchBoardsInRedis(user.id, q, starredOnly);
+
+      return sendJson(res, 200, {
+        ok: true,
+        scope,
+        source: results !== null ? 'redis' : 'unavailable',
+        results: results || []
+      });
+    },
+
     /** GET /api/boards */
     async listBoardsApi(req, res) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
-      await hydrateUserBoardsFromConvex(user.id);
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const query = (url.searchParams.get('q') || '').trim();
       const starredOnly = url.searchParams.get('starred') === '1';
       const slug = (url.searchParams.get('slug') || '').trim();
+
+      // Cache-aside fast path for default board listing
+      const cacheKey = `boards:${user.id}:${starredOnly ? 'starred' : 'all'}`;
+      if (!slug && !query) {
+        const cached = await cacheGet(cacheKey);
+        if (cached && Array.isArray(cached.boards)) {
+          return sendJson(res, 200, { boards: cached.boards, cache: 'hit' });
+        }
+      }
+
+      await hydrateUserBoardsFromConvex(user.id);
 
       // Pretty URLs carry the board title, not its id: /app/data-quantals-plan
       if (slug) {
@@ -679,6 +815,10 @@ export function createApi(limiter) {
       }
 
       const boards = listBoards({ query, starredOnly, userId: user.id });
+      if (!query) {
+        cacheSet(cacheKey, { boards }, 120).catch(() => {});
+        boards.slice(0, 50).forEach((b) => { indexBoardInRedis(user.id, b).catch(() => {}); });
+      }
       return sendJson(res, 200, { boards });
     },
 
@@ -709,6 +849,17 @@ export function createApi(limiter) {
           state
         });
         if (board?._convexSyncPromise) await board._convexSyncPromise;
+        cacheDel(`boards:${user.id}:all`).catch(() => {});
+        cacheDel(`boards:${user.id}:starred`).catch(() => {});
+        indexBoardInRedis(user.id, board).catch(() => {});
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Created',
+          description: `Created board "${board.title}"`,
+          target: { name: board.title, link: `/app/?board=${encodeURIComponent(board.id)}`, id: board.id },
+          after: { title: board.title, category: board.category, starred: Boolean(board.starred) }
+        });
         return sendJson(res, 201, { board });
       } catch (err) {
         return sendJson(res, err.status || 500, { error: err.message });
@@ -742,6 +893,7 @@ export function createApi(limiter) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
       try {
+        const prevBoard = getBoardById(boardId, user.id);
         const board = upsertBoard({
           id: boardId,
           userId: user.id,
@@ -752,6 +904,21 @@ export function createApi(limiter) {
           expectedVersion: body.expectedVersion !== undefined ? Number(body.expectedVersion) : undefined
         });
         if (board?._convexSyncPromise) await board._convexSyncPromise;
+        cacheDel(`boards:${user.id}:all`).catch(() => {});
+        cacheDel(`boards:${user.id}:starred`).catch(() => {});
+        indexBoardInRedis(user.id, board).catch(() => {});
+        const starredChanged = prevBoard && body.starred !== undefined && Boolean(prevBoard.starred) !== Boolean(board.starred);
+        recordActivity({
+          req,
+          actor: user,
+          actionType: starredChanged ? 'Status' : 'Updated',
+          description: starredChanged
+            ? `${board.starred ? 'Starred' : 'Unstarred'} board "${board.title}"`
+            : `Updated board "${board.title}"`,
+          target: { name: board.title, link: `/app/?board=${encodeURIComponent(board.id)}`, id: board.id },
+          before: prevBoard ? { title: prevBoard.title, category: prevBoard.category, starred: Boolean(prevBoard.starred) } : undefined,
+          after: { title: board.title, category: board.category, starred: Boolean(board.starred) }
+        });
         return sendJson(res, 200, { board });
       } catch (err) {
         if (err.status === 409) {
@@ -765,8 +932,20 @@ export function createApi(limiter) {
     async deleteBoardApi(req, res, boardId) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const prevBoard = getBoardById(boardId, user.id);
       const result = await removeBoard(boardId, user.id);
       if (!result.removed) return sendJson(res, 404, { error: 'Board not found.' });
+      cacheDel(`boards:${user.id}:all`).catch(() => {});
+      cacheDel(`boards:${user.id}:starred`).catch(() => {});
+      removeBoardFromRedis(user.id, boardId).catch(() => {});
+      recordActivity({
+        req,
+        actor: user,
+        actionType: 'Deleted',
+        description: `Deleted board "${prevBoard ? prevBoard.title : boardId}"`,
+        target: { name: prevBoard ? prevBoard.title : boardId, link: '/dashboard/', id: boardId },
+        before: prevBoard ? { title: prevBoard.title, category: prevBoard.category, starred: Boolean(prevBoard.starred) } : { id: boardId }
+      });
       return sendJson(res, 200, { ok: true, convexSynced: result.convex });
     },
 
@@ -1321,6 +1500,15 @@ export function createApi(limiter) {
       }
       try {
         const result = await saveUserQuotation(user.id, body && body.quotation);
+        const q = body && body.quotation ? body.quotation : {};
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Updated',
+          description: `Saved Quotation ${q.qno ? `#${q.qno}` : ''}${q.toOrg || q.toName ? ` for ${q.toOrg || q.toName}` : ''}`.trim(),
+          target: { name: q.qno ? `Quotation #${q.qno}` : 'Quotation', link: '/dashboard/quotation/', id: q.qno || 'quotation' },
+          after: { qno: q.qno || '', client: q.toOrg || q.toName || '', lineItems: Array.isArray(q.rows) ? q.rows.length : 0 }
+        });
         return sendJson(res, 200, { success: true, ...result });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
@@ -1399,6 +1587,15 @@ export function createApi(limiter) {
       }
       try {
         const result = await saveUserInvoice(user.id, body && body.invoice);
+        const inv = body && body.invoice ? body.invoice : {};
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Updated',
+          description: `Saved Invoice ${inv.qno ? `#${inv.qno}` : ''}${inv.toOrg || inv.toName ? ` for ${inv.toOrg || inv.toName}` : ''}`.trim(),
+          target: { name: inv.qno ? `Invoice #${inv.qno}` : 'Invoice', link: '/dashboard/invoice/', id: inv.qno || 'invoice' },
+          after: { qno: inv.qno || '', client: inv.toOrg || inv.toName || '', lineItems: Array.isArray(inv.rows) ? inv.rows.length : 0 }
+        });
         return sendJson(res, 200, { success: true, ...result });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
@@ -1579,19 +1776,28 @@ export function createApi(limiter) {
       }
     },
 
-    /** GET /api/leaf — Load Leaf workspace from Convex */
+    /** GET /api/leaf — Load Leaf workspace (Redis cache-aside -> Convex) */
     async getLeafApi(req, res) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
+        const cacheKey = `leaf:${user.id}`;
+        const cached = await cacheGet(cacheKey);
+        if (cached && cached.workspace) {
+          return sendJson(res, 200, { ok: true, workspace: cached.workspace, cache: 'hit' });
+        }
         const saved = await getLeafFromConvex(user.id);
+        if (saved) {
+          cacheSet(cacheKey, { workspace: saved }, 120).catch(() => {});
+          indexLeafPagesInRedis(user.id, saved.pages).catch(() => {});
+        }
         return sendJson(res, 200, { ok: true, workspace: saved || null });
       } catch (err) {
         return sendJson(res, err.status || 500, { error: err.message || 'Failed to load Leaf workspace.' });
       }
     },
 
-    /** PUT /api/leaf — Save Leaf workspace to Convex */
+    /** PUT /api/leaf — Save Leaf workspace to Convex + refresh Redis cache & search index */
     async saveLeafApi(req, res) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
@@ -1607,6 +1813,17 @@ export function createApi(limiter) {
       try {
         const now = Date.now();
         const synced = await syncLeafToConvex(user.id, body, now);
+        const workspace = { ...body, updatedAt: now };
+        cacheSet(`leaf:${user.id}`, { workspace }, 120).catch(() => {});
+        indexLeafPagesInRedis(user.id, body.pages).catch(() => {});
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Updated',
+          description: `Saved Leaf workspace (${Object.keys(body.pages || {}).length} pages)`,
+          target: { name: 'Leaf Workspace', link: '/dashboard/leaf/', id: 'leaf' },
+          after: { spaces: Object.keys(body.spaces || {}).length, pages: Object.keys(body.pages || {}).length }
+        });
         return sendJson(res, 200, { ok: true, updatedAt: now, convexSynced: Boolean(synced) });
       } catch (err) {
         return sendJson(res, err.status || 500, { error: err.message || 'Failed to save Leaf workspace.' });
@@ -1640,19 +1857,28 @@ export function createApi(limiter) {
       }
     },
 
-    /** GET /api/crm — Load CRM workspace from Convex */
+    /** GET /api/crm — Load CRM workspace (Redis cache-aside -> Convex) */
     async getCrmApi(req, res) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
+        const cacheKey = `crm:${user.id}`;
+        const cached = await cacheGet(cacheKey);
+        if (cached && cached.data) {
+          return sendJson(res, 200, { ok: true, data: cached.data, updatedAt: cached.updatedAt, cache: 'hit' });
+        }
         const saved = await getCrmFromConvex(user.id);
+        if (saved && saved.data) {
+          cacheSet(cacheKey, { data: saved.data, updatedAt: saved.updatedAt }, 120).catch(() => {});
+          indexCrmContactsInRedis(user.id, saved.data.contacts).catch(() => {});
+        }
         return sendJson(res, 200, { ok: true, data: saved ? saved.data : null, updatedAt: saved ? saved.updatedAt : null });
       } catch (err) {
         return sendJson(res, err.status || 500, { error: err.message || 'Failed to load CRM data.' });
       }
     },
 
-    /** PUT /api/crm — Save CRM workspace to Convex */
+    /** PUT /api/crm — Save CRM workspace to Convex + refresh Redis cache & RediSearch contacts */
     async saveCrmApi(req, res) {
       const user = await auth(req, res);
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
@@ -1668,6 +1894,20 @@ export function createApi(limiter) {
       try {
         const now = Number(body.updatedAt) || Date.now();
         const synced = await syncCrmToConvex(user.id, body.data, now);
+        cacheSet(`crm:${user.id}`, { data: body.data, updatedAt: now }, 120).catch(() => {});
+        indexCrmContactsInRedis(user.id, body.data.contacts).catch(() => {});
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Updated',
+          description: `Synced CRM workspace (${Array.isArray(body.data.contacts) ? body.data.contacts.length : 0} contacts, ${Array.isArray(body.data.deals) ? body.data.deals.length : 0} deals)`,
+          target: { name: 'CRM Workspace', link: '/dashboard/crm/', id: 'crm' },
+          after: {
+            contacts: Array.isArray(body.data.contacts) ? body.data.contacts.length : 0,
+            deals: Array.isArray(body.data.deals) ? body.data.deals.length : 0,
+            tasks: Array.isArray(body.data.tasks) ? body.data.tasks.length : 0
+          }
+        });
         return sendJson(res, 200, { ok: true, updatedAt: now, convexSynced: Boolean(synced) });
       } catch (err) {
         return sendJson(res, err.status || 500, { error: err.message || 'Failed to save CRM data.' });
@@ -2145,6 +2385,14 @@ export function createApi(limiter) {
           emails: body.emails !== undefined ? body.emails : body.email,
           permission: body.permission || 'editor'
         });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Created',
+          description: `Invited workspace member(s) as ${body.permission || 'editor'}`,
+          target: { name: 'Team Members', link: '/dashboard/team/', id: 'workspace_members' },
+          after: { emails: body.emails !== undefined ? body.emails : body.email, permission: body.permission || 'editor' }
+        });
         return sendJson(res, 201, { ok: true, ...result });
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
@@ -2167,6 +2415,14 @@ export function createApi(limiter) {
           memberId,
           permission: body.permission
         });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Status',
+          description: `Changed workspace member #${memberId} role to ${body.permission}`,
+          target: { name: 'Team Members', link: '/dashboard/team/', id: String(memberId) },
+          after: { memberId, permission: body.permission }
+        });
         return sendJson(res, 200, result);
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
@@ -2179,10 +2435,433 @@ export function createApi(limiter) {
       if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
       try {
         const result = removeWorkspaceMember({ actorUserId: user.id, memberId });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Deleted',
+          description: `Removed workspace member #${memberId}`,
+          target: { name: 'Team Members', link: '/dashboard/team/', id: String(memberId) },
+          before: { memberId }
+        });
         return sendJson(res, 200, result);
       } catch (err) {
         return sendJson(res, err.status || 400, { error: err.message });
       }
+    },
+
+    /* ---------------- Immutable Read-Only Activity Log API ---------------- */
+
+    /** GET /api/activity — Role-scoped, paginated, newest-first activity logs */
+    async listActivityApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const wsRole = getEffectiveWorkspaceRole(user);
+      const isAdmin = isActivityAdmin(user, wsRole);
+      const data = queryActivityLogs({
+        viewer: user,
+        isAdmin,
+        search: url.searchParams.get('q') || '',
+        actionType: url.searchParams.get('actionType') || 'all',
+        actorId: url.searchParams.get('actorId') || 'all',
+        dateFrom: url.searchParams.get('from') || '',
+        dateTo: url.searchParams.get('to') || '',
+        page: url.searchParams.get('page') || 1,
+        pageSize: url.searchParams.get('pageSize') || 20
+      });
+      return sendJson(res, 200, { ok: true, ...data });
+    },
+
+    /** GET /api/activity/export — Export filtered activity logs as CSV */
+    async exportActivityCsvApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const wsRole = getEffectiveWorkspaceRole(user);
+      const isAdmin = isActivityAdmin(user, wsRole);
+      const csv = exportActivityLogsCsv({
+        viewer: user,
+        isAdmin,
+        search: url.searchParams.get('q') || '',
+        actionType: url.searchParams.get('actionType') || 'all',
+        actorId: url.searchParams.get('actorId') || 'all',
+        dateFrom: url.searchParams.get('from') || '',
+        dateTo: url.searchParams.get('to') || ''
+      });
+      const stamp = new Date().toISOString().slice(0, 10);
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="activity-log-${stamp}.csv"`,
+        'Cache-Control': 'no-store'
+      });
+      res.end(csv);
+    },
+
+    /** GET /api/activity/:id — Fetch a single immutable activity log entry */
+    async getActivityDetailApi(req, res, id) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const wsRole = getEffectiveWorkspaceRole(user);
+      const isAdmin = isActivityAdmin(user, wsRole);
+      const entry = getActivityLogById({ id, viewer: user, isAdmin });
+      if (!entry) return sendJson(res, 404, { error: 'Activity log entry not found.' });
+      return sendJson(res, 200, { ok: true, entry });
+    },
+
+    /* ---------------- Multi-Tenant Clerk Organisations API ---------------- */
+
+    /** GET /api/orgs */
+    async listOrgsApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      acceptPendingOrgInvitationsForUser(user);
+      const ctx = getActiveOrgContext(user.id);
+      return sendJson(res, 200, {
+        ok: true,
+        ...ctx,
+        roles: ORG_ROLES,
+        orgTypes: ORG_TYPES,
+        orgModules: ORG_MODULES,
+        plans: BILLING_PLANS
+      });
+    },
+
+    /** POST /api/orgs — Create Organisation (5-step onboarding / new org) */
+    async createOrgApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const ctx = await createOrganization({
+          owner: user,
+          name: body.name,
+          logoUrl: body.logoUrl || '',
+          orgType: body.orgType || 'Business',
+          industry: body.industry || '',
+          country: body.country || '',
+          timezone: body.timezone || 'UTC',
+          teamSize: body.teamSize || '1-10',
+          website: body.website || '',
+          description: body.description || '',
+          modules: body.modules,
+          plan: body.plan || 'free',
+          invites: body.invites || []
+        });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Created',
+          description: `Created organisation "${ctx.activeOrg.name}" (${ctx.activeOrg.orgType})`,
+          target: { name: ctx.activeOrg.name, link: '/dashboard/people/', id: ctx.activeOrg.id },
+          after: { name: ctx.activeOrg.name, orgType: ctx.activeOrg.orgType, plan: ctx.activeOrg.plan }
+        });
+        return sendJson(res, 201, { ok: true, ...ctx });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** POST /api/orgs/switch — Switch active organisation without logging out */
+    async switchOrgApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const ctx = switchActiveOrganization(user.id, body.orgId);
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Status',
+          description: `Switched active organisation to "${ctx.activeOrg.name}"`,
+          target: { name: ctx.activeOrg.name, link: '/dashboard/people/', id: ctx.activeOrg.id }
+        });
+        return sendJson(res, 200, { ok: true, ...ctx });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** PATCH /api/orgs/current — Update org profile, modules, billing plan, security */
+    async updateCurrentOrgApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const updated = updateOrganization({ orgId: ctx.activeOrg.id, actor: user, patch: body });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Updated',
+          description: `Updated organisation settings for "${updated.name}"`,
+          target: { name: updated.name, link: '/dashboard/people/', id: updated.id },
+          before: { name: ctx.activeOrg.name, plan: ctx.activeOrg.plan },
+          after: { name: updated.name, plan: updated.plan }
+        });
+        return sendJson(res, 200, { ok: true, organization: updated });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** DELETE /api/orgs/current — Owner-only delete organisation */
+    async deleteCurrentOrgApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      try {
+        deleteOrganization({ orgId: ctx.activeOrg.id, actor: user });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Deleted',
+          description: `Deleted organisation "${ctx.activeOrg.name}"`,
+          target: { name: ctx.activeOrg.name, link: '/onboarding/', id: ctx.activeOrg.id }
+        });
+        return sendJson(res, 200, { ok: true });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** GET /api/orgs/current/directory — People, Depts, Teams, Invites, Memory, Analytics */
+    async getOrgDirectoryApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) {
+        return sendJson(res, 200, { ok: true, needsOnboarding: true, directory: null });
+      }
+      const directory = getOrgDirectoryAndAnalytics(ctx.activeOrg.id);
+      return sendJson(res, 200, {
+        ok: true,
+        needsOnboarding: false,
+        permissions: ctx.permissions,
+        roles: ORG_ROLES,
+        plans: BILLING_PLANS,
+        ...directory
+      });
+    },
+
+    /** GET /api/orgs/current/experts?q=... — Expert Finder */
+    async searchOrgExpertsApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 200, { ok: true, experts: [] });
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const experts = searchOrgExperts(ctx.activeOrg.id, url.searchParams.get('q') || '');
+      return sendJson(res, 200, { ok: true, experts });
+    },
+
+    /** POST /api/orgs/current/departments */
+    async createOrgDepartmentApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const dept = createDepartment({
+          orgId: ctx.activeOrg.id,
+          actor: user,
+          name: body.name,
+          description: body.description || '',
+          headUserId: body.headUserId || null,
+          goals: body.goals || []
+        });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Created',
+          description: `Created department "${dept.name}" in ${ctx.activeOrg.name}`,
+          target: { name: dept.name, link: '/dashboard/people/', id: dept.id }
+        });
+        return sendJson(res, 201, { ok: true, department: dept });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** DELETE /api/orgs/current/departments/:id */
+    async deleteOrgDepartmentApi(req, res, deptId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      try {
+        deleteDepartment({ orgId: ctx.activeOrg.id, actor: user, deptId });
+        return sendJson(res, 200, { ok: true });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** POST /api/orgs/current/teams */
+    async createOrgTeamApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const team = createTeam({
+          orgId: ctx.activeOrg.id,
+          actor: user,
+          departmentId: body.departmentId || null,
+          name: body.name,
+          description: body.description || '',
+          leadUserId: body.leadUserId || null
+        });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Created',
+          description: `Created team "${team.name}" in ${ctx.activeOrg.name}`,
+          target: { name: team.name, link: '/dashboard/people/', id: team.id }
+        });
+        return sendJson(res, 201, { ok: true, team });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** DELETE /api/orgs/current/teams/:id */
+    async deleteOrgTeamApi(req, res, teamId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      try {
+        deleteTeam({ orgId: ctx.activeOrg.id, actor: user, teamId });
+        return sendJson(res, 200, { ok: true });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** POST /api/orgs/current/invitations — Email, Share Link, or Bulk CSV */
+    async createOrgInvitationApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const created = [];
+        if (body.inviteType === 'link') {
+          const inv = await createOrgInvitation({
+            orgId: ctx.activeOrg.id,
+            inviter: user,
+            email: '',
+            role: body.role || 'MEMBER',
+            departmentId: body.departmentId || '',
+            teamId: body.teamId || '',
+            inviteType: 'link'
+          });
+          created.push(inv);
+        } else {
+          const rawEmails = Array.isArray(body.emails)
+            ? body.emails
+            : String(body.email || body.emails || '').split(/[\s,;]+/).filter(Boolean);
+          for (const em of rawEmails.slice(0, 100)) {
+            if (!EMAIL_RE.test(em)) continue;
+            const inv = await createOrgInvitation({
+              orgId: ctx.activeOrg.id,
+              inviter: user,
+              email: em,
+              role: body.role || 'MEMBER',
+              departmentId: body.departmentId || '',
+              teamId: body.teamId || '',
+              inviteType: rawEmails.length > 1 ? 'bulk' : 'email'
+            });
+            created.push(inv);
+          }
+        }
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Created',
+          description: `Sent ${created.length} organisation invitation(s) (${body.role || 'MEMBER'})`,
+          target: { name: ctx.activeOrg.name, link: '/dashboard/people/', id: ctx.activeOrg.id }
+        });
+        return sendJson(res, 201, { ok: true, invitations: created });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** PATCH /api/orgs/current/members/:userId */
+    async updateOrgMemberApi(req, res, targetUserId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        updateOrgMember({ orgId: ctx.activeOrg.id, actor: user, targetUserId, patch: body });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: body.role ? 'Status' : 'Updated',
+          description: `Updated member #${targetUserId} in ${ctx.activeOrg.name}`,
+          target: { name: ctx.activeOrg.name, link: '/dashboard/people/', id: String(targetUserId) },
+          after: body
+        });
+        return sendJson(res, 200, { ok: true });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** DELETE /api/orgs/current/members/:userId */
+    async removeOrgMemberApi(req, res, targetUserId) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      try {
+        removeOrgMember({ orgId: ctx.activeOrg.id, actor: user, targetUserId });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Deleted',
+          description: `Removed member #${targetUserId} from ${ctx.activeOrg.name}`,
+          target: { name: ctx.activeOrg.name, link: '/dashboard/people/', id: String(targetUserId) }
+        });
+        return sendJson(res, 200, { ok: true });
+      } catch (err) {
+        return sendJson(res, err.status || 403, { error: err.message });
+      }
+    },
+
+    /** POST /api/orgs/current/memory */
+    async addOrgMemoryApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      if (!ctx.activeOrg) return sendJson(res, 404, { error: 'No active organisation.' });
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      const id = addOrgMemoryItem({
+        orgId: ctx.activeOrg.id,
+        sourceType: body.sourceType || 'decision',
+        title: body.title,
+        summary: body.summary || '',
+        link: body.link || '',
+        authorId: user.id,
+        tags: Array.isArray(body.tags) ? body.tags : []
+      });
+      return sendJson(res, 201, { ok: true, id });
     },
 
     /** GET /api/boards/:id/members */

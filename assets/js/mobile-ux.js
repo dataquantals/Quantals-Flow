@@ -332,6 +332,15 @@
   /* ========================================================================
    * FEATURE 7 & 11: EDGE SWIPE GESTURES & PULL-TO-REFRESH
    * ======================================================================== */
+  function getScrollContainerTop(target) {
+    var el = target && target.closest ? target.closest('.lf-scroller, .lf-home, .crm-main') : null;
+    if (el && el.scrollHeight > el.clientHeight + 2) {
+      var oy = window.getComputedStyle(el).overflowY;
+      if (oy === 'auto' || oy === 'scroll') return el.scrollTop;
+    }
+    return window.scrollY || (document.scrollingElement ? document.scrollingElement.scrollTop : 0) || 0;
+  }
+
   function initSwipeAndPullToRefresh() {
     if (!isWorkspaceRoute) return;
     var ptr = document.createElement('div');
@@ -341,24 +350,35 @@
 
     var sx = 0, sy = 0, pulling = false, edgeSwipe = false;
     document.addEventListener('touchstart', function (e) {
-      if (e.touches.length !== 1) return;
-      // Don't hijack canvas touch gestures
-      if (e.target.closest('#quantalflow-viewport, #viewport, #canvas, .qf-viewer, .qf-sheet')) return;
+      if (e.touches.length !== 1) { pulling = false; return; }
+      // Never hijack canvas, modals, bottom sheets, tables, or form inputs
+      if (e.target.closest('#quantalflow-viewport, #viewport, #canvas, .qf-viewer, .qf-sheet, .quote-dialog-card, .quantalflow-modal, .qf-dialog')) {
+        pulling = false;
+        edgeSwipe = false;
+        return;
+      }
       sx = e.touches[0].clientX;
       sy = e.touches[0].clientY;
       edgeSwipe = sx < 24 || sx > window.innerWidth - 24;
-      var scroller = e.target.closest('.lf-scroller, .lf-home, .dash') || document.scrollingElement;
-      pulling = scroller && scroller.scrollTop <= 0 && !e.target.closest('[contenteditable="true"]');
+      var inInteractiveInput = Boolean(e.target.closest('input, textarea, select, [contenteditable="true"], .quote-table-wrap, .crm-table-wrap'));
+      // Only arm pull-to-refresh when genuinely at scrollTop === 0 and not inside an input/table
+      pulling = !inInteractiveInput && getScrollContainerTop(e.target) <= 0;
     }, { passive: true });
 
     document.addEventListener('touchmove', function (e) {
-      if (e.touches.length !== 1) return;
+      if (e.touches.length !== 1 || !pulling) return;
       var dx = e.touches[0].clientX - sx;
       var dy = e.touches[0].clientY - sy;
-      if (pulling && dy > 24 && Math.abs(dy) > Math.abs(dx) * 1.4) {
-        var clamped = Math.min(82, dy * 0.55);
+      // Cancel immediately if user scrolls down or pans horizontally, or page moved
+      if (dy < 0 || Math.abs(dx) > Math.abs(dy) * 0.8 || getScrollContainerTop(e.target) > 0) {
+        pulling = false;
+        ptr.style.transform = 'translate(-50%, -64px)';
+        return;
+      }
+      if (dy > 32 && Math.abs(dy) > Math.abs(dx) * 1.6) {
+        var clamped = Math.min(82, dy * 0.5);
         ptr.style.transform = 'translate(-50%, ' + (clamped - 44) + 'px)';
-        ptr.querySelector('.qf-ptr__txt').textContent = dy > 95 ? 'Release to refresh' : 'Pull to refresh';
+        ptr.querySelector('.qf-ptr__txt').textContent = dy > 110 ? 'Release to refresh' : 'Pull to refresh';
       }
     }, { passive: true });
 
@@ -380,8 +400,8 @@
         }
       }
 
-      // Pull-to-refresh release
-      if (pulling && dy > 95 && Math.abs(dy) > Math.abs(dx) * 1.4) {
+      // Pull-to-refresh release (only if still at top of scroll container)
+      if (pulling && dy > 110 && Math.abs(dy) > Math.abs(dx) * 1.6 && getScrollContainerTop(e.target) <= 0) {
         ptr.classList.add('is-loading');
         ptr.style.transform = 'translate(-50%, 10px)';
         ptr.querySelector('.qf-ptr__txt').textContent = 'Refreshing...';
@@ -407,16 +427,31 @@
       var vv = window.visualViewport;
       var kbH = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
       rootStyle.setProperty('--qf-kb-h', kbH + 'px');
-      if (kbH > 120 && document.activeElement && document.activeElement.scrollIntoView) {
-        setTimeout(function () {
-          try { document.activeElement.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
-        }, 120);
-      }
+      document.body.classList.toggle('qf-kb-open', kbH > 120);
     };
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', updateKb);
       window.visualViewport.addEventListener('scroll', updateKb);
     }
+
+    // Only gently scroll a newly-focused field into view if occluded by the virtual keyboard
+    // (never inside visualViewport.scroll, which would snap-back user scrolling).
+    document.addEventListener('focusin', function (e) {
+      var target = e.target;
+      if (!target || !target.matches || !target.matches('input, textarea, select')) return;
+      if (!window.visualViewport) return;
+      setTimeout(function () {
+        var vv = window.visualViewport;
+        if (!vv || document.activeElement !== target) return;
+        var kbH = window.innerHeight - vv.height;
+        if (kbH > 120) {
+          var rect = target.getBoundingClientRect();
+          if (rect.bottom > vv.height - 20 || rect.top < 64) {
+            try { target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (err) {}
+          }
+        }
+      }, 260);
+    });
 
     // Floating rich-text toolbar above keyboard for Leaf & contenteditable editors
     if (!isCoarse && !isMobileWidth()) return;
@@ -490,6 +525,30 @@
     ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (evName) {
       vp.addEventListener(evName, function (e) { e.preventDefault(); }, { passive: false });
     });
+
+    // Floating Reset-Zoom button for mobile canvas screens (<= 860px)
+    if (!document.getElementById('qf-mob-reset-zoom')) {
+      var resetBtn = document.createElement('button');
+      resetBtn.type = 'button';
+      resetBtn.id = 'qf-mob-reset-zoom';
+      resetBtn.className = 'qf-mob-reset-zoom';
+      resetBtn.setAttribute('aria-label', 'Reset canvas zoom');
+      resetBtn.title = 'Reset Zoom (100%)';
+      resetBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>' +
+        '</svg>' +
+        '<span>100%</span>';
+      resetBtn.addEventListener('click', function () {
+        var b = window.QFMobileCanvasBridge || null;
+        if (b && typeof b.fitToScreen === 'function') b.fitToScreen();
+        else if (b && typeof b.resetZoom === 'function') b.resetZoom();
+        else if (b && typeof b.zoomAt === 'function') b.zoomAt(1, window.innerWidth / 2, window.innerHeight / 2);
+        Haptics.light();
+        SyncStatus.set('saved', 'Zoom reset');
+      });
+      document.body.appendChild(resetBtn);
+    }
 
     var lastTapTime = 0, lastTapX = 0, lastTapY = 0;
 

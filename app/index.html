@@ -3,11 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="QuantalFlow" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="manifest" href="/manifest.json" />
   <title>QuantalFlow App | Collaborative Whiteboard</title>
   <meta name="description" content="Real-time visual canvas for teams and AI agents to think, plan, and build together." />
   <meta name="robots" content="noindex" />
@@ -15,19 +17,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/assets/css/styles.css?v=98259fce" />
-  <link rel="stylesheet" href="/assets/css/pages.css?v=8faebf1b" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=f506e2f4" />
   <link rel="stylesheet" href="/assets/css/folder.css?v=57a2c866" />
   <link rel="stylesheet" href="/assets/css/project-planning.css?v=18e59eab" />
   <link rel="stylesheet" href="/assets/css/project-os.css?v=d070eb29" />
   <link rel="stylesheet" href="/assets/css/whiteboard-suite.css?v=b695c494" />
-  <link rel="stylesheet" href="/assets/css/mobile-ux.css?v=3774b46a" />
+  <link rel="stylesheet" href="/assets/css/org-switcher.css?v=c7d22c11" />
+  <link rel="stylesheet" href="/assets/css/mobile-ux.css?v=eb6295d5" />
   <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
   <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
   <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
   <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
   <script src="/assets/js/save-state.js?v=d063b18d"></script>
   <script src="/assets/js/qf-dialog.js?v=d8c68d83"></script>
-  <script src="/assets/js/mobile-ux.js?v=e1bead0c" defer></script>
+  <script src="/assets/js/org-switcher.js?v=39916752" defer></script>
+  <script src="/assets/js/mobile-ux.js?v=91b8c7c0" defer></script>
 </head>
 <body class="quantalflow-app-body">
 
@@ -873,7 +877,7 @@
   <script src="/assets/js/workspace-frameworks.js?v=00b41c61"></script>
   <script src="/assets/js/wbs-tree-diagram.js?v=0897d8af"></script>
   <script src="/assets/js/whiteboard-suite.js?v=acef4ef1"></script>
-  <script src="/assets/js/app.js?v=ba16bdaf"></script>
+  <script src="/assets/js/app.js?v=35c22d30"></script>
   <script src="/assets/js/project-os-views.js?v=af9c274e"></script>
   <script src="/assets/js/project-planning.js?v=1f5832e2"></script>
 </body>

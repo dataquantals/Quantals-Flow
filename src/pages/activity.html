@@ -1,0 +1,259 @@
+---
+title: Activity Log | QuantalFlow
+description: Immutable chronological audit trail of user and system events across QuantalFlow.
+route: /activity/
+layout: standalone
+body_class: dash-body act-body
+scripts: /assets/js/workspace-nav.js, /assets/js/workspace-router.js, /assets/js/activity.js
+---
+  <link rel="stylesheet" href="/assets/css/activity.css" />
+
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span id="dash-profile-name">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="btn btn--blue dash-sidebar__create" href="/app/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </a>
+
+      <nav class="dash-nav" aria-label="Primary">
+        <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>All Boards</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/starred/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred Boards</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-notepad" href="/dashboard/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-knowledge" href="/dashboard/knowledge/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M12 18v-5"/></svg>
+          <span>Knowledge Hub</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>
+          <span>Whiteboarding</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
+          <span>Project Planning</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
+          <span>Mind Map</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+          <span>Kanban Board</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Perspective</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
+          <span>Brainstorm</span>
+        </a>
+
+        <a class="dash-nav__item" href="/resources/templates/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-documents" href="/dashboard/documents/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <span>Document Generation</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-leaf" href="/dashboard/leaf/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          <span>Leaf</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Other Services</div>
+
+        <a class="dash-nav__item" id="nav-crm" href="/dashboard/crm/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M21 20c0-2.5-1.5-4-4-4.6"/></svg>
+          <span>CRM</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/quotation/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Quotation</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item" id="nav-people" href="/dashboard/people/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>People &amp; Teams</span>
+        </a>
+
+        <a class="dash-nav__item is-active" id="nav-activity" href="/dashboard/activity/" aria-current="page" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Activity Log</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Team Members</span>
+        </a>
+
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Profile &amp; Settings</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="dash act-main">
+      <section class="dash__hero act-hero">
+        <div class="act-hero__top">
+          <div>
+            <h1>Activity Log</h1>
+            <p>Chronological, tamper-proof record of user actions and system events across your workspace.</p>
+            <div class="act-hero__badges">
+              <span class="act-pill" id="act-scope-badge">Loading scope&hellip;</span>
+              <span class="act-pill act-pill--readonly">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Immutable &middot; Read-only
+              </span>
+            </div>
+          </div>
+          <button type="button" class="btn btn--blue" id="act-export">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Filter Bar -->
+      <section class="act-filters" aria-label="Filter activity logs">
+        <div class="act-field act-field--grow">
+          <label for="act-search">Search</label>
+          <input type="search" id="act-search" class="act-input" placeholder="Search description, user, or target..." autocomplete="off" />
+        </div>
+
+        <div class="act-field">
+          <label for="act-from">Date Range</label>
+          <div class="act-dates">
+            <input type="date" id="act-from" class="act-input" aria-label="From date" />
+            <span>to</span>
+            <input type="date" id="act-to" class="act-input" aria-label="To date" />
+          </div>
+        </div>
+
+        <div class="act-field">
+          <label for="act-action">Action Type</label>
+          <select id="act-action" class="act-select">
+            <option value="all">All Actions</option>
+            <option value="Created">Created</option>
+            <option value="Updated">Updated</option>
+            <option value="Deleted">Deleted</option>
+            <option value="Status">Status</option>
+            <option value="Auth">Auth</option>
+            <option value="Error">Error</option>
+            <option value="System">System</option>
+          </select>
+        </div>
+
+        <div class="act-field" id="act-actor-wrap" hidden>
+          <label for="act-actor">User</label>
+          <select id="act-actor" class="act-select">
+            <option value="all">All Users &amp; System</option>
+          </select>
+        </div>
+
+        <div class="act-filter-actions">
+          <button type="button" class="btn btn--ghost" id="act-clear">Reset</button>
+        </div>
+      </section>
+
+      <!-- Paginated Activity Table -->
+      <section class="act-card" aria-label="Activity entries">
+        <div class="act-table-wrap" id="act-table-wrap">
+          <table class="act-table">
+            <thead>
+              <tr>
+                <th scope="col">Timestamp</th>
+                <th scope="col">User</th>
+                <th scope="col">Action</th>
+                <th scope="col">Description</th>
+                <th scope="col">Target</th>
+              </tr>
+            </thead>
+            <tbody id="act-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="act-empty" id="act-empty" hidden>
+          <div class="act-empty__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <h3>No matching activity logs</h3>
+          <p>Try adjusting your search query, date range, user, or action filter.</p>
+          <button type="button" class="btn btn--ghost" id="act-empty-reset">Clear Filters</button>
+        </div>
+
+        <div class="act-pager">
+          <span id="act-pager-info">Loading&hellip;</span>
+          <div class="act-pager__btns">
+            <button type="button" class="btn btn--ghost" id="act-prev" disabled>&larr; Previous</button>
+            <span id="act-page-num">Page 1 of 1</span>
+            <button type="button" class="btn btn--ghost" id="act-next" disabled>Next &rarr;</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Slide-Over Event Detail Drawer -->
+  <div class="act-drawer-backdrop" id="act-drawer-backdrop" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="act-drawer-title">
+    <div class="act-drawer">
+      <div class="act-drawer__head">
+        <div>
+          <span class="act-badge act-badge--System" id="act-drawer-badge">System</span>
+          <h3 class="act-drawer__title" id="act-drawer-title">Event Details</h3>
+          <div class="act-drawer__id" id="act-drawer-id"></div>
+        </div>
+        <button type="button" class="act-drawer__close" id="act-drawer-close" aria-label="Close detail drawer">&times;</button>
+      </div>
+      <div class="act-drawer__body" id="act-drawer-body"></div>
+    </div>
+  </div>

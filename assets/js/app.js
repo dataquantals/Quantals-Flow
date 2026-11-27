@@ -31,7 +31,7 @@
 
   /* ---------- Hierarchical Path Router (Parent: /app, Child: /:slug/:code/:template) ---------- */
   var KNOWN_TEMPLATES = ['whiteboard', 'project-planning', 'mindmap', 'flow', 'kanban', 'perspective', 'retro', 'brainstorm', 'swot', 'journey', 'blank'];
-  var PROJECT_MODULES = ['whiteboard', 'project-planning', 'mindmap', 'kanban', 'perspective', 'brainstorm'];
+  var PROJECT_MODULES = ['whiteboard', 'project-planning', 'mindmap', 'kanban', 'perspective', 'brainstorm', 'leaf'];
   var DEFAULT_WORKSPACE_MODULE = 'project-planning';
   var currentActiveModule = DEFAULT_WORKSPACE_MODULE;
   /* The module saved in the board's own state, as distinct from the one the
@@ -89,6 +89,13 @@
       tint: '#fef9c3',
       ink: '#ca8a04',
       icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>'
+    },
+    'leaf': {
+      label: 'Leaf',
+      blurb: 'Board-linked collaborative docs carrying this workspace title',
+      tint: '#ecfdf5',
+      ink: '#15803d',
+      icon: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>'
     }
   };
 
@@ -3248,7 +3255,9 @@
   window.QFMobileCanvasBridge = {
     getScale: function () { return zoom; },
     panBy: function (dx, dy) { panX += dx; panY += dy; updateTransform(); },
-    zoomAt: function (nextZoom, fx, fy) { zoomAt(nextZoom, fx, fy); }
+    zoomAt: function (nextZoom, fx, fy) { zoomAt(nextZoom, fx, fy); },
+    resetZoom: function () { resetZoom(); },
+    fitToScreen: function () { fitToScreen(); }
   };
 
   function resetZoom() {
@@ -3943,6 +3952,21 @@
     var normalized = String(targetMod || DEFAULT_WORKSPACE_MODULE).toLowerCase();
     if (PROJECT_MODULES.indexOf(normalized) === -1) {
       normalized = DEFAULT_WORKSPACE_MODULE;
+    }
+
+    // Leaf is a dedicated collaborative document workspace linked 1:1 to this board & title.
+    if (normalized === 'leaf') {
+      ensureModuleEnabled('leaf');
+      scheduleSave();
+      var titleInput = document.getElementById('board-title-input');
+      var liveTitle = (titleInput && titleInput.value.trim()) || 'Untitled Board';
+      var activeId = boardId || 'board';
+      var leafUrl = '/dashboard/leaf/?board=' + encodeURIComponent(activeId) +
+        '&title=' + encodeURIComponent(liveTitle) +
+        '&modules=' + encodeURIComponent(enabledModules.join(',')) +
+        '&from=' + encodeURIComponent(currentActiveModule || DEFAULT_WORKSPACE_MODULE);
+      window.location.href = leafUrl;
+      return;
     }
 
     // Save current canvas module items before switching away — but only when

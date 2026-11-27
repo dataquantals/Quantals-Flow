@@ -1,0 +1,36 @@
+---
+title: Create Organisation | QuantalFlow
+description: 5-step multi-tenant organisation creation onboarding powered by Clerk Organisations.
+route: /onboarding/
+layout: standalone
+body_class: ob-body
+scripts: /assets/js/onboarding.js
+---
+  <link rel="stylesheet" href="/assets/css/onboarding.css" />
+
+  <header class="ob-top">
+    <a class="logo" href="/dashboard/" aria-label="QuantalFlow">
+      <img class="logo__mark" src="/assets/img/logo.png" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+    <a class="btn btn--ghost" href="/dashboard/" style="text-decoration:none;font-size:13px;">Skip to Dashboard</a>
+  </header>
+
+  <main class="ob-wrap">
+    <div class="ob-stepper" aria-label="Onboarding progress">
+      <div class="ob-step-pill is-active" data-step="1"><span>1</span><b>Organisation</b></div>
+      <div class="ob-step-pill" data-step="2"><span>2</span><b>Type</b></div>
+      <div class="ob-step-pill" data-step="3"><span>3</span><b>Modules</b></div>
+      <div class="ob-step-pill" data-step="4"><span>4</span><b>Invite Team</b></div>
+      <div class="ob-step-pill" data-step="5"><span>5</span><b>Launch</b></div>
+    </div>
+
+    <section class="ob-card">
+      <div id="ob-step-body"></div>
+      <div class="ob-err" id="ob-err" role="alert"></div>
+      <div class="ob-foot">
+        <button type="button" class="btn btn--ghost" id="ob-prev">&larr; Back</button>
+        <button type="button" class="btn btn--blue" id="ob-next">Continue &rarr;</button>
+      </div>
+    </section>
+  </main>

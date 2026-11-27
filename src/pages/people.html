@@ -1,0 +1,74 @@
+---
+title: People & Teams | QuantalFlow
+description: Multi-tenant organisation directory, departments, teams, Expert Finder, invitations, billing, and organisational memory.
+route: /people/
+layout: standalone
+body_class: dash-body
+scripts: /assets/js/workspace-nav.js, /assets/js/workspace-router.js, /assets/js/people.js
+---
+  <link rel="stylesheet" href="/assets/css/people.css" />
+
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span id="dash-profile-name">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="btn btn--blue dash-sidebar__create" href="/app/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </a>
+      <nav class="dash-nav" aria-label="Primary">
+        <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;"><span>All Boards</span></a>
+        <a class="dash-nav__item" href="/dashboard/leaf/" style="text-decoration:none;"><span>Leaf</span></a>
+        <a class="dash-nav__item" href="/dashboard/crm/" style="text-decoration:none;"><span>CRM</span></a>
+        <a class="dash-nav__item" href="/dashboard/quotation/" style="text-decoration:none;"><span>Quotation</span></a>
+        <a class="dash-nav__item" href="/dashboard/invoice/" style="text-decoration:none;"><span>Invoice</span></a>
+        <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item is-active" id="nav-people" href="/dashboard/people/" aria-current="page" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>People &amp; Teams</span>
+        </a>
+        <a class="dash-nav__item" id="nav-activity" href="/dashboard/activity/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Activity Log</span>
+        </a>
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;"><span>Profile &amp; Settings</span></a>
+      </nav>
+    </aside>
+
+    <main class="dash ppl-main">
+      <section class="dash__hero ppl-hero">
+        <div class="ppl-hero__row">
+          <div>
+            <h1 id="ppl-org-name">People &amp; Teams</h1>
+            <p>Manage your multi-tenant organisation structure, roles, skills, invitations, memory, and billing.</p>
+            <div class="ppl-hero__meta" id="ppl-org-meta"></div>
+          </div>
+          <a class="btn btn--blue" href="/onboarding/" style="text-decoration:none;">+ Create Organisation</a>
+        </div>
+      </section>
+
+      <section class="ppl-kpis" id="ppl-kpis"></section>
+
+      <div class="ppl-tabs" role="tablist">
+        <button type="button" class="ppl-tab is-active" data-tab="directory">User Directory</button>
+        <button type="button" class="ppl-tab" data-tab="orgchart">Org Chart &amp; Depts</button>
+        <button type="button" class="ppl-tab" data-tab="experts">Expert Finder</button>
+        <button type="button" class="ppl-tab" data-tab="invites">Invitations &amp; CSV</button>
+        <button type="button" class="ppl-tab" data-tab="memory">Org Memory</button>
+        <button type="button" class="ppl-tab" data-tab="billing">Billing &amp; Security</button>
+      </div>
+
+      <div id="ppl-content"></div>
+    </main>
+  </div>

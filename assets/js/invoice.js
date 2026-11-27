@@ -6,20 +6,54 @@
   'use strict';
 
   var CUR = 'ZMK ';
+  var VALID_DAYS = 15;
+  var DOC_PREFIX = 'INV';
   var SAVE_DELAY_MS = 700;
   var RETRY_DELAY_MS = 4000;
   var DEFAULT_LOGO_SRC = '/assets/img/quotation-logo.jpg';
   var ALLOWED_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
   var MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function todayIso() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function addDaysIso(iso, days) {
+    var base = /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? String(iso) : todayIso();
+    var parts = base.split('-');
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (isNaN(d.getTime())) d = new Date();
+    d.setDate(d.getDate() + (Number(days) || 0));
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function generateDocNumber(current) {
+    var stamp = todayIso().replace(/-/g, '');
+    var raw = String(current || '').trim();
+    if (!raw) return DOC_PREFIX + '-' + stamp + '-001';
+    var dated = raw.match(/^([A-Za-z]+)-(\d{8})-(\d+)$/);
+    if (dated) {
+      if (dated[2] === stamp) {
+        return dated[1] + '-' + stamp + '-' + String(parseInt(dated[3], 10) + 1).padStart(dated[3].length, '0');
+      }
+      return dated[1] + '-' + stamp + '-001';
+    }
+    var trailing = raw.match(/^(.*?)(\d+)$/);
+    if (trailing) {
+      return trailing[1] + String((parseInt(trailing[2], 10) || 0) + 1).padStart(trailing[2].length, '0');
+    }
+    return DOC_PREFIX + '-' + stamp + '-001';
+  }
+
   function blankItem() { return { q: '', d: '', p: '', t: '' }; }
   function blankItems(n) { return Array.from({ length: n }, blankItem); }
 
   function sample() {
+    var today = todayIso();
     return {
       coName: 'Quantals Solution', tagline: 'Delivering the Best',
       coAddr1: 'PHI off Great East Road', coAddr2: 'Lusaka Zambia', coPhone: 'Phone +260977445615',
-      date: '2026-08-20', qno: '000072', cid: '', valid: '2026-12-01', prep: 'Richard Mumba',
+      date: today, qno: generateDocNumber(''), cid: '', valid: addDaysIso(today, VALID_DAYS), prep: 'Richard Mumba',
       toName: 'Purchasing Officer', toOrg: 'ZESCO', toAddr1: 'Great East Road', toAddr2: 'Lusaka Zambia', toPhone: '',
       comments: 'None', sales: 'Richard Mumba', po: 'Non', shipDate: 'N/A', shipVia: 'N/A', fob: '', terms: 'Due on receipt',
       notes: 'Thank you for your business!', rate: 8.6, other: 0,
@@ -191,17 +225,26 @@
   }
 
   /* ---------------------------------------------------------------- events */
-  (sheet || document).addEventListener('input', function (e) {
+  function handleFieldChange(e) {
     if (!S) return;
     var el = e.target;
-    if (el.dataset.k) S[el.dataset.k] = el.value;
+    if (el.dataset.k) {
+      S[el.dataset.k] = el.value;
+      if (el.dataset.k === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(el.value)) {
+        S.valid = addDaysIso(el.value, VALID_DAYS);
+        var validEl = $('valid');
+        if (validEl) validEl.value = S.valid;
+      }
+    }
     else if (el.id === 'rate') S.rate = el.value;
     else if (el.id === 'other') S.other = el.value;
     else if (el.dataset.f) S.items[el.closest('tr').dataset.i][el.dataset.f] = el.value;
     else return;
     calc();
     scheduleSave();
-  });
+  }
+  (sheet || document).addEventListener('input', handleFieldChange);
+  (sheet || document).addEventListener('change', handleFieldChange);
 
   rowsEl.addEventListener('click', function (e) {
     var b = e.target.closest('[data-rm]');
@@ -234,11 +277,9 @@
       tone: 'danger'
     });
     if (!confirmed) return;
-    var width = String(S.qno || '000000').length;
-    S.qno = String((parseInt(S.qno, 10) || 0) + 1).padStart(width, '0');
-    var d = new Date();
-    S.date = d.toISOString().slice(0, 10);
-    S.valid = new Date(d.getTime() + 14 * 864e5).toISOString().slice(0, 10);
+    S.qno = generateDocNumber(S.qno);
+    S.date = todayIso();
+    S.valid = addDaysIso(S.date, VALID_DAYS);
     S.items = blankItems(9);
     S.other = 0;
     fillFields();
@@ -933,11 +974,15 @@
         var saved = data.invoice;
         var fresh = !isValidInvoice(saved);
         S = fresh ? sample() : saved;
+        var autoFilled = false;
+        if (!S.date || !/^\d{4}-\d{2}-\d{2}$/.test(S.date)) { S.date = todayIso(); autoFilled = true; }
+        if (!S.valid || !/^\d{4}-\d{2}-\d{2}$/.test(S.valid)) { S.valid = addDaysIso(S.date, VALID_DAYS); autoFilled = true; }
+        if (!S.qno || !String(S.qno).trim()) { S.qno = generateDocNumber(''); autoFilled = true; }
         fillFields();
         buildRows();
         if (sheet) sheet.removeAttribute('aria-busy');
-        if (fresh) {
-          // First visit: store the sample so the number sequence starts server-side & in Convex.
+        if (fresh || autoFilled) {
+          // First visit or backfilled date/number: store server-side & in Convex.
           scheduleSave();
         } else {
           setStatus('saved', 'All changes saved');

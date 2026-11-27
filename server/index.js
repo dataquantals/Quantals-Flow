@@ -36,7 +36,9 @@ const DASHBOARD_CHILD_PAGES = {
   documents: path.join(config.root, 'documents', 'index.html'),
   os: path.join(config.root, 'documents', 'index.html'),
   leaf: path.join(config.root, 'leaf', 'index.html'),
-  crm: path.join(config.root, 'crm', 'index.html')
+  crm: path.join(config.root, 'crm', 'index.html'),
+  activity: path.join(config.root, 'activity', 'index.html'),
+  people: path.join(config.root, 'people', 'index.html')
 };
 
 // Sweep expired sessions hourly so the table does not grow without bound.
@@ -220,6 +222,37 @@ export async function handleApi(req, res) {
   if (pathname === '/api/leaf/image' && req.method === 'POST') return api.uploadLeafImageApi(req, res);
   if (pathname === '/api/crm' && req.method === 'GET') return api.getCrmApi(req, res);
   if (pathname === '/api/crm' && req.method === 'PUT') return api.saveCrmApi(req, res);
+  if (pathname === '/api/redis/status' && req.method === 'GET') return api.redisStatusApi(req, res);
+  if (pathname === '/api/redis/search' && req.method === 'GET') return api.redisSearchApi(req, res);
+  if (pathname === '/api/activity' && req.method === 'GET') return api.listActivityApi(req, res);
+  if (pathname === '/api/activity/export' && req.method === 'GET') return api.exportActivityCsvApi(req, res);
+  const activityDetailMatch = pathname.match(/^\/api\/activity\/([^/]+)$/);
+  if (activityDetailMatch && req.method === 'GET') {
+    return api.getActivityDetailApi(req, res, decodeURIComponent(activityDetailMatch[1]));
+  }
+
+  /* ---- Multi-Tenant Clerk Organisations & People & Teams API ---- */
+  if (pathname === '/api/orgs' && req.method === 'GET') return api.listOrgsApi(req, res);
+  if (pathname === '/api/orgs' && req.method === 'POST') return api.createOrgApi(req, res);
+  if (pathname === '/api/orgs/switch' && req.method === 'POST') return api.switchOrgApi(req, res);
+  if (pathname === '/api/orgs/current' && req.method === 'PATCH') return api.updateCurrentOrgApi(req, res);
+  if (pathname === '/api/orgs/current' && req.method === 'DELETE') return api.deleteCurrentOrgApi(req, res);
+  if (pathname === '/api/orgs/current/directory' && req.method === 'GET') return api.getOrgDirectoryApi(req, res);
+  if (pathname === '/api/orgs/current/experts' && req.method === 'GET') return api.searchOrgExpertsApi(req, res);
+  if (pathname === '/api/orgs/current/departments' && req.method === 'POST') return api.createOrgDepartmentApi(req, res);
+  const orgDeptMatch = pathname.match(/^\/api\/orgs\/current\/departments\/([^/]+)$/);
+  if (orgDeptMatch && req.method === 'DELETE') return api.deleteOrgDepartmentApi(req, res, decodeURIComponent(orgDeptMatch[1]));
+  if (pathname === '/api/orgs/current/teams' && req.method === 'POST') return api.createOrgTeamApi(req, res);
+  const orgTeamMatch = pathname.match(/^\/api\/orgs\/current\/teams\/([^/]+)$/);
+  if (orgTeamMatch && req.method === 'DELETE') return api.deleteOrgTeamApi(req, res, decodeURIComponent(orgTeamMatch[1]));
+  if (pathname === '/api/orgs/current/invitations' && req.method === 'POST') return api.createOrgInvitationApi(req, res);
+  const orgMemMatch = pathname.match(/^\/api\/orgs\/current\/members\/([^/]+)$/);
+  if (orgMemMatch) {
+    const uid = decodeURIComponent(orgMemMatch[1]);
+    if (req.method === 'PATCH') return api.updateOrgMemberApi(req, res, uid);
+    if (req.method === 'DELETE') return api.removeOrgMemberApi(req, res, uid);
+  }
+  if (pathname === '/api/orgs/current/memory' && req.method === 'POST') return api.addOrgMemoryApi(req, res);
   if (pathname === '/api/leads' && req.method === 'POST') return api.createLeadApi(req, res);
   if (pathname === '/api/documents/generate' && req.method === 'POST') return api.generateDocumentApi(req, res);
   if (pathname === '/api/documents/ai-edit' && req.method === 'POST') return api.aiEditDocumentApi(req, res);
@@ -257,7 +290,7 @@ export async function handleApi(req, res) {
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
 // session, so gate it here rather than letting the page flash and bounce.
-const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad', '/knowledge', '/documents', '/os', '/leaf', '/crm'];
+const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad', '/knowledge', '/documents', '/os', '/leaf', '/crm', '/activity', '/people', '/onboarding'];
 
 function isProtected(pathname) {
   return protectedRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -330,7 +363,7 @@ const server = http.createServer(async (req, res) => {
         return sendFile(res, appShellPage);
       }
       // Dedicated child modules under /dashboard/<module>/ (notepad, quotation, invoice, knowledge, documents, os)
-      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice|knowledge|documents|os|leaf|crm)(\/)?$/);
+      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice|knowledge|documents|os|leaf|crm|activity|people)(\/)?$/);
       if (dashChildMatch) {
         const childKey = dashChildMatch[1];
         const childFile = DASHBOARD_CHILD_PAGES[childKey];

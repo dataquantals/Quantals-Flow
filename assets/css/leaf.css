@@ -962,3 +962,37 @@ mark.sh { background: #ffec99; color: inherit; border-radius: 2px; }
   flex-wrap: wrap;
   max-width: min(720px, calc(100vw - 24px));
 }
+
+
+/* ---- Board-Linked Topnav Title & Workspace Switcher Dropdown ---- */
+.lf-board-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: 4px;
+}
+.lf-board-switcher[hidden] {
+  display: none !important;
+}
+.lf-board-switcher__sep {
+  color: #cbd5e1;
+  font-size: 16px;
+  font-weight: 400;
+  user-select: none;
+}
+.lf-board-switcher__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  .lf-board-switcher__title {
+    max-width: 115px;
+    font-size: 13px;
+  }
+}

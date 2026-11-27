@@ -23,7 +23,7 @@ const EXCLUDED = new Set([
   '_verify-pp', 'dashboard-preview-tmp'
 ]);
 
-const ROOT_FILES = ['index.html', 'robots.txt', 'sitemap.xml', 'manifest.webmanifest', 'sw.js'];
+const ROOT_FILES = ['index.html', 'robots.txt', 'sitemap.xml', 'manifest.json', 'manifest.webmanifest', 'sw.js'];
 const ASSET_DIRS = ['assets'];
 
 function copyDir(from, to) {
@@ -65,7 +65,7 @@ for (const dir of ASSET_DIRS.concat(routeDirs())) {
 
 /* Materialise hierarchical /dashboard/<child>/ static pages so static hosts
    (Vercel, Netlify, etc.) serve them directly without rewrite ambiguity. */
-for (const child of ['notepad', 'quotation', 'invoice', 'knowledge', 'documents', 'leaf']) {
+for (const child of ['notepad', 'quotation', 'invoice', 'knowledge', 'documents', 'leaf', 'crm', 'activity', 'people']) {
   const srcHtml = path.join(outDir, child, 'index.html');
   if (fs.existsSync(srcHtml)) {
     const destDir = path.join(outDir, 'dashboard', child);

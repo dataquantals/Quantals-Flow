@@ -53,6 +53,14 @@ export const config = {
     syncSecret: process.env.SYNC_SECRET || '5a37ef7dd1a6cc08602bc1a6bb68f7e6045627efe7dd9caf110045c93ba81b0b'
   },
 
+  redis: {
+    // Remote Redis Cloud connection string (redis:// or rediss://).
+    // Leave unset to keep Redis disabled without impacting SQLite/Convex.
+    url: (process.env.REDIS_URL || '').trim(),
+    defaultTtlSeconds: Math.max(15, Number(process.env.REDIS_CACHE_TTL || 120)),
+    keyPrefix: (process.env.REDIS_KEY_PREFIX || 'qf').trim()
+  },
+
   clerk: {
     appId: process.env.CLERK_APP_ID || 'app_3J61UxGk74wsSiFkJfzJwBqbNUn',
     publishableKey:
@@ -95,6 +103,7 @@ export const config = {
 // Say so once at boot instead of failing silently on the first AI or Convex call.
 for (const [key, value] of [
   ['CONVEX_DEPLOY_KEY', config.convex.deployKey],
+  ['REDIS_URL', config.redis.url],
   ['DEEPSEEK_API_KEY', config.deepseekApiKey],
   ['OPENROUTER_API_KEY', config.openrouterApiKey]
 ]) {

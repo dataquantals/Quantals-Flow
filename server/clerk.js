@@ -92,5 +92,91 @@ export async function fetchClerkIdentity(clerkUserId) {
     throw new Error('Clerk email is not verified.');
   }
   const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
-  return { email: String(primary.email_address).trim().toLowerCase(), name };
+  return {
+    clerkUserId: String(user.id || clerkUserId),
+    email: String(primary.email_address).trim().toLowerCase(),
+    name,
+    avatarUrl: user.image_url || ''
+  };
+}
+
+/** Map QuantalFlow 6-role RBAC to Clerk Organization role keys */
+export function toClerkOrgRole(role) {
+  const r = String(role || 'MEMBER').toUpperCase();
+  if (r === 'OWNER' || r === 'ADMINISTRATOR') return 'org:admin';
+  return 'org:member';
+}
+
+/** Create a Clerk Organization (best-effort; returns null if Clerk secret is unset or unreachable) */
+export async function createClerkOrganization({ name, slug, createdBy, publicMetadata = {} }) {
+  if (!config.clerk.secretKey || !name) return null;
+  try {
+    const payload = {
+      name: String(name).trim().slice(0, 100),
+      ...(slug ? { slug: String(slug).toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 60) } : {}),
+      ...(createdBy ? { created_by: String(createdBy) } : {}),
+      public_metadata: publicMetadata
+    };
+    const res = await fetch('https://api.clerk.com/v1/organizations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.clerk.secretKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) return null;
+    const org = await res.json();
+    return org && org.id ? org : null;
+  } catch {
+    return null;
+  }
+}
+
+/** List Clerk Organization memberships for a Clerk user */
+export async function listClerkUserOrganizations(clerkUserId) {
+  if (!config.clerk.secretKey || !clerkUserId) return [];
+  try {
+    const res = await fetch(
+      `https://api.clerk.com/v1/users/${encodeURIComponent(clerkUserId)}/organization_memberships?limit=50`,
+      {
+        headers: { Authorization: `Bearer ${config.clerk.secretKey}` },
+        signal: AbortSignal.timeout(8000)
+      }
+    );
+    if (!res.ok) return [];
+    const body = await res.json();
+    return Array.isArray(body.data) ? body.data : Array.isArray(body) ? body : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Dispatch a Clerk Organization email invitation */
+export async function inviteClerkOrganizationMember({ clerkOrgId, emailAddress, inviterUserId, role = 'MEMBER', redirectUrl = '' }) {
+  if (!config.clerk.secretKey || !clerkOrgId || !emailAddress) return null;
+  try {
+    const res = await fetch(
+      `https://api.clerk.com/v1/organizations/${encodeURIComponent(clerkOrgId)}/invitations`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.clerk.secretKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email_address: String(emailAddress).trim().toLowerCase(),
+          role: toClerkOrgRole(role),
+          ...(inviterUserId ? { inviter_user_id: String(inviterUserId) } : {}),
+          ...(redirectUrl ? { redirect_url: redirectUrl } : {})
+        }),
+        signal: AbortSignal.timeout(8000)
+      }
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }

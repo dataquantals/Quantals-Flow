@@ -369,11 +369,11 @@
    QUANTALFLOW CANVAS APPLICATION STYLES (mirrors https://quantalflow.com/app)
    ================================================================== */
 .quantalflow-app-body {
-  margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden;
-  background: #f4f5f8; font-family: var(--font-ui); user-select: none;
+  margin: 0; padding: 0; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden;
+  background: #f4f5f8; font-family: var(--font-ui); user-select: none; -webkit-user-select: none;
 }
 .quantalflow-app {
-  position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  position: relative; width: 100vw; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
 }
 .quantalflow-topbar {
   height: 52px; background: #fff; border-bottom: 1px solid var(--line-soft);
@@ -616,8 +616,9 @@
 .quantalflow-topbar__right { display: flex; align-items: center; gap: 12px; }
 
 .quantalflow-viewport {
-  position: relative; flex: 1; width: 100%; height: calc(100vh - 52px);
+  position: relative; flex: 1; width: 100%; height: calc(100vh - 52px); height: calc(100dvh - 52px);
   overflow: hidden; cursor: default;
+  touch-action: none;
   background-color: #f5f6f9;
   background-image: radial-gradient(#cad1de 1.2px, transparent 1.2px);
   background-size: 24px 24px;
@@ -2156,7 +2157,7 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
 .dash-search-bar input::placeholder { color: var(--ink-soft); }
 .dash-body { overflow-x: clip; }
 .dash-layout {
-  display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: calc(100vh - 64px);
+  display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: calc(100vh - 64px); min-height: calc(100dvh - 64px);
   overflow-x: clip;
 }
 .dash-sidebar {

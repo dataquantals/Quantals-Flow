@@ -14,6 +14,22 @@ scripts: https://cdn.jsdelivr.net/npm/lucide@0.462.0/dist/umd/lucide.min.js, /as
       <span class="logo__word">QuantalFlow</span>
     </a>
 
+    <!-- Board-Linked Topnav Title & Workspace Switcher (shown when opened from a board workspace) -->
+    <div class="lf-board-switcher" id="leaf-board-bar" hidden>
+      <span class="lf-board-switcher__sep" aria-hidden="true">/</span>
+      <span class="lf-board-switcher__title" id="leaf-board-title">Workspace</span>
+      <div class="topbar-ws-dropdown" id="leaf-ws-dropdown">
+        <button class="topbar-ws-dropdown__btn" id="leaf-ws-dropdown-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="Switch workspace module">
+          <span class="topbar-ws-dropdown__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          </span>
+          <span class="topbar-ws-dropdown__label">Leaf</span>
+          <svg class="topbar-ws-dropdown__caret" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="topbar-ws-dropdown__menu" id="leaf-ws-dropdown-menu" role="menu" hidden></div>
+      </div>
+    </div>
+
     <div class="dash-search-bar">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <input type="search" id="leaf-top-search" placeholder="Search Leaf pages across all spaces (Enter)…" aria-label="Search Leaf pages" />
@@ -125,6 +141,14 @@ scripts: https://cdn.jsdelivr.net/npm/lucide@0.462.0/dist/umd/lucide.min.js, /as
         </a>
 
         <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item" id="nav-people" href="/dashboard/people/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>People &amp; Teams</span>
+        </a>
+        <a class="dash-nav__item" id="nav-activity" href="/dashboard/activity/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Activity Log</span>
+        </a>
 
         <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>

@@ -1,0 +1,52 @@
+/* ==========================================================================
+   People & Teams, Org Chart, Expert Finder, Billing & Memory (`assets/css/people.css`)
+   ========================================================================== */
+.ppl-main { max-width: 100%; min-width: 0; padding-bottom: 56px; }
+.ppl-hero { margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+.ppl-hero__row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.ppl-hero__meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ppl-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.ppl-pill--blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.ppl-pill--green { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+
+/* KPI Strip */
+.ppl-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.ppl-kpi { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 16px; }
+.ppl-kpi span { display: block; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
+.ppl-kpi strong { display: block; font-size: 24px; font-weight: 700; color: #0f172a; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+/* Tabs */
+.ppl-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; scrollbar-width: none; }
+.ppl-tabs::-webkit-scrollbar { display: none; }
+.ppl-tab { flex: none; padding: 9px 15px; border-radius: 10px; border: 0; background: transparent; color: #475569; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.ppl-tab.is-active { background: #eff6ff; color: #1d4ed8; }
+
+.ppl-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+.ppl-card h2 { margin: 0 0 12px; font-size: 17px; }
+.ppl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+/* Member & Expert Cards */
+.ppl-member { border: 1px solid #e2e8f0; border-radius: 14px; padding: 15px; background: #ffffff; display: flex; flex-direction: column; gap: 10px; }
+.ppl-member__top { display: flex; align-items: center; gap: 11px; }
+.ppl-av { width: 42px; height: 42px; border-radius: 999px; background: #e0e7ff; color: #3730a3; font-weight: 700; display: grid; place-items: center; flex: none; overflow: hidden; }
+.ppl-av img { width: 100%; height: 100%; object-fit: cover; }
+.ppl-member__name { font-weight: 700; font-size: 14.5px; color: #0f172a; display: block; }
+.ppl-member__sub { font-size: 12.5px; color: #64748b; display: block; }
+.ppl-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.ppl-tag { font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #f1f5f9; color: #334155; }
+.ppl-bar { height: 7px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+.ppl-bar > span { display: block; height: 100%; background: #2563eb; border-radius: 999px; }
+
+/* Org Hierarchy Tree */
+.ppl-org-node { border-left: 3px solid #2563eb; padding: 10px 14px; margin: 10px 0 10px 12px; background: #f8fafc; border-radius: 0 12px 12px 0; }
+.ppl-team-node { border-left: 3px solid #10b981; padding: 8px 12px; margin: 8px 0 8px 18px; background: #ffffff; border-radius: 0 10px 10px 0; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+
+/* Forms */
+.ppl-form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 14px; }
+.ppl-form-row input, .ppl-form-row select, .ppl-form-row textarea {
+  min-height: 40px; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font: inherit; font-size: 13.5px; background: #ffffff; color: #0f172a;
+}
+.ppl-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.ppl-plan { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.ppl-plan.is-current { border-color: #2563eb; background: #eff6ff; }
+.ppl-plan__price { font-size: 24px; font-weight: 800; color: #0f172a; }

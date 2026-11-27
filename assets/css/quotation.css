@@ -38,7 +38,9 @@
 .quote-actions .btn:active,
 .quote-dialog-actions .btn:active { transform: scale(0.97); }
 .quote-danger { color: #b42318; }
-.quote-danger:hover { background: #fef3f2; color: #912018; }
+@media (hover: hover) and (pointer: fine) {
+  .quote-danger:hover { background: #fef3f2; color: #912018; }
+}
 
 .quote-status {
   margin: 14px 0 0; font-size: 13px; color: var(--ink-soft);
@@ -79,9 +81,11 @@
 }
 .quote-sheet textarea { resize: vertical; line-height: 1.45; }
 .quote-sheet input::placeholder { color: #8a8f9c; }
-.quote-sheet input:hover,
-.quote-sheet select:hover,
-.quote-sheet textarea:hover { background: var(--quote-field); }
+@media (hover: hover) and (pointer: fine) {
+  .quote-sheet input:hover,
+  .quote-sheet select:hover,
+  .quote-sheet textarea:hover { background: var(--quote-field); }
+}
 .quote-sheet input:focus-visible,
 .quote-sheet select:focus-visible,
 .quote-sheet textarea:focus-visible {
@@ -188,7 +192,10 @@
   font-size: 18px; line-height: 1; cursor: pointer; padding: 0;
   transition: background-color .15s var(--ease), color .15s var(--ease);
 }
-.quote-rm:hover { background: #fef3f2; color: #b42318; }
+@media (hover: hover) and (pointer: fine) {
+  .quote-rm:hover { background: #fef3f2; color: #b42318; }
+}
+.quote-rm:active { background: #fef3f2; color: #b42318; transform: scale(0.94); }
 .quote-rm:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 
 /* Totals */
@@ -359,6 +366,19 @@
   }
 }
 @media (max-width: 768px) {
+  .quote-body {
+    overflow-x: clip;
+    -webkit-overflow-scrolling: touch;
+  }
+  .quote-main {
+    overflow-x: clip;
+    padding-bottom: calc(var(--qf-mob-nav-h, 62px) + env(safe-area-inset-bottom, 0px) + 32px);
+  }
+  .quote-sheet {
+    padding: 16px 14px;
+    gap: 18px;
+    border-radius: 14px;
+  }
   .quote-sheet input,
   .quote-sheet select,
   .quote-sheet textarea,
@@ -374,10 +394,49 @@
   .quote-actions .btn,
   .quote-dialog-actions .btn {
     min-height: 44px;
+    min-width: 44px;
   }
   .quote-table-wrap {
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+    margin-inline: -4px;
+    padding-inline: 4px;
   }
+  /* Thumb-friendly slide-up bottom sheet on mobile */
+  .quote-dialog-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .quote-dialog-card {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 14px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+    max-height: 88dvh;
+    overscroll-behavior: contain;
+    animation: quoteSheetSlideUp 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .quote-dialog-card::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    margin: 0 auto 14px;
+  }
+  .quote-dialog-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .quote-dialog-actions .btn {
+    width: 100%;
+  }
+}
+@keyframes quoteSheetSlideUp {
+  from { opacity: 0.7; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @media (max-width: 480px) {
   .quote-brand { flex-direction: column; align-items: stretch; }

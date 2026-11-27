@@ -16,9 +16,12 @@
     "seed": "node server/seed.js",
     "convex:push": "convex dev --once --env-file .env.convex-dev",
     "convex:backfill": "node scripts/convex-backfill.mjs",
+    "redis:verify": "node scripts/verify-redis.mjs",
     "test": "node --test server/tests/*.test.js"
   },
   "dependencies": {
-    "convex": "^1.46.0"
+    "convex": "^1.46.0",
+    "redis": "^6.4.0",
+    "redis-om": "^0.4.7"
   }
 }

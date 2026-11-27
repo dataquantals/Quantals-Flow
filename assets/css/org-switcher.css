@@ -1,0 +1,113 @@
+/* ==========================================================================
+   Global Multi-Tenant Organisation Switcher (`assets/css/org-switcher.css`)
+   ========================================================================== */
+.qf-org-sw {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+.qf-org-sw__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 11px 0 8px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 220px;
+}
+.qf-org-sw__badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+}
+.qf-org-sw__badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qf-org-sw__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qf-org-sw__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1150;
+  min-width: 260px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+.qf-org-sw__menu[hidden] {
+  display: none !important;
+}
+.qf-org-sw__hdr {
+  padding: 6px 10px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.qf-org-sw__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .qf-org-sw__item:hover {
+    background: #f1f5f9;
+  }
+}
+.qf-org-sw__item.is-active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+.qf-org-sw__role {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #334155;
+}
+.qf-org-sw__div {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 5px 4px;
+}
+@media (max-width: 640px) {
+  .qf-org-sw__btn { max-width: 145px; }
+}
