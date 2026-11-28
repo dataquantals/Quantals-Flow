@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="QuantalFlow" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="/manifest.json" />
+  <title>Receipt | QuantalFlow</title>
+  <meta name="description" content="Issue, record and print customer receipts. Saved to your QuantalFlow account." />
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/styles.css?v=53626842" />
+  <link rel="stylesheet" href="/assets/css/pages.css?v=6c89edac" />
+  <link rel="stylesheet" href="/assets/css/folder.css?v=57a2c866" />
+  <link rel="stylesheet" href="/assets/css/project-planning.css?v=18e59eab" />
+  <link rel="stylesheet" href="/assets/css/project-os.css?v=d070eb29" />
+  <link rel="stylesheet" href="/assets/css/whiteboard-suite.css?v=b695c494" />
+  <link rel="stylesheet" href="/assets/css/org-switcher.css?v=4006aa62" />
+  <link rel="stylesheet" href="/assets/css/mobile-ux.css?v=eb6295d5" />
+  <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
+  <script src="/assets/js/save-state.js?v=d063b18d"></script>
+  <script src="/assets/js/qf-dialog.js?v=d8c68d83"></script>
+  <script src="/assets/js/org-switcher.js?v=d382b83a" defer></script>
+  <script src="/assets/js/mobile-ux.js?v=91b8c7c0" defer></script>
+</head>
+<body class="dash-body quote-body invoice-body receipt-body">
+
+  <link rel="stylesheet" href="/assets/css/quotation.css?v=03d4c48e" />
+
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png?v=d12f8ae3" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span id="dash-profile-name">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <!-- Left Workspace Sidebar — mirrors dashboard.html & invoice.html -->
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="btn btn--blue dash-sidebar__create" href="/app/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </a>
+
+      <nav class="dash-nav" aria-label="Primary">
+        <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>All Boards</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/starred/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred Boards</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-notepad" href="/dashboard/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-knowledge" href="/dashboard/knowledge/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M12 18v-5"/></svg>
+          <span>Knowledge Hub</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>
+          <span>Whiteboarding</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
+          <span>Project Planning</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
+          <span>Mind Map</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+          <span>Kanban Board</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Perspective</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
+          <span>Brainstorm</span>
+        </a>
+
+        <a class="dash-nav__item" href="/resources/templates/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-documents" href="/dashboard/documents/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <span>Document Generation</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-leaf" href="/dashboard/leaf/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          <span>Leaf</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Other Services</div>
+
+        <a class="dash-nav__item" id="nav-crm" href="/dashboard/crm/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M21 20c0-2.5-1.5-4-4-4.6"/></svg>
+          <span>CRM</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/quotation/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Quotation</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-invoice" href="/dashboard/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
+        </a>
+
+        <a class="dash-nav__item is-active" id="nav-receipt" href="/dashboard/receipt/" aria-current="page" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8"/><path d="M8 12h6"/><path d="m9 16 2 2 4-4"/></svg>
+          <span>Receipt</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item" id="nav-memory" href="/dashboard/memory/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.8 1.6 5.2 4 6.3V18a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.7c2.4-1.1 4-3.5 4-6.3a7 7 0 0 0-7-7Z"/><path d="M9 22h6"/></svg>
+          <span>Organisational Memory</span>
+        </a>
+        <a class="dash-nav__item" id="nav-people" href="/dashboard/people/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>People &amp; Teams</span>
+        </a>
+        <a class="dash-nav__item" id="nav-activity" href="/dashboard/activity/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Activity Log</span>
+        </a>
+        <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Team Members</span>
+        </a>
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Profile &amp; Settings</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="dash quote-main">
+      <section class="dash__hero quote-hero">
+        <div class="quote-hero__row">
+          <div>
+            <h1>Receipt</h1>
+            <p>Issue a customer receipt, then print it or save it as a PDF. Every change saves to your account.</p>
+          </div>
+          <div class="quote-actions" role="toolbar" aria-label="Receipt actions">
+            <button class="btn btn--blue" id="addRow" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Add Line</span>
+            </button>
+            <button class="btn btn--ghost" id="downloadPdf" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Download</span>
+            </button>
+            <button class="btn btn--ghost" id="addStamp" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>Add Stamp</span>
+            </button>
+            <button class="btn btn--ghost" id="newQ" type="button">New Receipt</button>
+            <button class="btn btn--ghost quote-danger" id="reset" type="button">Reset to Sample</button>
+          </div>
+        </div>
+        <p class="quote-status" id="status" role="status" aria-live="polite">Loading your receipt&hellip;</p>
+      </section>
+
+      <div class="quote-sheet" id="sheet">
+        <div class="quote-head">
+          <div class="quote-brand">
+            <div class="quote-logo-wrap">
+              <button class="quote-logo-btn" id="logoUploadBtn" type="button" title="Click to replace logo from your device" aria-label="Change company logo">
+                <img id="quoteLogoImg" src="/assets/img/quotation-logo.jpg?v=cf8d49b3" alt="Company logo" width="84" height="53" crossorigin="anonymous" />
+                <span class="quote-logo-overlay" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Change</span>
+                </span>
+              </button>
+              <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden />
+            </div>
+            <div class="quote-brand-info">
+              <h2 class="quote-co"><input id="coName" data-k="coName" aria-label="Company name" /></h2>
+              <div class="quote-tag"><input data-k="tagline" aria-label="Tagline" /></div>
+              <div class="quote-addr">
+                <input data-k="coAddr1" aria-label="Company address line 1" />
+                <input data-k="coAddr2" aria-label="Company address line 2" />
+                <input data-k="coPhone" aria-label="Company phone" />
+              </div>
+            </div>
+          </div>
+          <div class="quote-doc">
+            <h2 class="quote-title">Receipt</h2>
+            <div class="quote-kv">
+              <label for="date">Date</label><input type="date" id="date" data-k="date" />
+              <label for="qno">Receipt #</label><input id="qno" data-k="qno" />
+              <label for="cid">TPIN/ID</label><input id="cid" data-k="cid" />
+            </div>
+          </div>
+        </div>
+
+        <div class="quote-two">
+          <div class="quote-block">
+            <span class="quote-lbl">Received from</span>
+            <input data-k="toName" aria-label="Contact name" placeholder="Contact name" />
+            <input data-k="toOrg" aria-label="Organisation" placeholder="Organisation" />
+            <input data-k="toAddr1" aria-label="Customer address line 1" placeholder="Address line 1" />
+            <input data-k="toAddr2" aria-label="Customer address line 2" placeholder="Address line 2" />
+            <input data-k="toPhone" aria-label="Customer phone" placeholder="Phone" />
+          </div>
+          <div class="quote-kv quote-kv--top">
+            <label for="valid">Payment date</label><input type="date" id="valid" data-k="valid" />
+            <label for="prep">Prepared by</label><input id="prep" data-k="prep" />
+          </div>
+        </div>
+
+        <div class="quote-block">
+          <span class="quote-lbl">Comments or payment details</span>
+          <textarea data-k="comments" rows="2" aria-label="Comments or payment details"></textarea>
+        </div>
+
+        <div class="quote-strip">
+          <div><span class="quote-lbl">Salesperson</span><input data-k="sales" aria-label="Salesperson" /></div>
+          <div><span class="quote-lbl">P.O. number</span><input data-k="po" aria-label="Purchase order number" /></div>
+          <div><span class="quote-lbl">Ship date</span><input data-k="shipDate" aria-label="Ship date" /></div>
+          <div><span class="quote-lbl">Ship via</span><input data-k="shipVia" aria-label="Ship via" /></div>
+          <div><span class="quote-lbl">F.O.B. point</span><input data-k="fob" aria-label="F.O.B. point" /></div>
+          <div><span class="quote-lbl">Payment method</span><input data-k="terms" aria-label="Payment method" /></div>
+        </div>
+
+        <div class="quote-table-wrap">
+          <table class="quote-table">
+            <thead>
+              <tr>
+                <th scope="col" style="width:90px">Quantity</th>
+                <th scope="col">Description</th>
+                <th scope="col" class="n" style="width:130px">Unit price</th>
+                <th scope="col" class="c" style="width:78px">Taxable</th>
+                <th scope="col" class="n" style="width:140px">Amount</th>
+                <th scope="col" style="width:40px"><span class="quote-sr">Remove</span></th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div class="quote-bottom">
+          <div class="quote-block">
+            <span class="quote-lbl">Notes</span>
+            <textarea data-k="notes" rows="3" aria-label="Notes"></textarea>
+          </div>
+          <div class="quote-tot">
+            <span class="quote-lbl">Subtotal</span><span class="v" id="sub"></span>
+            <span class="quote-lbl"><label for="rate">Tax rate (%)</label></span><span class="v"><input type="number" id="rate" min="0" step="0.1" inputmode="decimal" /></span>
+            <span class="quote-lbl">Sales tax</span><span class="v" id="tax"></span>
+            <span class="quote-lbl"><label for="other">Other</label></span><span class="v"><input type="number" id="other" step="0.01" inputmode="decimal" /></span>
+            <span class="quote-lbl quote-grand">Total Paid</span><span class="v quote-grand" id="total"></span>
+          </div>
+        </div>
+
+        <div class="quote-foot"><input data-k="footer" aria-label="Footer message" /></div>
+
+        <!-- Draggable & Resizable PAID Stamp Overlay -->
+        <div class="receipt-stamp" id="receiptStamp" hidden tabindex="0" role="group" aria-label="PAID stamp — drag to move, drag corners to resize">
+          <img id="receiptStampImg" src="/assets/img/paid-stamp.png?v=a20da4c4" alt="PAID stamp" draggable="false" crossorigin="anonymous" />
+          <button type="button" class="receipt-stamp__remove" id="removeStamp" aria-label="Remove stamp" title="Remove stamp">&times;</button>
+          <span class="receipt-stamp__handle receipt-stamp__handle--nw" data-resize="nw" aria-hidden="true"></span>
+          <span class="receipt-stamp__handle receipt-stamp__handle--ne" data-resize="ne" aria-hidden="true"></span>
+          <span class="receipt-stamp__handle receipt-stamp__handle--sw" data-resize="sw" aria-hidden="true"></span>
+          <span class="receipt-stamp__handle receipt-stamp__handle--se" data-resize="se" aria-hidden="true"></span>
+        </div>
+      </div>
+
+      <!-- Download Filename Prompt Modal (Apple HIG Style) -->
+      <div class="quote-dialog-overlay" id="downloadDialog" hidden role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+        <div class="quote-dialog-card">
+          <div class="quote-dialog-header">
+            <div class="quote-dialog-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div>
+              <h3 class="quote-dialog-title" id="dialogTitle">Download Receipt</h3>
+              <p class="quote-dialog-desc">Enter the name for the PDF file to be downloaded:</p>
+            </div>
+          </div>
+
+          <form id="downloadForm" class="quote-dialog-form" onsubmit="return false;">
+            <label for="pdfFilename" class="quote-dialog-label">File Name</label>
+            <div class="quote-dialog-input-wrap">
+              <input type="text" id="pdfFilename" class="quote-dialog-input" required autocomplete="off" spellcheck="false" placeholder="Receipt-000001.pdf" />
+            </div>
+            <p class="quote-dialog-hint">The file will be downloaded directly as a PDF.</p>
+
+            <div class="quote-dialog-actions">
+              <button type="button" class="btn btn--ghost" id="cancelDownload">Cancel</button>
+              <button type="submit" class="btn btn--blue" id="confirmDownload">Download</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script src="/assets/js/workspace-nav.js?v=47b25d34"></script>
+  <script src="/assets/js/workspace-router.js?v=bc8ff12c"></script>
+  <script src="/assets/js/html2pdf.bundle.min.js?v=26625c79"></script>
+  <script src="/assets/js/receipt.js?v=c87b4288"></script>
+</body>
+</html>

@@ -32,13 +32,16 @@ const DASHBOARD_CHILD_PAGES = {
   notepad: path.join(config.root, 'notepad', 'index.html'),
   quotation: path.join(config.root, 'quotation', 'index.html'),
   invoice: path.join(config.root, 'invoice', 'index.html'),
+  receipt: path.join(config.root, 'receipt', 'index.html'),
   knowledge: path.join(config.root, 'knowledge', 'index.html'),
   documents: path.join(config.root, 'documents', 'index.html'),
   os: path.join(config.root, 'documents', 'index.html'),
   leaf: path.join(config.root, 'leaf', 'index.html'),
   crm: path.join(config.root, 'crm', 'index.html'),
   activity: path.join(config.root, 'activity', 'index.html'),
-  people: path.join(config.root, 'people', 'index.html')
+  people: path.join(config.root, 'people', 'index.html'),
+  memory: path.join(config.root, 'memory', 'index.html'),
+  templates: path.join(config.root, 'resources', 'templates', 'index.html')
 };
 
 // Sweep expired sessions hourly so the table does not grow without bound.
@@ -211,6 +214,9 @@ export async function handleApi(req, res) {
   if (pathname === '/api/invoice' && req.method === 'GET') return api.getInvoiceApi(req, res);
   if (pathname === '/api/invoice' && req.method === 'PUT') return api.saveInvoiceApi(req, res);
   if (pathname === '/api/invoice/logo' && req.method === 'POST') return api.uploadInvoiceLogoApi(req, res);
+  if (pathname === '/api/receipt' && req.method === 'GET') return api.getReceiptApi(req, res);
+  if (pathname === '/api/receipt' && req.method === 'PUT') return api.saveReceiptApi(req, res);
+  if (pathname === '/api/receipt/logo' && req.method === 'POST') return api.uploadReceiptLogoApi(req, res);
   if (pathname === '/api/notepad' && req.method === 'GET') return api.getNotepadApi(req, res);
   if (pathname === '/api/notepad' && req.method === 'PUT') return api.saveNotepadApi(req, res);
   if (pathname === '/api/knowledge' && req.method === 'GET') return api.getKnowledgeHubApi(req, res);
@@ -253,6 +259,21 @@ export async function handleApi(req, res) {
     if (req.method === 'DELETE') return api.removeOrgMemberApi(req, res, uid);
   }
   if (pathname === '/api/orgs/current/memory' && req.method === 'POST') return api.addOrgMemoryApi(req, res);
+
+  /* ---- Organisational Memory Engine API ---- */
+  if (pathname === '/api/memory' && req.method === 'GET') return api.listMemoryApi(req, res);
+  if (pathname === '/api/memory' && req.method === 'POST') return api.createMemoryApi(req, res);
+  if (pathname === '/api/memory/synthesize' && req.method === 'POST') return api.synthesizeMemoryApi(req, res);
+  if (pathname === '/api/memory/ask' && req.method === 'POST') return api.askMemoryAssistantApi(req, res);
+  if (pathname === '/api/memory/settings' && req.method === 'GET') return api.getMemorySettingsApi(req, res);
+  if (pathname === '/api/memory/settings' && req.method === 'PATCH') return api.updateMemorySettingsApi(req, res);
+  const memoryItemMatch = pathname.match(/^\/api\/memory\/([^/]+)$/);
+  if (memoryItemMatch) {
+    const mid = decodeURIComponent(memoryItemMatch[1]);
+    if (req.method === 'GET') return api.getMemoryDetailApi(req, res, mid);
+    if (req.method === 'PATCH') return api.updateMemoryApi(req, res, mid);
+    if (req.method === 'DELETE') return api.deleteMemoryApi(req, res, mid);
+  }
   if (pathname === '/api/leads' && req.method === 'POST') return api.createLeadApi(req, res);
   if (pathname === '/api/documents/generate' && req.method === 'POST') return api.generateDocumentApi(req, res);
   if (pathname === '/api/documents/ai-edit' && req.method === 'POST') return api.aiEditDocumentApi(req, res);
@@ -290,7 +311,7 @@ export async function handleApi(req, res) {
 
 // Signed-in-only routes. The dashboard shell renders nothing without a
 // session, so gate it here rather than letting the page flash and bounce.
-const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/notepad', '/knowledge', '/documents', '/os', '/leaf', '/crm', '/activity', '/people', '/onboarding'];
+const protectedRoutes = ['/dashboard', '/profile', '/files', '/quotation', '/invoice', '/receipt', '/notepad', '/knowledge', '/documents', '/os', '/leaf', '/crm', '/activity', '/people', '/memory', '/onboarding'];
 
 function isProtected(pathname) {
   return protectedRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));
@@ -362,8 +383,8 @@ const server = http.createServer(async (req, res) => {
       if (isNavigation && APP_NESTED_ROUTE_RE.test(pathname) && fs.existsSync(appShellPage)) {
         return sendFile(res, appShellPage);
       }
-      // Dedicated child modules under /dashboard/<module>/ (notepad, quotation, invoice, knowledge, documents, os)
-      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice|knowledge|documents|os|leaf|crm|activity|people)(\/)?$/);
+      // Dedicated child modules under /dashboard/<module>/
+      const dashChildMatch = isNavigation && pathname.match(/^\/dashboard\/(notepad|quotation|invoice|receipt|knowledge|documents|os|leaf|crm|activity|people|memory|templates)(\/)?$/);
       if (dashChildMatch) {
         const childKey = dashChildMatch[1];
         const childFile = DASHBOARD_CHILD_PAGES[childKey];

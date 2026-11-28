@@ -51,7 +51,7 @@
   function sample() {
     var today = todayIso();
     return {
-      coName: 'Quantals Solution', tagline: 'Delivering the Best',
+      coName: 'Data Quantals Solutions', tagline: 'Delivering the Best',
       coAddr1: 'PHI off Great East Road', coAddr2: 'Lusaka Zambia', coPhone: 'Phone +260977445615',
       date: today, qno: generateDocNumber(''), cid: '', valid: addDaysIso(today, VALID_DAYS), prep: 'Richard Mumba',
       toName: 'Purchasing Officer', toOrg: 'ZESCO', toAddr1: 'Great East Road', toAddr2: 'Lusaka Zambia', toPhone: '',
@@ -523,7 +523,7 @@
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(15);
     pdf.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-    pdf.text(String(data.coName || 'Quantals Solution'), coX, y + 3);
+    pdf.text(String(data.coName || 'Data Quantals Solutions'), coX, y + 3);
     hLine(coX, coR, y + 5, LINE);
 
     pdf.setFont('helvetica', 'bold');
@@ -957,6 +957,7 @@
         var fresh = !isValidQuotation(saved);
         S = fresh ? sample() : saved;
         var autoFilled = false;
+        if (S.coName === 'Quantals Solution') { S.coName = 'Data Quantals Solutions'; autoFilled = true; }
         if (!S.date || !/^\d{4}-\d{2}-\d{2}$/.test(S.date)) { S.date = todayIso(); autoFilled = true; }
         if (!S.valid || !/^\d{4}-\d{2}-\d{2}$/.test(S.valid)) { S.valid = addDaysIso(S.date, VALID_DAYS); autoFilled = true; }
         if (!S.qno || !String(S.qno).trim()) { S.qno = generateDocNumber(''); autoFilled = true; }

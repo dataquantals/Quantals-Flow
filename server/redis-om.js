@@ -1,4 +1,3 @@
-import { Schema, Repository } from 'redis-om';
 import { getRedisClient } from './redis.js';
 
 /**
@@ -8,7 +7,27 @@ import { getRedisClient } from './redis.js';
  *  1. Boards (`qf:board`)        — instant full-text search across board titles & categories
  *  2. CRM Contacts (`qf:crm_contact`) — fast full-text + status/tag search without hitting Convex
  *  3. Leaf Pages (`qf:leaf_page`) — instant full-text search across Leaf collaborative docs
+ *
+ * `redis-om` (and, transitively, `redis`) is loaded lazily so that an absent or
+ * partially-installed optional Redis layer never prevents the server — and its
+ * SQLite + Convex path — from booting. See server/redis.js for the same policy.
  */
+
+let redisOm = null;
+let redisOmLoadFailed = false;
+
+async function loadRedisOm() {
+  if (redisOm) return redisOm;
+  if (redisOmLoadFailed) return null;
+  try {
+    redisOm = await import('redis-om');
+    return redisOm;
+  } catch (err) {
+    redisOmLoadFailed = true;
+    console.warn('[redis-om] redis-om module unavailable — Redis search disabled:', err && err.message);
+    return null;
+  }
+}
 
 const BOARD_FIELDS = {
   boardId: { type: 'string' },
@@ -18,8 +37,6 @@ const BOARD_FIELDS = {
   starred: { type: 'boolean' },
   updatedAt: { type: 'number', sortable: true }
 };
-
-export const BoardSchema = new Schema('qf:board', BOARD_FIELDS, { dataStructure: 'JSON' });
 
 const CRM_CONTACT_FIELDS = {
   contactId: { type: 'string' },
@@ -36,8 +53,6 @@ const CRM_CONTACT_FIELDS = {
   updatedAt: { type: 'number', sortable: true }
 };
 
-export const CrmContactSchema = new Schema('qf:crm_contact', CRM_CONTACT_FIELDS, { dataStructure: 'JSON' });
-
 const LEAF_PAGE_FIELDS = {
   pageId: { type: 'string' },
   userId: { type: 'string' },
@@ -47,8 +62,6 @@ const LEAF_PAGE_FIELDS = {
   snippet: { type: 'text' },
   updatedAt: { type: 'number', sortable: true }
 };
-
-export const LeafPageSchema = new Schema('qf:leaf_page', LEAF_PAGE_FIELDS, { dataStructure: 'JSON' });
 
 const OM_GLOBAL_KEY = '__qfRedisOm';
 
@@ -61,6 +74,16 @@ function getOmState() {
     };
   }
   return globalThis[OM_GLOBAL_KEY];
+}
+
+/** Build the redis-om schemas on first use (requires the lazily loaded module). */
+function buildSchemas() {
+  const { Schema } = redisOm;
+  return {
+    board: new Schema('qf:board', BOARD_FIELDS, { dataStructure: 'JSON' }),
+    crmContact: new Schema('qf:crm_contact', CRM_CONTACT_FIELDS, { dataStructure: 'JSON' }),
+    leafPage: new Schema('qf:leaf_page', LEAF_PAGE_FIELDS, { dataStructure: 'JSON' })
+  };
 }
 
 async function ensureIndex(client, repo, schema, fields) {
@@ -101,23 +124,30 @@ export async function getRepositories() {
   const client = await getRedisClient();
   if (!client) return null;
 
+  const om = await loadRedisOm();
+  if (!om) return null;
+
   const state = getOmState();
   if (!state.repos || state.repos._client !== client) {
+    const { Repository } = om;
+    const schemas = buildSchemas();
     state.repos = {
       _client: client,
-      boards: new Repository(BoardSchema, client),
-      crmContacts: new Repository(CrmContactSchema, client),
-      leafPages: new Repository(LeafPageSchema, client)
+      schemas,
+      boards: new Repository(schemas.board, client),
+      crmContacts: new Repository(schemas.crmContact, client),
+      leafPages: new Repository(schemas.leafPage, client)
     };
     state.indexesReady = false;
   }
 
   if (!state.indexesReady) {
     if (!state.indexPromise) {
+      const schemas = state.repos.schemas;
       state.indexPromise = Promise.allSettled([
-        ensureIndex(client, state.repos.boards, BoardSchema, BOARD_FIELDS),
-        ensureIndex(client, state.repos.crmContacts, CrmContactSchema, CRM_CONTACT_FIELDS),
-        ensureIndex(client, state.repos.leafPages, LeafPageSchema, LEAF_PAGE_FIELDS)
+        ensureIndex(client, state.repos.boards, schemas.board, BOARD_FIELDS),
+        ensureIndex(client, state.repos.crmContacts, schemas.crmContact, CRM_CONTACT_FIELDS),
+        ensureIndex(client, state.repos.leafPages, schemas.leafPage, LEAF_PAGE_FIELDS)
       ])
         .then(() => { state.indexesReady = true; })
         .catch(() => {})

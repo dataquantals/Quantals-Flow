@@ -65,7 +65,7 @@ for (const dir of ASSET_DIRS.concat(routeDirs())) {
 
 /* Materialise hierarchical /dashboard/<child>/ static pages so static hosts
    (Vercel, Netlify, etc.) serve them directly without rewrite ambiguity. */
-for (const child of ['notepad', 'quotation', 'invoice', 'knowledge', 'documents', 'leaf', 'crm', 'activity', 'people']) {
+for (const child of ['notepad', 'quotation', 'invoice', 'receipt', 'knowledge', 'documents', 'leaf', 'crm', 'activity', 'people', 'memory']) {
   const srcHtml = path.join(outDir, child, 'index.html');
   if (fs.existsSync(srcHtml)) {
     const destDir = path.join(outDir, 'dashboard', child);
@@ -73,6 +73,13 @@ for (const child of ['notepad', 'quotation', 'invoice', 'knowledge', 'documents'
     fs.copyFileSync(srcHtml, path.join(destDir, 'index.html'));
     copied.push(`dashboard/${child}/index.html`);
   }
+}
+const tplSrcHtml = path.join(outDir, 'resources', 'templates', 'index.html');
+if (fs.existsSync(tplSrcHtml)) {
+  const tplDestDir = path.join(outDir, 'dashboard', 'templates');
+  fs.mkdirSync(tplDestDir, { recursive: true });
+  fs.copyFileSync(tplSrcHtml, path.join(tplDestDir, 'index.html'));
+  copied.push('dashboard/templates/index.html');
 }
 
 /* Vercel serves `404.html` for unmatched paths. */

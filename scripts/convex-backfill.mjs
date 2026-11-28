@@ -39,6 +39,15 @@ const preferences = db
 const quotations = db
   .prepare('SELECT user_id, data_json, updated_at FROM user_quotations WHERE user_id IS NOT NULL')
   .all();
+const invoices = db
+  .prepare('SELECT user_id, data_json, updated_at FROM user_invoices WHERE user_id IS NOT NULL')
+  .all();
+const receipts = db
+  .prepare('SELECT user_id, data_json, updated_at FROM user_receipts WHERE user_id IS NOT NULL')
+  .all();
+const notepads = db
+  .prepare('SELECT user_id, notes_json, updated_at FROM user_notepads WHERE user_id IS NOT NULL')
+  .all();
 
 const parse = (raw) => {
   try {
@@ -166,6 +175,39 @@ for (const q of quotations) {
       userId: String(q.user_id),
       quotationJson: String(q.data_json || '{}'),
       updatedAt: Number(q.updated_at || Date.now())
+    })
+  );
+}
+
+console.log('invoices');
+for (const inv of invoices) {
+  await step(`invoice for user ${inv.user_id}`, () =>
+    convexMutation('invoices:upsertInvoice', {
+      userId: String(inv.user_id),
+      invoiceJson: String(inv.data_json || '{}'),
+      updatedAt: Number(inv.updated_at || Date.now())
+    })
+  );
+}
+
+console.log('receipts');
+for (const rcp of receipts) {
+  await step(`receipt for user ${rcp.user_id}`, () =>
+    convexMutation('receipts:upsertReceipt', {
+      userId: String(rcp.user_id),
+      receiptJson: String(rcp.data_json || '{}'),
+      updatedAt: Number(rcp.updated_at || Date.now())
+    })
+  );
+}
+
+console.log('notepads');
+for (const np of notepads) {
+  await step(`notepad for user ${np.user_id}`, () =>
+    convexMutation('notepad:saveNotes', {
+      userId: String(np.user_id),
+      notesJson: String(np.notes_json || '[]'),
+      updatedAt: Number(np.updated_at || Date.now())
     })
   );
 }

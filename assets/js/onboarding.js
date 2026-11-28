@@ -27,14 +27,37 @@
     { name: 'Learning Centre', desc: 'Onboarding, SOPs & team training' }
   ];
 
+  var GEO = window.QFWorldGeo || { industries: [], countries: [] };
+  var detectedTz = (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } })();
+  var detectedCountryObj = GEO.countries.find(function (c) { return c.tz.indexOf(detectedTz) !== -1; }) || null;
+
+  function formatTzOption(tz) {
+    try {
+      var now = new Date();
+      var off = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' })
+        .formatToParts(now)
+        .find(function (p) { return p.type === 'timeZoneName'; });
+      var timeStr = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+      return tz.replace(/_/g, ' ') + ' (' + (off ? off.value : 'UTC') + ' · ' + timeStr + ')';
+    } catch {
+      return tz;
+    }
+  }
+
+  function getTimezonesForCountry(countryName) {
+    var found = GEO.countries.find(function (c) { return c.name === countryName; });
+    if (found && found.tz && found.tz.length) return found.tz;
+    return [detectedTz || 'UTC', 'UTC'];
+  }
+
   var step = 1;
   var state = {
     name: '',
     logoUrl: '',
     industry: '',
-    country: '',
-    timezone: (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } })(),
-    teamSize: '1-10',
+    country: detectedCountryObj ? detectedCountryObj.name : '',
+    timezone: detectedCountryObj ? (detectedCountryObj.tz.indexOf(detectedTz) !== -1 ? detectedTz : detectedCountryObj.tz[0]) : detectedTz,
+    teamSize: '2-10',
     website: '',
     description: '',
     orgType: 'Business',
@@ -72,14 +95,31 @@
     updateStepper();
 
     if (step === 1) {
+      var tzList = getTimezonesForCountry(state.country);
+      if (tzList.indexOf(state.timezone) === -1) state.timezone = tzList[0];
+
       bodyEl.innerHTML =
         '<h1>Create Your Organisation</h1>' +
         '<p class="ob-sub">Set up your isolated multi-tenant workspace backed by Clerk Organisations.</p>' +
         '<div class="ob-grid">' +
           '<div class="ob-field ob-field--full"><label for="ob-name">Organisation Name *</label><input id="ob-name" value="' + esc(state.name) + '" placeholder="e.g. Data Quantals Solution, University of Lusaka" required /></div>' +
-          '<div class="ob-field"><label for="ob-industry">Industry</label><input id="ob-industry" value="' + esc(state.industry) + '" placeholder="e.g. Technology, Education, Healthcare" /></div>' +
-          '<div class="ob-field"><label for="ob-country">Country</label><input id="ob-country" value="' + esc(state.country) + '" placeholder="e.g. Zambia, United Kingdom, USA" /></div>' +
-          '<div class="ob-field"><label for="ob-tz">Timezone</label><input id="ob-tz" value="' + esc(state.timezone) + '" /></div>' +
+          '<div class="ob-field"><label for="ob-industry">Industry</label><select id="ob-industry">' +
+            '<option value="">Select Industry…</option>' +
+            GEO.industries.map(function (ind) {
+              return '<option value="' + esc(ind) + '"' + (state.industry === ind ? ' selected' : '') + '>' + esc(ind) + '</option>';
+            }).join('') +
+          '</select></div>' +
+          '<div class="ob-field"><label for="ob-country">Country</label><select id="ob-country">' +
+            '<option value="">Select Country…</option>' +
+            GEO.countries.map(function (c) {
+              return '<option value="' + esc(c.name) + '"' + (state.country === c.name ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+            }).join('') +
+          '</select></div>' +
+          '<div class="ob-field"><label for="ob-tz">Timezone</label><select id="ob-tz">' +
+            tzList.map(function (tz) {
+              return '<option value="' + esc(tz) + '"' + (state.timezone === tz ? ' selected' : '') + '>' + esc(formatTzOption(tz)) + '</option>';
+            }).join('') +
+          '</select></div>' +
           '<div class="ob-field"><label for="ob-size">Team Size</label><select id="ob-size">' +
             ['1 (Solo)', '2-10', '11-50', '51-250', '251-1000', '1000+'].map(function (s) {
               return '<option value="' + esc(s) + '"' + (state.teamSize === s ? ' selected' : '') + '>' + esc(s) + '</option>';
@@ -89,6 +129,22 @@
           '<div class="ob-field"><label for="ob-logo">Organisation Logo URL (optional)</label><input id="ob-logo" type="url" value="' + esc(state.logoUrl) + '" placeholder="https://.../logo.png" /></div>' +
           '<div class="ob-field ob-field--full"><label for="ob-desc">Description</label><textarea id="ob-desc" rows="2" placeholder="What does your organisation build or deliver?">' + esc(state.description) + '</textarea></div>' +
         '</div>';
+
+      var countrySel = document.getElementById('ob-country');
+      var tzSel = document.getElementById('ob-tz');
+      if (countrySel && tzSel) {
+        countrySel.addEventListener('change', function () {
+          state.country = countrySel.value;
+          var nextTzs = getTimezonesForCountry(state.country);
+          state.timezone = nextTzs[0];
+          tzSel.innerHTML = nextTzs.map(function (tz) {
+            return '<option value="' + esc(tz) + '"' + (state.timezone === tz ? ' selected' : '') + '>' + esc(formatTzOption(tz)) + '</option>';
+          }).join('');
+        });
+        tzSel.addEventListener('change', function () {
+          state.timezone = tzSel.value;
+        });
+      }
     } else if (step === 2) {
       bodyEl.innerHTML =
         '<h1>Select Organisation Type</h1>' +

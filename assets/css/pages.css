@@ -2167,6 +2167,23 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
 .dash-sidebar__scroll {
   display: flex; flex-direction: column; gap: 16px; flex: 1 1 auto; min-height: 0;
 }
+@media (min-width: 961px) {
+  .dash-sidebar {
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    overflow: hidden;
+  }
+  .dash-sidebar__scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  .dash-sidebar__footer {
+    flex-shrink: 0;
+  }
+}
 .dash-sidebar__create { width: 100%; justify-content: center; gap: 8px; min-height: 40px; }
 .dash-nav { display: flex; flex-direction: column; gap: 3px; }
 .dash-nav__item {
@@ -2418,7 +2435,7 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
   display: flex; gap: 4px; z-index: 2;
 }
 .dash-card__actions .dash-icon-btn {
-  opacity: 0; pointer-events: none;
+  opacity: 0.78; pointer-events: auto;
   transition: opacity .16s var(--ease), background-color .16s var(--ease), color .16s var(--ease);
 }
 .dash-card--interactive:hover .dash-card__actions .dash-icon-btn,
@@ -2539,7 +2556,7 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
 .dash-drawer-user__name {
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--ink);
+  color: #f8fafc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2547,7 +2564,7 @@ body.is-presenting .quantalflow-viewport { height: 100vh; }
 .dash-drawer-user__role {
   font-size: 11.5px;
   font-weight: 500;
-  color: var(--ink-soft);
+  color: #94a3b8;
 }
 .dash-drawer-footer__actions {
   display: grid;

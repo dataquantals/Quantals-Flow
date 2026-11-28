@@ -144,6 +144,7 @@
     var qBoard = params.get('board');
     var qMod = (params.get('module') || '').toLowerCase();
     var qTpl = (params.get('template') || '').toLowerCase();
+    var qSpecTpl = params.get('tpl') || params.get('edraw') || '';
     var explicitMod = (PROJECT_MODULES.indexOf(qMod) !== -1) ? qMod : ((PROJECT_MODULES.indexOf(qTpl) !== -1) ? qTpl : '');
 
     var segments = String(pathname || '/app/')
@@ -160,6 +161,7 @@
       return {
         boardId: qBoard,
         template: explicitMod || qTpl,
+        tplId: qSpecTpl,
         explicitModule: explicitMod,
         needsCanonicalReplace: true
       };
@@ -169,6 +171,7 @@
       return {
         boardId: 'new-collaborative-board',
         template: explicitMod || qTpl,
+        tplId: qSpecTpl,
         explicitModule: explicitMod,
         needsCanonicalReplace: false
       };
@@ -227,7 +230,18 @@
   var initialRoute = parseAppRoute(window.location.pathname, window.location.search);
   var boardId = initialRoute.boardId;
   var initialTemplate = initialRoute.template;
+  var initialSpecificTplId = initialRoute.tplId || '';
   currentActiveModule = initialRoute.explicitModule || DEFAULT_WORKSPACE_MODULE;
+
+  function readPendingTemplateBundle(id) {
+    if (!id) return null;
+    try {
+      var raw = sessionStorage.getItem('qf_pending_tpl_' + id);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
 
   /* ---------- Canvas State ---------- */
   var currentTool = 'select'; // select, hand, sticky, shape, connector, text, frame, pen, comment, icon, clipart
@@ -3934,6 +3948,20 @@
     syncEmptyBoardStarter();
     if (window.ProjectPlanningSuite) window.ProjectPlanningSuite.close();
     var existingWb = (boardModules.whiteboard && boardModules.whiteboard.whiteboardState) ? boardModules.whiteboard.whiteboardState : null;
+    if (!existingWb && loadedStateRef && loadedStateRef.isBlank && window.QFTemplateBlueprints) {
+      existingWb = window.QFTemplateBlueprints.createBlankWhiteboardState(boardTitle);
+    }
+    if (!existingWb && window.QFTemplateBlueprints) {
+      var tplHint = (loadedStateRef && loadedStateRef.selectedTemplate) || initialSpecificTplId || '';
+      if (tplHint) {
+        var synth = window.QFTemplateBlueprints.buildWorkspaceBundle({
+          id: tplHint,
+          title: boardTitle || 'Visual Strategy Workspace',
+          module: 'whiteboard'
+        });
+        existingWb = synth.whiteboardState;
+      }
+    }
     window.WhiteboardSuite.open(boardId, boardTitle || 'Visual Strategy Workspace', existingWb, {
       getCaps: function () { return currentBoardCaps; },
       onToast: function (msg) { showToast(msg); },
@@ -4147,12 +4175,24 @@
           }
 
           var moduleSpecificState = boardModules[currentActiveModule];
+          if (moduleSpecificState && moduleSpecificState.isBlank) {
+            starterDismissedByUser = true;
+            syncEmptyBoardStarter();
+            return;
+          }
           if (
             moduleSpecificState &&
             Array.isArray(moduleSpecificState.items) &&
             (moduleSpecificState.items.length > 0 || (Array.isArray(moduleSpecificState.paths) && moduleSpecificState.paths.length > 0))
           ) {
             restoreBoardState(moduleSpecificState);
+            fitToScreen();
+            starterDismissedByUser = true;
+            syncEmptyBoardStarter();
+            return;
+          }
+
+          if (board.state && board.state.isBlank) {
             starterDismissedByUser = true;
             syncEmptyBoardStarter();
             return;
@@ -4165,6 +4205,7 @@
             (board.state.items.length > 0 || (Array.isArray(board.state.paths) && board.state.paths.length > 0))
           ) {
             restoreBoardState(board.state);
+            fitToScreen();
             starterDismissedByUser = true;
             syncEmptyBoardStarter();
             return;
@@ -4177,7 +4218,64 @@
         }
       } catch (e) {}
 
+      // Offline / unauthenticated fallback: hydrate from stashed template bundle or QFTemplateBlueprints
       serverBoardVersion = null;
+      var pending = readPendingTemplateBundle(boardId);
+      var specTplId = routeNow.tplId || initialSpecificTplId || '';
+      if (!pending && specTplId && window.QFTemplateBlueprints) {
+        var builtLocal = window.QFTemplateBlueprints.buildWorkspaceBundle({
+          id: specTplId,
+          title: specTplId.replace(/-/g, ' '),
+          module: explicitMod || undefined
+        });
+        pending = {
+          title: builtLocal.blueprint.title,
+          module: builtLocal.module,
+          boardState: builtLocal.boardState,
+          whiteboardState: builtLocal.whiteboardState,
+          plan: builtLocal.plan
+        };
+      }
+
+      if (pending && pending.boardState) {
+        loadedStateRef = pending.boardState;
+        boardModules = (pending.boardState.modules && typeof pending.boardState.modules === 'object') ? pending.boardState.modules : {};
+        if (titleInput && pending.title) {
+          titleInput.value = pending.title;
+          document.title = pending.title + ' | QuantalFlow App';
+        }
+        var pMod = explicitMod || pending.module || pending.boardState.activeModule || DEFAULT_WORKSPACE_MODULE;
+        currentActiveModule = pMod;
+        savedActiveModule = pMod;
+        resolveInitialEnabledModules(pending.boardState, currentActiveModule);
+        syncWorkspaceSwitcherUI(currentActiveModule);
+
+        if (currentActiveModule === 'project-planning' && window.ProjectPlanningSuite) {
+          if (window.WhiteboardSuite) window.WhiteboardSuite.close();
+          starterDismissedByUser = true;
+          syncEmptyBoardStarter();
+          window.ProjectPlanningSuite.open(boardId, pending.title || 'Project Planning Workspace');
+          return;
+        }
+        if (currentActiveModule === 'whiteboard' && openWhiteboardSuiteForCurrentBoard(pending.title || 'Visual Strategy Workspace')) {
+          return;
+        }
+        if (window.WhiteboardSuite) window.WhiteboardSuite.close();
+        if (window.ProjectPlanningSuite) window.ProjectPlanningSuite.close();
+        if (pending.boardState.isBlank) {
+          starterDismissedByUser = true;
+          syncEmptyBoardStarter();
+          return;
+        }
+        if (Array.isArray(pending.boardState.items) && pending.boardState.items.length > 0) {
+          restoreBoardState(pending.boardState);
+          fitToScreen();
+          starterDismissedByUser = true;
+          syncEmptyBoardStarter();
+          return;
+        }
+      }
+
       var fallbackMod = explicitMod || DEFAULT_WORKSPACE_MODULE;
       currentActiveModule = fallbackMod;
       savedActiveModule = fallbackMod;
@@ -4199,6 +4297,11 @@
       if (window.WhiteboardSuite) window.WhiteboardSuite.close();
       if (window.ProjectPlanningSuite) {
         window.ProjectPlanningSuite.close();
+      }
+      if (routeNow.template === 'blank') {
+        starterDismissedByUser = true;
+        syncEmptyBoardStarter();
+        return;
       }
       insertTemplateByType(currentActiveModule, 180, 110);
     } finally {
@@ -5055,7 +5158,8 @@
     var focusNode = null;
 
     if (type === 'mindmap') {
-      var edrawId = new URLSearchParams(window.location.search || '').get('edraw');
+      var urlParamsNow = new URLSearchParams(window.location.search || '');
+      var edrawId = urlParamsNow.get('edraw') || urlParamsNow.get('tpl') || initialSpecificTplId || '';
       var edrawTpl = null;
       if (edrawId && Array.isArray(window.QFEdrawMindMapTemplates)) {
         for (var ei = 0; ei < window.QFEdrawMindMapTemplates.length; ei += 1) {

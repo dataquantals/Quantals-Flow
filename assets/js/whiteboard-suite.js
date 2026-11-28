@@ -3626,6 +3626,41 @@
     });
   }
 
+  function fitViewportToContent() {
+    var vp = getVpEl();
+    if (!vp || !state || !Array.isArray(state.objects) || !state.objects.length) {
+      panX = 110;
+      panY = 90;
+      zoom = 0.95;
+      applyWorldTransform();
+      return;
+    }
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    state.objects.forEach(function (o) {
+      if (!isObjVisible(o)) return;
+      var b = getObjBox(o);
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+    });
+    if (!isFinite(minX)) return;
+    var contentW = Math.max(240, maxX - minX);
+    var contentH = Math.max(180, maxY - minY);
+    var vpW = Math.max(360, vp.clientWidth || window.innerWidth || 1200);
+    var vpH = Math.max(300, vp.clientHeight || (window.innerHeight - 60) || 720);
+    var leftGutter = vpW > 768 ? 84 : 24;
+    var rightGutter = 36;
+    var topGutter = 68;
+    var bottomGutter = 68;
+    var availW = Math.max(220, vpW - leftGutter - rightGutter);
+    var availH = Math.max(180, vpH - topGutter - bottomGutter);
+    zoom = clamp(Math.round(Math.min(1.05, availW / contentW, availH / contentH) * 100) / 100, 0.4, 1.15);
+    panX = Math.round(leftGutter + (availW - contentW * zoom) / 2 - minX * zoom);
+    panY = Math.round(topGutter + (availH - contentH * zoom) / 2 - minY * zoom);
+    applyWorldTransform();
+  }
+
   window.WhiteboardSuite = {
     open: function (id, title, savedState, opts) {
       boardId = id || 'whiteboard';
@@ -3634,15 +3669,19 @@
       if (callbacks.getCaps) currentCaps = callbacks.getCaps() || currentCaps;
       ensureDom();
       var hydrated = null;
-      if (savedState && Array.isArray(savedState.objects) && savedState.objects.length) {
+      if (savedState && Array.isArray(savedState.objects) && (savedState.objects.length > 0 || savedState.isBlank)) {
         hydrated = JSON.parse(JSON.stringify(savedState));
       } else {
         try {
           var cached = localStorage.getItem('quantalflow_wb_v1_' + boardId);
-          if (cached) { var p = JSON.parse(cached); if (p && Array.isArray(p.objects)) hydrated = p; }
+          if (cached) {
+            var p = JSON.parse(cached);
+            if (p && Array.isArray(p.objects) && (p.objects.length > 0 || p.isBlank)) hydrated = p;
+          }
         } catch (_) {}
       }
       state = hydrated || createStarterState(boardTitle);
+      if (!Array.isArray(state.layers) || !state.layers.length) state.layers = JSON.parse(JSON.stringify(LAYERS));
       if (!Array.isArray(state.paths)) state.paths = [];
       if (!Array.isArray(state.links)) state.links = [];
       selectedIds = [];
@@ -3654,6 +3693,7 @@
       if (window.innerWidth <= 768) minimapOpen = false;
       rootEl.hidden = false;
       render();
+      requestAnimationFrame(fitViewportToContent);
     },
     close: function () { if (rootEl) rootEl.hidden = true; },
     isOpen: function () { return Boolean(rootEl && !rootEl.hidden); },

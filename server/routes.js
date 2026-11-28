@@ -66,6 +66,8 @@ import {
   saveUserQuotation,
   getUserInvoice,
   saveUserInvoice,
+  getUserReceipt,
+  saveUserReceipt,
   getUserNotepad,
   saveUserNotepad,
   getUserKnowledgeHub,
@@ -144,6 +146,18 @@ import {
   getOrgDirectoryAndAnalytics,
   searchOrgExperts
 } from './orgs.js';
+import {
+  resolveMemoryScopeOrgId,
+  createMemoryRecord,
+  listMemoryRecords,
+  getMemoryRecordById,
+  updateMemoryRecord,
+  deleteMemoryRecord,
+  getMemorySettings,
+  updateMemorySettings,
+  synthesizeMemoryFromActivity,
+  askMemoryAssistant
+} from './memory-engine.js';
 import {
   indexBoardInRedis,
   removeBoardFromRedis,
@@ -748,6 +762,9 @@ export function createApi(limiter) {
     async convexStatus(req, res) {
       const status = await checkConvexConnection();
       const user = await auth(req, res);
+      if (user) {
+        await hydrateUserBoardsFromConvex(user.id);
+      }
       return sendJson(res, 200, {
         ...status,
         authProvider: 'convex',
@@ -1648,6 +1665,50 @@ export function createApi(limiter) {
           error: 'Failed to upload logo to Convex: ' + (err.message || 'Unknown error')
         });
       }
+    },
+
+    /** GET /api/receipt */
+    async getReceiptApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      try {
+        const saved = await getUserReceipt(user.id);
+        return sendJson(res, 200, { success: true, receipt: saved ? saved.data : null, updatedAt: saved ? saved.updatedAt : null });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Failed to load receipt.' });
+      }
+    },
+
+    /** PUT /api/receipt */
+    async saveReceiptApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      let body;
+      try {
+        body = await readJson(req);
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+      try {
+        const result = await saveUserReceipt(user.id, body && body.receipt);
+        const rcp = body && body.receipt ? body.receipt : {};
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Updated',
+          description: `Saved Receipt ${rcp.qno ? `#${rcp.qno}` : ''}${rcp.toOrg || rcp.toName ? ` for ${rcp.toOrg || rcp.toName}` : ''}`.trim(),
+          target: { name: rcp.qno ? `Receipt #${rcp.qno}` : 'Receipt', link: '/dashboard/receipt/', id: rcp.qno || 'receipt' },
+          after: { qno: rcp.qno || '', client: rcp.toOrg || rcp.toName || '', lineItems: Array.isArray(rcp.items) ? rcp.items.length : 0 }
+        });
+        return sendJson(res, 200, { success: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
+    },
+
+    /** POST /api/receipt/logo - Upload receipt logo image to Convex Cloud Storage (<= 5MB) */
+    async uploadReceiptLogoApi(req, res) {
+      return this.uploadInvoiceLogoApi(req, res);
     },
 
     /** GET /api/notepad */
@@ -2862,6 +2923,183 @@ export function createApi(limiter) {
         tags: Array.isArray(body.tags) ? body.tags : []
       });
       return sendJson(res, 201, { ok: true, id });
+    },
+
+    /* ---------------- AI Organisational Memory Engine API ---------------- */
+
+    /** GET /api/memory — List institutional memory register, counts & settings */
+    async listMemoryApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const data = listMemoryRecords({
+        orgId: scopeOrgId,
+        category: url.searchParams.get('category') || 'all',
+        search: url.searchParams.get('q') || '',
+        source: url.searchParams.get('source') || 'all',
+        status: url.searchParams.get('status') || 'active',
+        limit: url.searchParams.get('limit') || 100
+      });
+      return sendJson(res, 200, {
+        ok: true,
+        orgName: ctx.activeOrg ? ctx.activeOrg.name : 'Personal Workspace',
+        ...data
+      });
+    },
+
+    /** POST /api/memory — Create a manual Validated memory record (strict validation) */
+    async createMemoryApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const record = createMemoryRecord({
+          orgId: scopeOrgId,
+          category: body.category || 'decision',
+          projectName: body.projectName || 'Workspace',
+          title: body.title,
+          summary: body.summary || '',
+          whyHappened: body.whyHappened || '',
+          lessonLearned: body.lessonLearned || '',
+          recommendation: body.recommendation || '',
+          impactLevel: body.impactLevel || 'Medium',
+          confidence: 100,
+          status: 'Validated',
+          aiGenerated: false,
+          sourceLabel: 'Manual entry',
+          tags: Array.isArray(body.tags)
+            ? body.tags
+            : String(body.tags || '').split(',').map((s) => s.trim()).filter(Boolean),
+          author: user
+        });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'Created',
+          description: `Recorded Organisational Memory (${record.category}): "${record.title}"`,
+          target: { name: record.title, link: '/dashboard/memory/', id: record.id }
+        });
+        return sendJson(res, 201, { ok: true, record });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message, fieldErrors: err.fieldErrors || null });
+      }
+    },
+
+    /** GET /api/memory/:id — Fetch full record with hydrated Activity Log evidence */
+    async getMemoryDetailApi(req, res, id) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      const record = getMemoryRecordById({ orgId: scopeOrgId, id });
+      if (!record) return sendJson(res, 404, { error: 'Memory record not found.' });
+      return sendJson(res, 200, { ok: true, record });
+    },
+
+    /** PATCH /api/memory/:id — Validate, Archive, Restore, or Edit a memory record */
+    async updateMemoryApi(req, res, id) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const record = updateMemoryRecord({ orgId: scopeOrgId, id, patch: body });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: body.status ? 'Status' : 'Updated',
+          description: body.status
+            ? `Marked memory record "${record.title}" as ${record.status}`
+            : `Edited memory record "${record.title}"`,
+          target: { name: record.title, link: '/dashboard/memory/', id: record.id }
+        });
+        return sendJson(res, 200, { ok: true, record });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message, fieldErrors: err.fieldErrors || null });
+      }
+    },
+
+    /** DELETE /api/memory/:id — Delete a memory record */
+    async deleteMemoryApi(req, res, id) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      const result = deleteMemoryRecord({ orgId: scopeOrgId, id });
+      if (!result.deleted) return sendJson(res, 404, { error: 'Memory record not found.' });
+      recordActivity({
+        req,
+        actor: user,
+        actionType: 'Deleted',
+        description: `Deleted memory record ${id}`,
+        target: { name: 'Organisational Memory', link: '/dashboard/memory/', id }
+      });
+      return sendJson(res, 200, { ok: true });
+    },
+
+    /** GET /api/memory/settings */
+    async getMemorySettingsApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      return sendJson(res, 200, { ok: true, settings: getMemorySettings(scopeOrgId) });
+    },
+
+    /** PATCH /api/memory/settings — Adjust minimum evidence threshold (2..10) */
+    async updateMemorySettingsApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      const settings = updateMemorySettings(scopeOrgId, body);
+      return sendJson(res, 200, { ok: true, settings });
+    },
+
+    /** POST /api/memory/synthesize — Run AI Memory Engine on Activity Logs & Projects */
+    async synthesizeMemoryApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      try {
+        const result = await synthesizeMemoryFromActivity({ orgId: scopeOrgId, actor: user });
+        recordActivity({
+          req,
+          actor: user,
+          actionType: 'System',
+          description: `AI Memory Engine run: ${result.createdCount} proposed, ${result.updatedCount} updated (min ${result.minEvidenceThreshold} events)`,
+          target: { name: 'Organisational Memory', link: '/dashboard/memory/', id: scopeOrgId }
+        });
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 500, { error: err.message || 'Synthesis failed.' });
+      }
+    },
+
+    /** POST /api/memory/ask — Query the AI Memory Assistant */
+    async askMemoryAssistantApi(req, res) {
+      const user = await auth(req, res);
+      if (!user) return sendJson(res, 401, { error: 'Not authenticated.' });
+      const ctx = getActiveOrgContext(user.id);
+      const scopeOrgId = resolveMemoryScopeOrgId(user, ctx.activeOrg);
+      let body = {};
+      try { body = await readJson(req); } catch (err) { return sendJson(res, err.status || 400, { error: err.message }); }
+      try {
+        const result = await askMemoryAssistant({ orgId: scopeOrgId, question: body.question });
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        return sendJson(res, err.status || 400, { error: err.message });
+      }
     },
 
     /** GET /api/boards/:id/members */

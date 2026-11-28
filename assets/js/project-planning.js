@@ -3777,7 +3777,7 @@
     var params = new URLSearchParams(search);
     var isQuantalsRoute = path.indexOf('/data-quantals-plan') !== -1;
     var urlMod = (params.get('module') || params.get('template') || '').toLowerCase();
-    var canvasModules = ['mindmap', 'kanban', 'perspective', 'brainstorm', 'flow', 'retro', 'swot', 'journey', 'blank'];
+    var canvasModules = ['whiteboard', 'mindmap', 'kanban', 'perspective', 'brainstorm', 'flow', 'retro', 'swot', 'journey', 'blank'];
     var wantsSuite =
       canvasModules.indexOf(urlMod) === -1 && (
         urlMod === 'project-planning' ||
@@ -3791,8 +3791,10 @@
     if (wantsSuite) {
       var boardIdFromUrl = resolveBoardIdFromLocation();
       var titleFromUrl = document.getElementById('board-title-input');
-      var moduleFromUrl = params.get('module') || (isQuantalsRoute ? 'tasks' : 'gantt');
-      if (MODULE_NAMES.indexOf(moduleFromUrl) === -1) moduleFromUrl = 'gantt';
+      var rawModParam = (params.get('module') || '').toLowerCase();
+      var moduleFromUrl = isQuantalsRoute
+        ? 'tasks'
+        : ((rawModParam && rawModParam !== 'project-planning' && MODULE_NAMES.indexOf(rawModParam) !== -1) ? rawModParam : null);
       var defaultTitle = isQuantalsRoute ? 'Construction of a House' : 'Project Planning Workspace';
       openWorkspace(
         boardIdFromUrl,

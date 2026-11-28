@@ -220,11 +220,15 @@
     });
 
     drawer.addEventListener('click', function (e) {
-      if (e.target.tagName === 'A') setDrawer(false);
+      if (e.target.closest('a')) setDrawer(false);
     });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !drawer.hidden) setDrawer(false);
+    });
+
+    window.addEventListener('resize', function () {
+      if (!drawer.hidden && window.innerWidth > 560) setDrawer(false);
     });
   }
 
@@ -656,21 +660,28 @@
       var lastSpan = profLink.querySelector('span:last-child');
       if (lastSpan) lastSpan.textContent = displayName;
     }
+    var bindLogout = function (btn) {
+      if (!btn) return;
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+          if (window.Clerk && window.Clerk.signOut) await window.Clerk.signOut();
+          await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+        } catch (e) {}
+        window.location.href = '/login/';
+      });
+    };
     var userBox = document.getElementById('header-user-button');
     if (userBox && user && !userBox.hasChildNodes()) {
       userBox.innerHTML =
-        '<button class="btn btn--dark" type="button" id="header-logout-btn" style="padding:6px 14px;font-size:13px;">Log out</button>';
-      var btn = document.getElementById('header-logout-btn');
-      if (btn) {
-        btn.addEventListener('click', async function () {
-          btn.disabled = true;
-          try {
-            if (window.Clerk && window.Clerk.signOut) await window.Clerk.signOut();
-            await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-          } catch (e) {}
-          window.location.href = '/login/';
-        });
-      }
+        '<button class="btn btn--dark header__cta" type="button" id="header-logout-btn">Log out</button>';
+      bindLogout(document.getElementById('header-logout-btn'));
+    }
+    var drawerUserBox = document.getElementById('drawer-user-button');
+    if (drawerUserBox && user && !drawerUserBox.hasChildNodes()) {
+      drawerUserBox.innerHTML =
+        '<button class="btn btn--dark" type="button" id="drawer-logout-btn">Log out</button>';
+      bindLogout(document.getElementById('drawer-logout-btn'));
     }
   }
 
@@ -684,7 +695,12 @@
       script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js';
       script.onload = function () {
         if (window.Clerk && typeof window.Clerk.load === 'function') {
-          window.Clerk.load().then(function () { resolve(window.Clerk); }).catch(function () { resolve(null); });
+          window.Clerk.load({
+            signInUrl: '/login/',
+            signUpUrl: '/get-started/',
+            afterSignInUrl: '/dashboard/',
+            afterSignUpUrl: '/onboarding/'
+          }).then(function () { resolve(window.Clerk); }).catch(function () { resolve(null); });
         } else {
           resolve(null);
         }
@@ -742,22 +758,28 @@
 
   $$('[data-sso]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      var provider = btn.getAttribute('data-sso') || 'sso';
-      if (window.Clerk && typeof window.Clerk.openSignIn === 'function') {
-        window.Clerk.openSignIn({ afterSignInUrl: '/dashboard/', afterSignUpUrl: '/dashboard/' });
+      var provider = btn.getAttribute('data-sso') || 'google';
+      var cb = window.location.origin + '/login/?clerk_callback=1';
+      var startOAuth = function (clerk) {
+        if (!clerk || !clerk.client || !clerk.client.signIn) return;
+        var strategy = provider === 'microsoft' ? 'oauth_microsoft' : 'oauth_google';
+        clerk.client.signIn.authenticateWithRedirect({
+          strategy: strategy,
+          redirectUrl: cb,
+          redirectUrlComplete: cb
+        }).catch(function () {});
+      };
+      if (window.Clerk && window.Clerk.client) {
+        startOAuth(window.Clerk);
         return;
       }
       if (authConfigCache && authConfigCache.clerkPublishableKey) {
-        loadClerkSdk(authConfigCache.clerkPublishableKey).then(function (clerk) {
-          if (clerk && typeof clerk.openSignIn === 'function') {
-            clerk.openSignIn({ afterSignInUrl: '/dashboard/', afterSignUpUrl: '/dashboard/' });
-          }
-        });
+        loadClerkSdk(authConfigCache.clerkPublishableKey).then(startOAuth);
         return;
       }
       showMessage(
         document.getElementById('login-msg'),
-        'Clerk SSO (' + provider.toUpperCase() + ') is ready — link your Clerk publishable key or sign in with your email and password below.'
+        'SSO (' + provider.toUpperCase() + ') requires Clerk configuration — please sign in with email and password below.'
       );
     });
   });

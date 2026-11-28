@@ -93,6 +93,10 @@
       var data = await res.json().catch(function () { return {}; });
 
       if (!res.ok) {
+        if (res.status === 401 && typeof window.QFClerkPasswordSignIn === 'function') {
+          var clerkOk = await window.QFClerkPasswordSignIn(email, password);
+          if (clerkOk) return;
+        }
         setBusy(false);
         setMsg(data.error || 'Incorrect email or password.', 'error');
         passInput.value = '';

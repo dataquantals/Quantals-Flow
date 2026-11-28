@@ -20,6 +20,14 @@
   --quote-bar-ink: #062417;
 }
 
+/* Receipt page: black, bold, and italic "Receipt" title on the page */
+.receipt-body .quote-title,
+.receipt-body .quote-hero h1 {
+  color: #000000;
+  font-weight: 700;
+  font-style: italic;
+}
+
 .quote-main { max-width: 100%; min-width: 0; }
 
 /* ---- Hero + toolbar ---------------------------------------------------- */
@@ -57,6 +65,7 @@
 
 /* ---- The sheet --------------------------------------------------------- */
 .quote-sheet {
+  position: relative;
   background: #fff; color: var(--ink);
   border: 1px solid var(--line); border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -444,4 +453,98 @@
   .quote-strip > div { border-right: 0; }
   .quote-tot { grid-template-columns: auto 1fr; }
   .quote-tot .v { min-width: 0; }
+}
+
+/* ---- Draggable & Resizable Receipt PAID Stamp -------------------------- */
+.receipt-stamp {
+  position: absolute;
+  z-index: 20;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  border: 1.5px dashed transparent;
+  border-radius: 6px;
+  padding: 2px;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.receipt-stamp:hover,
+.receipt-stamp.is-selected,
+.receipt-stamp:focus-visible {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.04);
+  outline: none;
+}
+.receipt-stamp.is-dragging {
+  cursor: grabbing;
+}
+.receipt-stamp img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.receipt-stamp__handle {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #2563eb;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.receipt-stamp:hover .receipt-stamp__handle,
+.receipt-stamp.is-selected .receipt-stamp__handle,
+.receipt-stamp:focus-visible .receipt-stamp__handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+.receipt-stamp__handle--nw { top: -7px; left: -7px; cursor: nwse-resize; }
+.receipt-stamp__handle--ne { top: -7px; right: -7px; cursor: nesw-resize; }
+.receipt-stamp__handle--sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.receipt-stamp__handle--se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+.receipt-stamp__remove {
+  position: absolute;
+  top: -12px;
+  right: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.receipt-stamp:hover .receipt-stamp__remove,
+.receipt-stamp.is-selected .receipt-stamp__remove,
+.receipt-stamp:focus-visible .receipt-stamp__remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+.receipt-stamp__remove:hover {
+  transform: scale(1.08);
+  background: #b91c1c;
+}
+@media print {
+  .receipt-stamp {
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+  .receipt-stamp__handle,
+  .receipt-stamp__remove {
+    display: none !important;
+  }
 }

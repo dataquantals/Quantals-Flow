@@ -16,6 +16,10 @@ for (const envName of ['.env.local', '.env']) {
   }
 }
 
+const rawConvexDeployment = (process.env.CONVEX_DEPLOYMENT || 'dev:agreeable-starfish-202').trim();
+const deploymentSlugMatch = rawConvexDeployment.match(/^(?:dev|prod|preview):([a-z0-9-]+)$/i);
+const derivedConvexSlug = deploymentSlugMatch ? deploymentSlugMatch[1] : 'agreeable-starfish-202';
+
 export const config = {
   root,
   publicDir: root,
@@ -42,10 +46,14 @@ export const config = {
   },
 
   convex: {
-    cloudUrl: process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL || 'https://agreeable-starfish-202.convex.cloud',
-    siteUrl: process.env.CONVEX_SITE_URL || 'https://agreeable-starfish-202.convex.site',
-    // Never default this. A deploy key is a write credential; keep it in
-    // .env.local (local) or the host's environment (production).
+    deployment: rawConvexDeployment,
+    cloudUrl:
+      process.env.CONVEX_URL ||
+      process.env.NEXT_PUBLIC_CONVEX_URL ||
+      `https://${derivedConvexSlug}.convex.cloud`,
+    siteUrl:
+      process.env.CONVEX_SITE_URL ||
+      `https://${derivedConvexSlug}.convex.site`,
     deployKey: process.env.CONVEX_DEPLOY_KEY || '',
     // Shared secret proving a caller is this server. The same value must be set on
     // the Convex deployment (`npx convex env set SYNC_SECRET <value>`); every Convex
@@ -101,11 +109,17 @@ export const config = {
 };
 
 // Say so once at boot instead of failing silently on the first AI or Convex call.
-for (const [key, value] of [
-  ['CONVEX_DEPLOY_KEY', config.convex.deployKey],
-  ['REDIS_URL', config.redis.url],
-  ['DEEPSEEK_API_KEY', config.deepseekApiKey],
-  ['OPENROUTER_API_KEY', config.openrouterApiKey]
-]) {
-  if (!value) console.warn(`[config] ${key} is not set — that integration stays disabled.`);
+if (!config.isTest) {
+  if (!config.convex.cloudUrl || !config.convex.syncSecret) {
+    console.warn('[config] CONVEX_URL or SYNC_SECRET is not set — Convex sync stays disabled.');
+  }
+  if (!config.redis.url) {
+    console.warn('[config] REDIS_URL is not set — optional Redis cache stays disabled (SQLite + Convex active).');
+  }
+  if (!config.clerk.publishableKey || !config.clerk.secretKey) {
+    console.warn('[config] CLERK_PUBLISHABLE_KEY or CLERK_SECRET_KEY is not set — Google / SSO sign-in stays disabled.');
+  }
+  if (!config.deepseekApiKey && !config.openrouterApiKey) {
+    console.warn('[config] Neither DEEPSEEK_API_KEY nor OPENROUTER_API_KEY is set — AI copilot stays disabled.');
+  }
 }

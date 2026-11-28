@@ -63,8 +63,8 @@ for (const file of sources) {
   const text = fs.readFileSync(file, 'utf8');
   for (const match of text.matchAll(/href="([^"]+)"/g)) {
     const href = match[1];
-    // External, mail, phone and pure-fragment links are out of scope.
-    if (/^(https?:|mailto:|tel:|#|\/assets\/)/.test(href)) continue;
+    // External, mail, phone, static assets/manifests and pure-fragment links are out of scope.
+    if (/^(https?:|mailto:|tel:|#|\/assets\/|\/manifest\.(json|webmanifest)$)/.test(href)) continue;
 
     const [rawPathWithQuery, fragment] = href.split('#');
     const rawPath = rawPathWithQuery.split('?')[0];

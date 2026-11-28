@@ -21,7 +21,9 @@
     { path: '/dashboard/leaf/',      key: 'leaf',      shell: 'leaf',      markerId: 'leaf-app' },
     { path: '/dashboard/crm/',       key: 'crm',       shell: 'crm',       markerId: 'crm-app' },
     { path: '/dashboard/quotation/', key: 'quotation', shell: 'quotation', markerId: 'sheet' },
-    { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice',   markerId: 'sheet' }
+    { path: '/dashboard/invoice/',   key: 'invoice',   shell: 'invoice',   markerId: 'sheet' },
+    { path: '/dashboard/receipt/',   key: 'receipt',   shell: 'receipt',   markerId: 'sheet' },
+    { path: '/resources/templates/', key: 'templates', shell: 'templates', markerId: 'tpl-gallery-app' }
   ];
 
   var LEGACY_ALIASES = {
@@ -33,7 +35,10 @@
     '/dashboard/os/': '/dashboard/documents/',
     '/os/': '/dashboard/documents/',
     '/quotation/': '/dashboard/quotation/',
-    '/invoice/': '/dashboard/invoice/'
+    '/invoice/': '/dashboard/invoice/',
+    '/receipt/': '/dashboard/receipt/',
+    '/dashboard/templates/': '/resources/templates/',
+    '/templates/': '/resources/templates/'
   };
 
   // Shared shell scripts that are already loaded and should never be re-executed on swap.
@@ -55,7 +60,11 @@
     { match: /\/assets\/js\/documents\.js/i, globalCheck: function () { return typeof window.initDocumentGeneration === 'function'; }, reinit: function () { window.initDocumentGeneration(); } },
     { match: /lucide/i,                      globalCheck: function () { return typeof window.lucide !== 'undefined'; } },
     { match: /\/assets\/js\/leaf\.js/i,      globalCheck: function () { return typeof window.initLeafWorkspace === 'function'; }, reinit: function () { window.initLeafWorkspace(); } },
-    { match: /\/assets\/js\/crm\.js/i,       globalCheck: function () { return typeof window.initCrmWorkspace === 'function'; }, reinit: function () { window.initCrmWorkspace(); } }
+    { match: /\/assets\/js\/crm\.js/i,       globalCheck: function () { return typeof window.initCrmWorkspace === 'function'; }, reinit: function () { window.initCrmWorkspace(); } },
+    { match: /\/assets\/js\/mindmap-templates-catalog\.js/i, globalCheck: function () { return Array.isArray(window.QFEdrawMindMapTemplates); } },
+    { match: /\/assets\/js\/template-blueprints\.js/i, globalCheck: function () { return Boolean(window.QFTemplateBlueprints); } },
+    { match: /\/assets\/js\/workspace-frameworks\.js/i, globalCheck: function () { return Boolean(window.WorkspaceFrameworks); } },
+    { match: /\/assets\/js\/templates\.js/i, globalCheck: function () { return typeof window.initTemplatesGallery === 'function'; }, reinit: function () { window.initTemplatesGallery(); } }
   ];
 
   var htmlCache = new Map();

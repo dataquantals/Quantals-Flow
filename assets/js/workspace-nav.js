@@ -424,6 +424,8 @@
       if (drawerLogout) {
         drawerLogout.addEventListener('click', async function () {
           drawerLogout.disabled = true;
+          var labelSpan = drawerLogout.querySelector('span');
+          if (labelSpan) labelSpan.textContent = 'Logging out…';
           try {
             Object.keys(localStorage).forEach(function (k) {
               if (k.indexOf('quantalflow_') === 0) localStorage.removeItem(k);
@@ -432,7 +434,7 @@
             if (window.Clerk && window.Clerk.signOut) await window.Clerk.signOut();
             await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
           } catch (e) {}
-          window.location.replace('/login/');
+          window.location.replace('/login/?logged_out=1');
         });
       }
     }

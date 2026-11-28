@@ -1,4 +1,3 @@
-import { createClient } from 'redis';
 import { config } from './config.js';
 
 /**
@@ -9,7 +8,30 @@ import { config } from './config.js';
  *   Vercel serverless invocations reuse the existing TCP/TLS connection.
  * - Fails open: if `REDIS_URL` is unset or Redis Cloud is temporarily unreachable,
  *   all helpers return `null`/`false` so SQLite + Convex continue serving normally.
+ *
+ * The `redis` package is loaded lazily (not with a top-level import). Redis is an
+ * optional integration; an eager import means a missing/broken `redis` install
+ * (e.g. its transitive `@redis/*` deps) crashes the whole server on boot, which
+ * in turn cuts off SQLite and Convex. Loading it on first use keeps the primary
+ * path alive when Redis is absent or unconfigured.
  */
+
+let createClientFn = null;
+let redisLoadFailed = false;
+
+async function loadRedisModule() {
+  if (createClientFn) return createClientFn;
+  if (redisLoadFailed) return null;
+  try {
+    const mod = await import('redis');
+    createClientFn = mod.createClient;
+    return createClientFn;
+  } catch (err) {
+    redisLoadFailed = true;
+    console.warn('[redis] redis module unavailable — Redis features disabled:', err && err.message);
+    return null;
+  }
+}
 
 const GLOBAL_KEY = '__qfRedis';
 
@@ -51,6 +73,8 @@ export async function getRedisClient() {
 
   state.connecting = (async () => {
     try {
+      const createClient = await loadRedisModule();
+      if (!createClient) return null;
       const url = config.redis.url;
       const isTls = url.startsWith('rediss://');
       const client = createClient({

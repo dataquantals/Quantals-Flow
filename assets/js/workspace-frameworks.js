@@ -660,6 +660,21 @@
     var items = [];
     var connectors = [];
 
+    if (frameworkId === 'whiteboard' && window.QFTemplateBlueprints && typeof window.QFTemplateBlueprints.buildWorkspaceBundle === 'function') {
+      var wbBundle = window.QFTemplateBlueprints.buildWorkspaceBundle({
+        id: templateId || 'wb-strategy-hub',
+        title: cleanTitle,
+        desc: cleanDesc,
+        module: 'whiteboard'
+      });
+      return {
+        items: wbBundle.items,
+        connectors: wbBundle.connectors,
+        whiteboardState: wbBundle.whiteboardState,
+        plan: null
+      };
+    }
+
     if (frameworkId === 'mindmap') {
       var edrawTpl = null;
       if (Array.isArray(window.QFEdrawMindMapTemplates)) {

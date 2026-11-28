@@ -379,12 +379,15 @@ test('new collaborative board starts empty; templates live in the template libra
   const tplRes = await fetch(base + '/resources/templates/');
   assert.equal(tplRes.status, 200);
   const tplHtml = await tplRes.text();
-  assert.ok(tplHtml.includes('template=project-planning&amp;module=gantt'), 'expected Project Planning Suite link');
-  assert.ok(tplHtml.includes('template=project-planning&amp;module=tasks'), 'expected Kanban & WBS Tree link');
-  assert.ok(tplHtml.includes('template=project-planning&amp;module=resources'), 'expected Resources & Timesheets link');
-  assert.ok(tplHtml.includes('template=project-planning&amp;module=risk'), 'expected RAID & Change Control link');
-  assert.ok(tplHtml.includes('template=mindmap'), 'expected Mind Map template');
-  assert.ok(tplHtml.includes('template=journey'), 'expected Customer Journey template');
+  assert.ok(tplHtml.includes('id="tpl-gallery-app"'), 'expected unified Templates gallery mount');
+  assert.ok(tplHtml.includes('class="dash-sidebar"'), 'expected shared workspace sidebar on Templates page');
+  assert.ok(tplHtml.includes('/assets/css/templates.css'), 'expected Templates stylesheet');
+  assert.ok(tplHtml.includes('/assets/js/templates.js'), 'expected Templates gallery script');
+  assert.ok(!tplHtml.includes('onclick="location.href=\'/dashboard/boards/new/\'"'), 'must not include standalone template prototype sidebar');
+
+  const dashTplRes = await fetch(base + '/dashboard/templates/', { headers: { cookie: sid } });
+  assert.equal(dashTplRes.status, 200);
+  assert.ok((await dashTplRes.text()).includes('id="tpl-gallery-app"'), 'expected /dashboard/templates/ alias to serve Templates gallery');
 
   // Verify Project Planning script & stylesheet are served
   const ppJs = await fetch(base + '/assets/js/project-planning.js');

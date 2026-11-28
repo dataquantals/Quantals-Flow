@@ -1,768 +1,1147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="QuantalFlow" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="manifest" href="/manifest.json" />
-  <title>QuantalFlow | AI Innovation Workspace</title>
-  <meta name="description" content="The Intelligent Canvas where your team and agents think, plan, and build together." />
-  <link rel="canonical" href="https://quantalflow.com/" />
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="QuantalFlow | AI Innovation Workspace" />
-  <meta property="og:description" content="The Intelligent Canvas where your team and agents think, plan, and build together." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=Fragment+Mono&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/css/styles.css?v=98259fce" />
-  <link rel="stylesheet" href="/assets/css/pages.css?v=f506e2f4" />
-  <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48" />
-  <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192" />
-  <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512" />
-  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantalFlow — Human Collaboration at the Speed of AI</title>
+  <meta name="description" content="The online visual canvas designed for teams and AI agents to think, plan, and build together—across whiteboards, diagrams, flowcharts, Mermaid, Kanban boards, timelines, mind maps, docs, and slides.">
+  <link rel="canonical" href="https://quantalflow.com/">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/img/favicon.ico?v=53abecbc" sizes="16x16 32x32 48x48">
+  <link rel="icon" type="image/png" href="/assets/img/favicon-192.png?v=c3219264" sizes="192x192">
+  <link rel="icon" type="image/png" href="/assets/img/favicon.png?v=446cf5ea" sizes="512x512">
+  <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png?v=17cdea16">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">/** @type {import('tailwindcss').Config} */
+globalThis.tailwind = globalThis.tailwind || {};
+globalThis.tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'brand-coral': '#E85A3C',
+        'brand-navy': '#161B33',
+        'plum-footer': '#2B1E36',
+        'on-plum-footer': '#F5F2F7',
+        'plum-footer-muted': '#C4B7CE',
+        'success': '#1B7A43',
+        'on-success': '#FFFFFF',
+        'light-primary': '#AB2E14',
+        'light-on-primary': '#FFFFFF',
+        'light-primary-container': '#CD472B',
+        'light-on-primary-container': '#FFFBFF',
+        'light-secondary': '#685874',
+        'light-on-secondary': '#FFFFFF',
+        'light-secondary-container': '#F0DBFC',
+        'light-on-secondary-container': '#6E5E7A',
+        'light-tertiary': '#006576',
+        'light-on-tertiary': '#FFFFFF',
+        'light-tertiary-container': '#008095',
+        'light-on-tertiary-container': '#F9FDFF',
+        'light-error': '#BA1A1A',
+        'light-on-error': '#FFFFFF',
+        'light-error-container': '#FFDAD6',
+        'light-on-error-container': '#93000A',
+        'light-background': '#FAF9F8',
+        'light-on-background': '#1A1C1C',
+        'light-surface': '#FAF9F8',
+        'light-surface-dim': '#DADAD9',
+        'light-surface-bright': '#FAF9F8',
+        'light-surface-container-lowest': '#FFFFFF',
+        'light-surface-container-low': '#F4F3F2',
+        'light-surface-container': '#EEEEED',
+        'light-surface-container-high': '#E9E8E7',
+        'light-surface-container-highest': '#E3E2E1',
+        'light-on-surface': '#1A1C1C',
+        'light-surface-variant': '#FEDBD3',
+        'light-on-surface-variant': '#59413C',
+        'light-outline': '#8D716A',
+        'light-outline-variant': '#E1BFB8',
+        'light-inverse-surface': '#2F3130',
+        'light-inverse-on-surface': '#F1F0EF',
+        'light-inverse-primary': '#FFB4A4',
+        'light-shadow': '#000000',
+        'light-scrim': '#000000',
+        'dark-primary': '#FFB4A4',
+        'dark-on-primary': '#640E00',
+        'dark-primary-container': '#F36243',
+        'dark-on-primary-container': '#480700',
+        'dark-secondary': '#D3BFDF',
+        'dark-on-secondary': '#392B44',
+        'dark-secondary-container': '#544660',
+        'dark-on-secondary-container': '#C8B5D4',
+        'dark-tertiary': '#67D5EF',
+        'dark-on-tertiary': '#003640',
+        'dark-tertiary-container': '#1C9EB6',
+        'dark-on-tertiary-container': '#00262D',
+        'dark-error': '#FFB4AB',
+        'dark-on-error': '#690005',
+        'dark-error-container': '#93000A',
+        'dark-on-error-container': '#FFDAD6',
+        'dark-background': '#121413',
+        'dark-on-background': '#E3E2E1',
+        'dark-surface': '#121413',
+        'dark-surface-dim': '#121413',
+        'dark-surface-bright': '#383939',
+        'dark-surface-container-lowest': '#0D0E0E',
+        'dark-surface-container-low': '#1A1C1C',
+        'dark-surface-container': '#1E2020',
+        'dark-surface-container-high': '#292A2A',
+        'dark-surface-container-highest': '#343535',
+        'dark-on-surface': '#E3E2E1',
+        'dark-surface-variant': '#59413C',
+        'dark-on-surface-variant': '#E1BFB8',
+        'dark-outline': '#A88A83',
+        'dark-outline-variant': '#59413C',
+        'dark-inverse-surface': '#E3E2E1',
+        'dark-inverse-on-surface': '#2F3130',
+        'dark-inverse-primary': '#AE3117',
+        'dark-shadow': '#000000',
+        'dark-scrim': '#000000',
+      },
+      borderRadius: {
+        'sm': '4px',
+        'DEFAULT': '8px',
+        'md': '12px',
+        'lg': '16px',
+        'xl': '24px',
+        'full': '9999px',
+      },
+      spacing: {
+        'gutter-xs': '4px',
+        'gutter-sm': '8px',
+        'gutter-md': '16px',
+        'gutter-lg': '24px',
+        'gutter-xl': '32px',
+        'section': '80px',
+        'section-sm': '48px',
+        'page-margin': '24px',
+      },
+      fontFamily: {
+        'display': ['"Red Hat Display"', 'sans-serif'],
+        'headline': ['"Red Hat Display"', 'sans-serif'],
+        'title': ['"Instrument Sans"', 'sans-serif'],
+        'body': ['"Instrument Sans"', 'sans-serif'],
+        'label': ['"Instrument Sans"', 'sans-serif'],
+      },
+      fontSize: {
+        'display-lg': ['56px', { lineHeight: '64px', letterSpacing: '-1.2px', fontWeight: '700' }],
+        'display-lg-mobile': ['32px', { lineHeight: '38px', letterSpacing: '-0.6px', fontWeight: '700' }],
+        'display-md': ['44px', { lineHeight: '52px', letterSpacing: '-0.8px', fontWeight: '700' }],
+        'display-md-mobile': ['28px', { lineHeight: '34px', letterSpacing: '-0.4px', fontWeight: '700' }],
+        'headline-lg': ['36px', { lineHeight: '44px', letterSpacing: '-0.5px', fontWeight: '700' }],
+        'headline-lg-mobile': ['26px', { lineHeight: '32px', letterSpacing: '-0.3px', fontWeight: '700' }],
+        'headline-md': ['28px', { lineHeight: '36px', letterSpacing: '-0.3px', fontWeight: '600' }],
+        'headline-sm': ['22px', { lineHeight: '28px', letterSpacing: '-0.2px', fontWeight: '600' }],
+        'title-lg': ['20px', { lineHeight: '28px', letterSpacing: '0px', fontWeight: '600' }],
+        'title-md': ['16px', { lineHeight: '24px', letterSpacing: '0px', fontWeight: '600' }],
+        'body-lg': ['18px', { lineHeight: '28px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-md': ['16px', { lineHeight: '24px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-sm': ['14px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '400' }],
+        'label-lg': ['15px', { lineHeight: '20px', letterSpacing: '0.1px', fontWeight: '600' }],
+        'label-md': ['13px', { lineHeight: '18px', letterSpacing: '0.2px', fontWeight: '600' }],
+        'label-sm': ['11px', { lineHeight: '16px', letterSpacing: '0.8px', fontWeight: '600' }],
+      },
+      transitionDuration: {
+        'state-change': '120ms',
+        'surface-enter': '240ms',
+        'surface-exit': '160ms',
+      },
+      transitionDelay: {
+        'state-change': '0ms',
+        'surface-enter': '0ms',
+        'surface-exit': '0ms',
+      },
+      transitionTimingFunction: {
+        'state-change': 'ease-out',
+        'surface-enter': 'cubic-bezier(0.2, 0, 0, 1)',
+        'surface-exit': 'cubic-bezier(0.3, 0, 1, 1)',
+      },
+    },
+  },
+};
+if (typeof module !== 'undefined') module.exports = globalThis.tailwind.config;
+</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;family=Red+Hat+Display:wght@600;700&amp;family=Spline+Sans+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet">
+  <style>
+    html { scroll-behavior: smooth; }
+    .material-symbols-outlined, .material-symbols-rounded, .material-symbols-sharp, .material-icons {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      line-height: 1 !important;
+      box-sizing: content-box;
+      overflow: hidden;
+      white-space: nowrap;
+      direction: ltr;
+      vertical-align: middle;
+    }
+
+    @keyframes qf-fade-up {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes qf-hero-zoom {
+      from {
+        transform: scale(1.05);
+      }
+      to {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes qf-panel-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .qf-animate-hero {
+      animation: qf-fade-up 520ms cubic-bezier(0.2, 0, 0, 1) both;
+    }
+    .qf-delay-1 { animation-delay: 70ms; }
+    .qf-delay-2 { animation-delay: 140ms; }
+    .qf-delay-3 { animation-delay: 210ms; }
+    .qf-delay-4 { animation-delay: 280ms; }
+
+    .qf-hero-media {
+      animation: qf-hero-zoom 1200ms cubic-bezier(0.2, 0, 0, 1) both;
+    }
+
+    .qf-panel-animate {
+      animation: qf-panel-in 240ms cubic-bezier(0.2, 0, 0, 1) both;
+    }
+
+    .qf-card-lift {
+      transition: transform 240ms cubic-bezier(0.2, 0, 0, 1), box-shadow 240ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .qf-card-lift:hover {
+      transform: translateY(-4px);
+    }
+
+    @keyframes qf-float-slow {
+      0%, 100% {
+        transform: translate3d(0, 0, 0);
+      }
+      50% {
+        transform: translate3d(0, -8px, 0);
+      }
+    }
+
+    @keyframes qf-float-alt {
+      0%, 100% {
+        transform: translate3d(0, 0, 0);
+      }
+      50% {
+        transform: translate3d(6px, -6px, 0);
+      }
+    }
+
+    @keyframes qf-dash-flow {
+      to {
+        stroke-dashoffset: -48;
+      }
+    }
+
+    @keyframes qf-grid-drift {
+      0% {
+        transform: translate3d(0, 0, 0);
+      }
+      100% {
+        transform: translate3d(24px, 24px, 0);
+      }
+    }
+
+    .qf-float-slow {
+      animation: qf-float-slow 5.5s ease-in-out infinite;
+    }
+    .qf-float-alt {
+      animation: qf-float-alt 6.5s ease-in-out infinite;
+    }
+    .qf-dash-flow {
+      stroke-dasharray: 6 6;
+      animation: qf-dash-flow 3.2s linear infinite;
+    }
+    .qf-grid-drift {
+      animation: qf-grid-drift 18s linear infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .qf-animate-hero,
+      .qf-hero-media,
+      .qf-panel-animate,
+      .qf-float-slow,
+      .qf-float-alt,
+      .qf-dash-flow,
+      .qf-grid-drift {
+        animation: none !important;
+      }
+      .qf-card-lift,
+      .qf-card-lift:hover {
+        transition: none !important;
+        transform: none !important;
+      }
+    }
+  </style>
 </head>
-<body>
+<body class="bg-light-surface text-light-on-surface font-body antialiased selection:bg-light-surface-variant selection:text-light-primary">
+  <div id="top" class="min-h-screen flex flex-col">
 
-<a class="skip-link" href="#main">Skip to content</a>
-
-  <!-- ============ HEADER / NAV ============ -->
-  <header class="header" id="header">
-    <div class="header__inner">
-      <a class="logo" href="/" aria-label="QuantalFlow home">
-        <img class="logo__mark" src="/assets/img/logo.png?v=d12f8ae3" width="34" height="34" alt="" />
-        <span class="logo__word">QuantalFlow</span>
-      </a>
-
-      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="drawer">
-        <span></span><span></span><span></span>
-      </button>
-
-      <nav class="nav" id="primary-nav" aria-label="Primary">
-        <div class="nav__item" data-dropdown data-nav="product">
-          <button class="nav__link" aria-expanded="false" aria-haspopup="true">Product
-            <svg class="nav__chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="mega">
-            <div class="mega__inner">
-              <div class="mega__col mega__col--feature">
-                <p class="mega__eyebrow">Featured</p>
-                <a href="/product/intelligent-canvas/" class="mega__feature">
-                  <span class="mega__feature-icon" aria-hidden="true">&#10022;</span>
-                  <span>
-                    <strong>Intelligent Canvas&trade;</strong>
-                    <em>One workspace for humans and AI</em>
-                  </span>
-                </a>
-                <a href="/product/flows/" class="mega__link">Flows</a>
-                <a href="/product/prototypes/" class="mega__link">Prototypes &amp; Wireframes</a>
-                <a href="/product/diagrams/" class="mega__link">Mermaid Diagrams</a>
-                <a href="/product/engage/" class="mega__link">Engage</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">Platform</p>
-                <a href="/product/ai/" class="mega__link mega__link--strong">AI Overview</a>
-                <a href="/product/ai-workflows/" class="mega__link mega__link--sub">AI Workflows</a>
-                <a href="/product/connectors/" class="mega__link mega__link--sub">Connectors</a>
-                <a href="/product/mcp/" class="mega__link mega__link--sub">MCP Server</a>
-                <a href="/resources/playbooks/" class="mega__link mega__link--sub">Explore AI Playbooks</a>
-                <a href="/product/blueprints/" class="mega__link">Blueprints</a>
-                <a href="/product/integrations/" class="mega__link">Integrations</a>
-                <a href="/enterprise/security/" class="mega__link">Security</a>
-                <a href="/enterprise/guard/" class="mega__link">Enterprise Guard</a>
-                <a href="/resources/developers/" class="mega__link">Developer Platform</a>
-                <a href="/resources/apps/" class="mega__link">Download Apps</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">Formats</p>
-                <a href="/product/whiteboard/" class="mega__link">Whiteboard</a>
-                <a href="/product/diagrams/" class="mega__link">Diagrams</a>
-                <a href="/product/kanban/" class="mega__link">Kanban</a>
-                <a href="/product/timelines/" class="mega__link">Timelines</a>
-                <a href="/product/talktrack/" class="mega__link">TalkTrack</a>
-                <a href="/product/tables/" class="mega__link">Tables</a>
-                <a href="/product/docs/" class="mega__link">Docs</a>
-                <a href="/product/slides/" class="mega__link">Slides</a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="nav__item" data-dropdown data-nav="use-cases">
-          <button class="nav__link" aria-expanded="false" aria-haspopup="true">Use Cases
-            <svg class="nav__chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="mega">
-            <div class="mega__inner">
-              <div class="mega__col mega__col--feature">
-                <p class="mega__eyebrow">Featured</p>
-                <a href="/resources/playbooks/" class="mega__link mega__link--strong">Explore AI Playbooks</a>
-                <a href="/resources/templates/" class="mega__link mega__link--strong">Explore Templates</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">General</p>
-                <a href="/solutions/diagramming/" class="mega__link">Diagramming</a>
-                <a href="/solutions/workshops/" class="mega__link">Workshops</a>
-                <a href="/solutions/brainstorming/" class="mega__link">Brainstorming</a>
-                <a href="/solutions/mind-maps/" class="mega__link">Mind Maps</a>
-                <a href="/solutions/concept-maps/" class="mega__link">Concept Maps</a>
-                <a href="/solutions/flowcharts/" class="mega__link">Flowcharts</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">Specialized</p>
-                <a href="/solutions/roadmapping/" class="mega__link">Roadmapping</a>
-                <a href="/solutions/process-mapping/" class="mega__link">Process Mapping</a>
-                <a href="/solutions/technical-design/" class="mega__link">Technical Design &amp; Documentation</a>
-                <a href="/product/prototypes/" class="mega__link">Prototypes &amp; Wireframes</a>
-                <a href="/solutions/customer-journeys/" class="mega__link">Customer Journey Mapping</a>
-                <a href="/solutions/research-synthesis/" class="mega__link">Research Synthesis</a>
-                <a href="/solutions/design-workshops/" class="mega__link">Design Workshops</a>
-                <a href="/solutions/planning-delivery/" class="mega__link">Planning &amp; Delivery</a>
-                <a href="/solutions/goals/" class="mega__link">Goal Planning</a>
-                <a href="/solutions/org-design/" class="mega__link">Org Design</a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="nav__item" data-dropdown data-nav="solutions">
-          <button class="nav__link" aria-expanded="false" aria-haspopup="true">Solutions
-            <svg class="nav__chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="mega">
-            <div class="mega__inner">
-              <div class="mega__col">
-                <p class="mega__eyebrow">By Business Segment</p>
-                <a href="/enterprise/" class="mega__link">Enterprise</a>
-                <a href="/solutions/smb/" class="mega__link">Small Businesses</a>
-                <a href="/solutions/startups/" class="mega__link">Startups</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">By Industry</p>
-                <a href="/solutions/saas/" class="mega__link">Digital &amp; SaaS</a>
-                <a href="/solutions/professional-services/" class="mega__link">Professional Services</a>
-                <a href="/solutions/manufacturing/" class="mega__link">Manufacturing</a>
-                <a href="/solutions/retail/" class="mega__link">Retail</a>
-                <a href="/solutions/financial-services/" class="mega__link">Financial Services</a>
-                <a href="/solutions/pharma/" class="mega__link">Life Science &amp; Pharma</a>
-                <a href="/solutions/education/" class="mega__link">Education</a>
-                <a href="/solutions/government/" class="mega__link">Government</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">By Team</p>
-                <a href="/solutions/product-management/" class="mega__link">Product Management</a>
-                <a href="/solutions/design/" class="mega__link">Design &amp; UX</a>
-                <a href="/solutions/engineering/" class="mega__link">Engineering</a>
-                <a href="/solutions/product-leadership/" class="mega__link">Product Leadership &amp; Ops</a>
-                <a href="/solutions/business-operations/" class="mega__link">Operations</a>
-                <a href="/solutions/marketing/" class="mega__link">Marketing</a>
-                <a href="/solutions/it/" class="mega__link">IT</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">By Strategic Initiative</p>
-                <a href="/solutions/product-operating-system/" class="mega__link">Product Operating System</a>
-                <a href="/solutions/ai-transformation/" class="mega__link">AI Transformation</a>
-                <a href="/solutions/agile/" class="mega__link">Ways of Working Transformation</a>
-                <a href="/solutions/digital-employee-experience/" class="mega__link">Digital Employee Experience</a>
-                <a href="/solutions/customer-experience/" class="mega__link">Customer Experience &amp; Service Design</a>
-                <a href="/solutions/cloud-transformation/" class="mega__link">Cloud &amp; Software Transformation</a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="nav__item" data-dropdown data-nav="resources">
-          <button class="nav__link" aria-expanded="false" aria-haspopup="true">Resources
-            <svg class="nav__chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-          </button>
-          <div class="mega">
-            <div class="mega__inner">
-              <div class="mega__col">
-                <p class="mega__eyebrow">Learning</p>
-                <a href="/resources/customers/" class="mega__link">Customer Stories</a>
-                <a href="/resources/academy/" class="mega__link">Academy</a>
-                <a href="/resources/webinars/" class="mega__link">Webinars</a>
-                <a href="/resources/reforge/" class="mega__link">Reforge Learning</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">Community &amp; Support</p>
-                <a href="/resources/help/" class="mega__link">Help Center</a>
-                <a href="/resources/events/" class="mega__link">Events</a>
-                <a href="/resources/community/" class="mega__link">Community</a>
-                <a href="/resources/blog/" class="mega__link">Blog</a>
-              </div>
-              <div class="mega__col">
-                <p class="mega__eyebrow">Partners &amp; Services</p>
-                <a href="/enterprise/professional-services/" class="mega__link">QuantalFlow Professional Services</a>
-                <a href="/resources/partners/" class="mega__link">Solution Partners</a>
-                <a href="/resources/templates/" class="mega__link">Templates Library</a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <a class="nav__link nav__link--plain" href="/pricing/" data-nav="pricing">Pricing</a>
-        <a class="nav__link nav__link--plain" href="/enterprise/" data-nav="enterprise">Enterprise</a>
-      </nav>
-
-      <div class="header__actions" id="header-auth-controls">
-        <a class="header__link" href="/app/">App</a>
-        <a class="header__link" href="/enterprise/contact/">Contact sales</a>
-        <a class="header__link" href="/login/" id="header-signin-link" data-auth-signed-out>Login</a>
-        <a class="btn btn--dark" href="/get-started/" id="header-signup-link" data-auth-signed-out>Get started free</a>
-        <a class="header__link" href="/dashboard/" id="header-dashboard-link" data-auth-signed-in hidden>Dashboard</a>
-        <a class="header__link header__link--profile" href="/profile/" id="header-profile-link" data-auth-signed-in hidden style="display:inline-flex;align-items:center;gap:7px;">
-          <span class="dash-profile-avatar" id="header-profile-initial" style="width:22px;height:22px;border-radius:50%;background:#4262ff;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;line-height:1;">&mdash;</span>
-          <span id="header-profile-name">Profile</span>
+    <!-- Top Navigation -->
+    <header class="header sticky top-0 z-40 bg-light-surface-container-lowest/95 backdrop-blur border-b border-light-outline-variant">
+      <div class="max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl h-20 flex items-center justify-between gap-gutter-lg">
+        <a href="/" class="flex items-center gap-gutter-sm shrink-0">
+          <img src="/assets/img/logo.png?v=d12f8ae3" alt="QuantalFlow logo" class="w-8 h-8 rounded object-contain">
+          <span class="font-headline text-headline-sm text-light-on-surface" data-design-text-token="headline-sm">QuantalFlow</span>
         </a>
-        <div id="header-user-button" data-auth-signed-in hidden style="display:inline-flex;align-items:center;gap:8px;"></div>
+
+        <nav aria-label="Primary navigation" class="hidden lg:flex items-center gap-gutter-xl">
+          <a href="#canvas" class="font-label text-label-lg text-light-on-surface-variant hover:text-light-primary transition-colors duration-state-change" data-design-text-token="label-lg">Product</a>
+          <a href="#audiences" class="font-label text-label-lg text-light-on-surface-variant hover:text-light-primary transition-colors duration-state-change" data-design-text-token="label-lg">Solutions</a>
+          <a href="#capabilities" class="font-label text-label-lg text-light-on-surface-variant hover:text-light-primary transition-colors duration-state-change" data-design-text-token="label-lg">MCP Agents</a>
+          <a href="/resources/templates/" class="font-label text-label-lg text-light-on-surface-variant hover:text-light-primary transition-colors duration-state-change" data-design-text-token="label-lg">Templates</a>
+          <a href="/pricing/" class="font-label text-label-lg text-light-on-surface-variant hover:text-light-primary transition-colors duration-state-change" data-design-text-token="label-lg">Pricing</a>
+        </nav>
+
+        <div class="flex items-center gap-gutter-md shrink-0">
+          <a href="/login/" id="home-login-link" class="hidden sm:inline-flex font-label text-label-lg text-light-on-surface hover:text-light-primary transition-colors duration-state-change px-gutter-sm py-2" data-design-text-token="label-lg">Login</a>
+          <a href="/get-started/" id="home-cta-link" data-component-id="button-primary" data-component-type="button" data-component-variant="primary" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-primary text-light-on-primary font-label text-label-lg transition-colors duration-state-change ease-state-change hover:bg-light-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-light-primary focus-visible:ring-offset-2">
+            <span id="home-cta-label" data-design-text-token="label-lg">Get Started Free</span>
+          </a>
+        </div>
       </div>
-    </div>
+    </header>
 
-    <!-- mobile drawer -->
-    <div class="drawer" id="drawer" hidden>
-      <details class="drawer__group">
-        <summary>Product</summary>
-        <a href="/product/">Product overview</a>
-        <a href="/product/intelligent-canvas/">Intelligent Canvas</a>
-        <a href="/product/ai/">AI Overview</a>
-        <a href="/product/whiteboard/">Whiteboard</a>
-        <a href="/product/diagrams/">Diagrams</a>
-        <a href="/product/flows/">Flows</a>
-        <a href="/product/kanban/">Kanban</a>
-        <a href="/product/timelines/">Timelines</a>
-      </details>
-      <details class="drawer__group">
-        <summary>Use Cases</summary>
-        <a href="/solutions/diagramming/">Diagramming</a>
-        <a href="/solutions/workshops/">Workshops</a>
-        <a href="/solutions/roadmapping/">Roadmapping</a>
-        <a href="/solutions/research-synthesis/">Research Synthesis</a>
-        <a href="/solutions/brainstorming/">Brainstorming</a>
-        <a href="/solutions/mind-maps/">Mind Maps</a>
-      </details>
-      <details class="drawer__group">
-        <summary>Solutions</summary>
-        <a href="/solutions/">Solutions overview</a>
-        <a href="/solutions/product-management/">By team</a>
-        <a href="/solutions/saas/">By industry</a>
-        <a href="/solutions/startups/">By business segment</a>
-      </details>
-      <details class="drawer__group">
-        <summary>Resources</summary>
-        <a href="/resources/">Resources overview</a>
-        <a href="/resources/customers/">Customer Stories</a>
-        <a href="/resources/academy/">Academy</a>
-        <a href="/resources/blog/">Blog</a>
-        <a href="/resources/help/">Help Center</a>
-        <a href="/resources/templates/">Templates</a>
-      </details>
-      <details class="drawer__group">
-        <summary>Workspaces</summary>
-        <a href="/app/?board=project-planning-workspace&amp;template=project-planning">Project Planning</a>
-        <a href="/app/?template=mindmap&amp;module=mindmap">Mind Map</a>
-        <a href="/app/?template=kanban&amp;module=kanban">Kanban Board</a>
-        <a href="/app/?template=perspective&amp;module=perspective">Perspective</a>
-        <a href="/app/?template=brainstorm&amp;module=brainstorm">Brainstorm</a>
-        <a href="/resources/templates/">Templates</a>
-      </details>
-      <a href="/pricing/">Pricing</a>
-      <a href="/enterprise/">Enterprise</a>
-      <a href="/app/">Open Canvas App</a>
-      <a href="/enterprise/contact/">Contact sales</a>
-      <a href="/dashboard/" data-auth-signed-in hidden>Dashboard</a>
-      <a href="/profile/" data-auth-signed-in hidden style="display:inline-flex;align-items:center;gap:8px;">
-        <span class="dash-profile-avatar" id="drawer-profile-initial" style="width:20px;height:20px;border-radius:50%;background:#4262ff;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;line-height:1;">&mdash;</span>
-        <span id="drawer-profile-name">Profile</span>
-      </a>
-      <a href="/login/" data-auth-signed-out>Login</a>
-      <a class="btn btn--dark" href="/get-started/" data-auth-signed-out>Get started free</a>
-    </div>
-  </header>
+    <main id="main" class="flex-1">
 
+      <!-- Full-Bleed Editorial Hero -->
+      <section id="get-started" class="relative overflow-hidden bg-brand-navy">
+        <span id="signup" class="sr-only" aria-hidden="true"></span>
+        <img src="https://lh3.googleusercontent.com/aida/ALJJyrAqWvFI72TNjUSCKcwMhCL6_gMdXutfMktfjosNYd0veflurvMxyI72x9Ilyjj6NIVeJ73ljXVjE1A9JZCXaNLrR_6HW-xmfdRE3ladzGxOYXXrvo7873v8URmJ1WDY6pvopqDr5-iAaskqfAV294ZKp_l-3ruRidEKUyy2ZzKhV_saEuy51KJsVg5cjJEXUctldcef01NzRNQH_YqQ4Vu2hI6FoN7OVub97UMnCjdTJTZmTfTZdfdganM" alt="Product and strategy team collaborating in a bright studio" onerror="this.style.display='none'" class="qf-hero-media absolute inset-0 w-full h-full object-cover object-center">
+        <div class="absolute inset-0 bg-gradient-to-r from-brand-navy/95 via-brand-navy/85 to-brand-navy/70"></div>
 
-  <main id="main">
-    <!-- ============ HERO ============ -->
-    <section class="hero" id="get-started">
-      <div class="hero__glow" aria-hidden="true"></div>
-      <div class="container hero__inner">
-        <div class="hero__copy">
-          <h1 class="hero__title reveal">
-            Human collaboration<br />at the speed of <span class="hl">AI</span>
-          </h1>
-          <p class="hero__sub reveal">
-            The Intelligent Canvas where your team and agents think, plan, and build together
-          </p>
-
-          <form class="signup reveal" id="hero-email-form" novalidate>
-            <label class="sr-only" for="email">Work email</label>
-            <input id="email" type="email" name="email" placeholder="Enter your work email" autocomplete="email" required />
-            <button class="btn btn--blue" type="submit">Get Started Free</button>
-          </form>
-          <p class="signup__note reveal">Free forever. No credit card required.</p>
+        <!-- Subtle Animated Background Grid -->
+        <div class="pointer-events-none absolute -inset-6 opacity-20 qf-grid-drift" aria-hidden="true">
+          <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="hero-dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1.2" fill="currentColor" class="text-on-plum-footer"></circle>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#hero-dot-grid)"></rect>
+          </svg>
         </div>
 
-        <!-- floating canvas collage -->
-        <div class="hero__canvas reveal" aria-hidden="true">
-          <div class="board">
-            <div class="board__grid"></div>
+        <div class="relative z-10 max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl py-section lg:py-28">
+          <div class="max-w-2xl flex flex-col gap-gutter-lg">
+            <h1 class="qf-animate-hero qf-delay-1 font-headline text-display-lg-mobile lg:text-display-lg text-light-on-primary text-balance" data-design-text-token="display-lg">
+              Human collaboration at the speed of AI
+            </h1>
 
-            <div class="cursor cursor--andrey" data-parallax="0.02">
-              <span class="cursor__dot"></span>
-              <span class="cursor__label">Andrey</span>
-            </div>
-            <div class="cursor cursor--rad" data-parallax="-0.03">
-              <span class="cursor__dot cursor__dot--pink"></span>
-              <span class="cursor__label">Rad</span>
-            </div>
-            <div class="cursor cursor--brie" data-parallax="0.04">
-              <span class="cursor__dot cursor__dot--blue"></span>
-              <span class="cursor__label">Brie</span>
+            <p class="qf-animate-hero qf-delay-2 font-body text-body-lg text-on-plum-footer text-pretty max-w-xl" data-design-text-token="body-lg">
+              The online visual canvas designed for teams and AI agents to think, plan, and build together—across whiteboards, diagrams, flowcharts, Mermaid, Kanban boards, timelines, mind maps, docs, and slides.
+            </p>
+
+            <form id="hero-signup-form" class="qf-animate-hero qf-delay-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-gutter-sm max-w-lg pt-gutter-xs">
+              <label class="sr-only" for="hero-email">Work or school email</label>
+              <div class="relative flex-1 flex items-center">
+                <span aria-hidden="true" class="material-symbols-outlined text-[20px] text-light-outline absolute left-3.5 pointer-events-none">mail</span>
+                <input id="hero-email" name="email" type="email" required placeholder="Enter your work or school email" autocomplete="email" class="w-full rounded pl-11 pr-gutter-md py-3.5 bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface placeholder:text-light-outline font-body text-body-md focus:border-light-primary focus:ring-2 focus:ring-light-primary/30 focus:outline-none">
+              </div>
+              <button type="submit" id="hero-signup-btn" data-component-id="button-primary" data-component-type="button" data-component-variant="primary" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-primary text-light-on-primary font-label text-label-lg transition-colors duration-state-change ease-state-change hover:bg-light-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-light-on-primary shrink-0">
+                <span data-design-text-token="label-lg">Get Started Free</span>
+              </button>
+            </form>
+
+            <div id="hero-signup-feedback" class="hidden qf-panel-animate px-gutter-md py-2.5 rounded bg-success text-on-success font-body text-body-sm max-w-lg" role="status">
+              Workspace invite link sent — check your inbox to launch your first board.
             </div>
 
-            <div class="sticky sticky--yellow" data-parallax="-0.015">Map this process as a workflow diagram so the whole team can follow it</div>
-            <div class="sticky sticky--mint" data-parallax="0.025">Research</div>
-            <div class="sticky sticky--blue" data-parallax="-0.02">Diagrams</div>
-            <div class="sticky sticky--violet" data-parallax="0.03">Journey map</div>
-
-            <div class="node node--start" data-parallax="-0.01">Start</div>
-            <div class="node node--mid" data-parallax="0.015">Review</div>
-            <div class="node node--end" data-parallax="-0.02">Ship</div>
-            <svg class="board__links" viewBox="0 0 520 360" preserveAspectRatio="none">
-              <path d="M96 128 C 160 128, 150 176, 214 176" />
-              <path d="M300 176 C 360 176, 348 128, 410 128" />
-            </svg>
+            <p class="qf-animate-hero qf-delay-4 font-body text-body-sm text-on-plum-footer" data-design-text-token="body-sm">
+              Free forever for individuals &amp; classrooms · No credit card required
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="container logos reveal">
-        <p class="logos__label">Trusted by 250,000+ companies</p>
-        <div class="logos__row">
-          <span>Cisco</span><span>Dell</span><span>Nike</span><span>Salesforce</span>
-          <span>PwC</span><span>Deloitte</span><span>DocuSign</span><span>Asana</span>
+      <!-- Centered Intro + Interactive Canvas Showcase -->
+      <section id="canvas" class="relative overflow-hidden py-section-sm lg:py-section bg-light-surface">
+        <span id="intelligent-canvas" class="sr-only" aria-hidden="true"></span>
+        <div class="pointer-events-none absolute -inset-6 opacity-35 qf-grid-drift" aria-hidden="true">
+          <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="canvas-dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1" fill="currentColor" class="text-light-outline-variant"></circle>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#canvas-dot-grid)"></rect>
+          </svg>
         </div>
-      </div>
-    </section>
-
-    <!-- ============ TABBED USE CASES ============ -->
-    <section class="tabs section">
-      <div class="container">
-        <div class="tabs__bar" role="tablist">
-          <button class="tab is-active" type="button" role="tab" id="tab-research" aria-controls="panel-research" aria-selected="true" tabindex="0" data-tab="research">Research</button>
-          <button class="tab" type="button" role="tab" id="tab-roadmap" aria-controls="panel-roadmap" aria-selected="false" tabindex="-1" data-tab="roadmap">Roadmap &amp; Planning</button>
-          <button class="tab" type="button" role="tab" id="tab-diagrams" aria-controls="panel-diagrams" aria-selected="false" tabindex="-1" data-tab="diagrams">Diagrams</button>
-          <button class="tab" type="button" role="tab" id="tab-workshops" aria-controls="panel-workshops" aria-selected="false" tabindex="-1" data-tab="workshops">Workshops</button>
-          <button class="tab" type="button" role="tab" id="tab-journey" aria-controls="panel-journey" aria-selected="false" tabindex="-1" data-tab="journey">Journey map</button>
-          <button class="tab" type="button" role="tab" id="tab-design" aria-controls="panel-design" aria-selected="false" tabindex="-1" data-tab="design">Product design</button>
-        </div>
-
-        <div class="tabs__panels">
-          <div class="tabpanel is-active" role="tabpanel" id="panel-research" aria-labelledby="tab-research" tabindex="0" data-panel="research">
-            <div class="tabpanel__copy">
-              <h2>Turn research into shared direction</h2>
-              <ul class="checklist">
-                <li>Pull outputs from Claude, NotebookLM, or any research tool into one canvas</li>
-                <li>Review and surface what matters, together</li>
-                <li>Flow insights back out to roadmaps, specs, or your next AI prompt</li>
-              </ul>
-              <a class="link-arrow" href="/solutions/research-synthesis/">Explore research <span aria-hidden="true">→</span></a>
+        <div class="relative z-10 max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl flex flex-col gap-gutter-xl">
+          <div class="max-w-3xl mx-auto text-center flex flex-col items-center gap-gutter-md">
+            <h2 class="font-headline text-display-md-mobile lg:text-display-md text-light-on-surface text-balance" data-design-text-token="display-md">
+              Turn scattered docs and prompts into <span class="text-light-primary">shared direction</span>
+            </h2>
+            <p class="font-body text-body-lg text-light-on-surface-variant text-pretty max-w-2xl" data-design-text-token="body-lg">
+              Pull outputs from Claude, ChatGPT, or Cursor directly onto one multiplayer board. Map workflows, run live workshops, and ship faster together.
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-gutter-md pt-gutter-xs">
+              <a href="/app/" data-component-id="button-primary" data-component-type="button" data-component-variant="primary" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-primary text-light-on-primary font-label text-label-lg transition-colors duration-state-change hover:bg-light-primary-container">
+                <span data-design-text-token="label-lg">Launch a Free Board</span>
+              </a>
+              <a href="#capabilities" data-component-id="button-secondary" data-component-type="button" data-component-variant="secondary" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-surface-container-lowest text-light-on-surface border border-light-outline-variant font-label text-label-lg transition-colors duration-state-change hover:bg-light-surface-container-low">
+                <span data-design-text-token="label-lg">Explore Capabilities</span>
+              </a>
             </div>
-            <div class="tabpanel__art">
-              <div class="art art--research">
-                <div class="sticky sticky--yellow sm">Interview notes</div>
-                <div class="sticky sticky--mint sm">Insight</div>
-                <div class="sticky sticky--violet sm">Theme</div>
-                <div class="sticky sticky--blue sm">Opportunity</div>
+            <div class="pt-gutter-sm flex flex-wrap items-center justify-center gap-2">
+              <span class="px-3 py-1 rounded-full bg-light-surface-variant text-light-primary font-label text-label-sm" data-design-text-token="label-sm">Whiteboards</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Diagrams</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Flowcharts</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Mermaid</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Kanban Boards</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Timelines</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Mind Maps</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Docs</span>
+              <span class="px-3 py-1 rounded-full bg-light-surface-container-lowest border border-light-outline-variant text-light-on-surface-variant font-label text-label-sm" data-design-text-token="label-sm">Slides</span>
+            </div>
+          </div>
+
+          <!-- Interactive Tabbed Canvas Preview -->
+          <div data-component-id="tabs-horizontal" data-component-type="tabs" data-component-variant="horizontal" class="flex flex-col items-center gap-gutter-lg">
+            <div role="tablist" aria-label="Canvas capabilities" class="inline-flex flex-wrap items-center justify-center gap-gutter-xs p-gutter-xs rounded-md bg-light-surface-container-low border border-light-outline-variant">
+              <button type="button" role="tab" id="tab-canvas" aria-selected="true" aria-controls="panel-canvas" tabindex="0" onclick="switchCanvasTab('canvas')" class="canvas-tab px-gutter-md py-gutter-sm rounded bg-light-surface-container-lowest text-light-primary shadow-sm font-label text-label-lg transition-colors duration-state-change">
+                <span data-design-text-token="label-lg">Visual Workflows</span>
+              </button>
+              <button type="button" role="tab" id="tab-mcp" aria-selected="false" aria-controls="panel-mcp" tabindex="-1" onclick="switchCanvasTab('mcp')" class="canvas-tab px-gutter-md py-gutter-sm rounded text-light-on-surface-variant hover:text-light-on-surface font-label text-label-lg transition-colors duration-state-change">
+                <span data-design-text-token="label-lg">MCP Agent Server</span>
+              </button>
+              <button type="button" role="tab" id="tab-knowledge" aria-selected="false" aria-controls="panel-knowledge" tabindex="-1" onclick="switchCanvasTab('knowledge')" class="canvas-tab px-gutter-md py-gutter-sm rounded text-light-on-surface-variant hover:text-light-on-surface font-label text-label-lg transition-colors duration-state-change">
+                <span data-design-text-token="label-lg">Knowledge Hub</span>
+              </button>
+            </div>
+
+            <!-- Panel 1: Visual Workflows -->
+            <div role="tabpanel" id="panel-canvas" aria-labelledby="tab-canvas" class="canvas-panel w-full bg-light-surface-container-lowest rounded-xl border border-light-outline-variant shadow-[0_24px_56px_-16px_rgba(26,28,28,0.10)] overflow-hidden">
+              <div class="px-gutter-lg py-gutter-md border-b border-light-outline-variant bg-light-surface-container-low flex items-center justify-between gap-gutter-md">
+                <div class="flex items-center gap-gutter-sm">
+                  <span class="material-symbols-outlined text-[20px] text-light-primary" aria-hidden="true">account_tree</span>
+                  <span class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Q4 Product Launch · Shared Board</span>
+                </div>
+                <div class="flex items-center gap-gutter-sm">
+                  <span class="px-2.5 py-1 rounded-full bg-light-surface-variant text-light-primary font-label text-label-sm tabular-nums" data-design-text-token="label-sm">3 LIVE CURSORS</span>
+                </div>
+              </div>
+              <div class="p-gutter-lg lg:p-gutter-xl grid grid-cols-1 lg:grid-cols-12 gap-gutter-lg items-center bg-light-surface">
+                <div class="lg:col-span-4 flex flex-col gap-gutter-md">
+                  <h3 class="font-headline text-headline-md text-light-on-surface" data-design-text-token="headline-md">Map any process in seconds</h3>
+                  <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                    Turn interview notes, Mermaid syntax, or a plain-English prompt into an editable flowchart, journey map, or sprint timeline.
+                  </p>
+                  <div class="grid grid-cols-2 gap-gutter-md pt-gutter-sm border-t border-light-outline-variant">
+                    <div>
+                      <p class="font-headline text-headline-md text-light-primary tabular-nums" data-design-text-token="headline-md">3.6x</p>
+                      <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Faster time to market</p>
+                    </div>
+                    <div>
+                      <p class="font-headline text-headline-md text-light-on-surface tabular-nums" data-design-text-token="headline-md">50%</p>
+                      <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Shorter planning cycles</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="lg:col-span-8 bg-light-surface-container-lowest rounded-lg border border-light-outline-variant p-gutter-lg grid grid-cols-1 sm:grid-cols-3 gap-gutter-md items-stretch">
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-low border border-light-outline-variant flex flex-col justify-between gap-gutter-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="font-label text-label-sm uppercase text-light-on-surface-variant" data-design-text-token="label-sm">01 · RESEARCH</span>
+                      <span class="px-2 py-0.5 rounded-full bg-light-secondary-container text-light-on-secondary-container font-label text-label-sm" data-design-text-token="label-sm">Andrey</span>
+                    </div>
+                    <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Interview Synthesis</p>
+                    <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">14 user transcripts clustered into 3 core themes.</p>
+                  </div>
+                  <div class="p-gutter-md rounded-md bg-light-surface-variant/60 border border-light-primary/30 flex flex-col justify-between gap-gutter-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="font-label text-label-sm uppercase text-light-primary" data-design-text-token="label-sm">02 · WORKFLOW</span>
+                      <span class="px-2 py-0.5 rounded-full bg-light-primary text-light-on-primary font-label text-label-sm" data-design-text-token="label-sm">Aida AI</span>
+                    </div>
+                    <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Automated Flow Map</p>
+                    <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Generated 6 decision nodes and owner handoffs.</p>
+                  </div>
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-low border border-light-outline-variant flex flex-col justify-between gap-gutter-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="font-label text-label-sm uppercase text-light-tertiary" data-design-text-token="label-sm">03 · SHIP</span>
+                      <span class="px-2 py-0.5 rounded-full bg-success text-on-success font-label text-label-sm" data-design-text-token="label-sm">Done</span>
+                    </div>
+                    <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Sprint 24 Timeline</p>
+                    <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Synced with Jira, GitHub, and Slack.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel 2: MCP Agent Server -->
+            <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden class="canvas-panel w-full bg-light-surface-container-lowest rounded-xl border border-light-outline-variant shadow-[0_24px_56px_-16px_rgba(26,28,28,0.10)] overflow-hidden">
+              <div class="px-gutter-lg py-gutter-md border-b border-light-outline-variant bg-light-surface-container-low flex items-center justify-between gap-gutter-md">
+                <div class="flex items-center gap-gutter-sm">
+                  <span class="material-symbols-outlined text-[20px] text-light-tertiary" aria-hidden="true">hub</span>
+                  <span class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">QuantalFlow MCP · Connected Agents</span>
+                </div>
+                <span class="px-2.5 py-1 rounded-full bg-light-secondary-container text-light-on-secondary-container font-label text-label-sm" data-design-text-token="label-sm">PROTOCOL READY</span>
+              </div>
+              <div class="p-gutter-lg lg:p-gutter-xl grid grid-cols-1 lg:grid-cols-12 gap-gutter-lg items-center bg-light-surface">
+                <div class="lg:col-span-5 flex flex-col gap-gutter-md">
+                  <h3 class="font-headline text-headline-md text-light-on-surface" data-design-text-token="headline-md">Claude, ChatGPT, and Cursor as teammates</h3>
+                  <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                    Connect your preferred AI tools via QuantalFlow MCP so agents can read board context, draft architecture diagrams, and summarize workshops in place.
+                  </p>
+                </div>
+                <div class="lg:col-span-7 grid grid-cols-2 gap-gutter-md">
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-lowest border border-light-outline-variant flex items-center gap-gutter-md">
+                    <span class="material-symbols-outlined text-[24px] text-light-primary" aria-hidden="true">smart_toy</span>
+                    <div>
+                      <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Claude MCP</p>
+                      <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Reads &amp; structures specs</p>
+                    </div>
+                  </div>
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-lowest border border-light-outline-variant flex items-center gap-gutter-md">
+                    <span class="material-symbols-outlined text-[24px] text-light-tertiary" aria-hidden="true">terminal</span>
+                    <div>
+                      <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Cursor</p>
+                      <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Syncs system diagrams</p>
+                    </div>
+                  </div>
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-lowest border border-light-outline-variant flex items-center gap-gutter-md">
+                    <span class="material-symbols-outlined text-[24px] text-light-secondary" aria-hidden="true">auto_awesome</span>
+                    <div>
+                      <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">ChatGPT</p>
+                      <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Brainstorms sticky clusters</p>
+                    </div>
+                  </div>
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-lowest border border-light-outline-variant flex items-center gap-gutter-md">
+                    <span class="material-symbols-outlined text-[24px] text-success" aria-hidden="true">verified_user</span>
+                    <div>
+                      <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Enterprise Guard</p>
+                      <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Scoped permissions</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel 3: Knowledge Hub -->
+            <div role="tabpanel" id="panel-knowledge" aria-labelledby="tab-knowledge" hidden class="canvas-panel w-full bg-light-surface-container-lowest rounded-xl border border-light-outline-variant shadow-[0_24px_56px_-16px_rgba(26,28,28,0.10)] overflow-hidden">
+              <div class="px-gutter-lg py-gutter-md border-b border-light-outline-variant bg-light-surface-container-low flex items-center justify-between gap-gutter-md">
+                <div class="flex items-center gap-gutter-sm">
+                  <span class="material-symbols-outlined text-[20px] text-light-secondary" aria-hidden="true">menu_book</span>
+                  <span class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Knowledge Hub &amp; Client Operations</span>
+                </div>
+                <span class="px-2.5 py-1 rounded-full bg-light-surface-variant text-light-primary font-label text-label-sm" data-design-text-token="label-sm">ALL-IN-ONE WORKSPACE</span>
+              </div>
+              <div class="p-gutter-lg lg:p-gutter-xl grid grid-cols-1 lg:grid-cols-12 gap-gutter-lg items-center bg-light-surface">
+                <div class="lg:col-span-5 flex flex-col gap-gutter-md">
+                  <h3 class="font-headline text-headline-md text-light-on-surface" data-design-text-token="headline-md">Notes, CRM, and files in one place</h3>
+                  <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                    Connect your visual boards directly to your Knowledge Hub, Note Pad, Files, Quotations, and Invoices without switching tools.
+                  </p>
+                </div>
+                <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-gutter-md">
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-lowest border border-light-outline-variant flex flex-col gap-gutter-xs">
+                    <span class="material-symbols-outlined text-[24px] text-light-primary" aria-hidden="true">sticky_note_2</span>
+                    <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Note Pad</p>
+                    <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Instant meeting briefs</p>
+                  </div>
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-lowest border border-light-outline-variant flex flex-col gap-gutter-xs">
+                    <span class="material-symbols-outlined text-[24px] text-light-tertiary" aria-hidden="true">folder_shared</span>
+                    <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Shared Files</p>
+                    <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Versioned assets</p>
+                  </div>
+                  <div class="p-gutter-md rounded-md bg-light-surface-container-lowest border border-light-outline-variant flex flex-col gap-gutter-xs">
+                    <span class="material-symbols-outlined text-[24px] text-light-secondary" aria-hidden="true">receipt_long</span>
+                    <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">CRM &amp; Quotes</p>
+                    <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Client-ready proposals</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div class="tabpanel" role="tabpanel" id="panel-roadmap" aria-labelledby="tab-roadmap" tabindex="0" data-panel="roadmap">
-            <div class="tabpanel__copy">
-              <h2>Plan the roadmap everyone can rally behind</h2>
-              <ul class="checklist">
-                <li>Shape priorities with live, editable timelines</li>
-                <li>Align stakeholders in a single visual source of truth</li>
-                <li>Connect strategy to delivery without switching tools</li>
-              </ul>
-              <a class="link-arrow" href="/solutions/roadmapping/">Explore roadmapping <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="tabpanel__art">
-              <div class="art art--roadmap">
-                <div class="bar" style="--h:52%"><span>Q1</span></div>
-                <div class="bar" style="--h:78%"><span>Q2</span></div>
-                <div class="bar" style="--h:64%"><span>Q3</span></div>
-                <div class="bar" style="--h:88%"><span>Q4</span></div>
-              </div>
+      <!-- Capabilities Split Grid -->
+      <section id="capabilities" class="py-section-sm lg:py-section bg-light-surface-container-lowest border-y border-light-outline-variant">
+        <div class="max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl flex flex-col gap-gutter-xl">
+          <div class="flex flex-col md:flex-row md:items-end justify-between gap-gutter-lg">
+            <div class="max-w-xl flex flex-col gap-gutter-sm">
+              <h2 class="font-headline text-headline-lg-mobile lg:text-headline-lg text-light-on-surface text-balance" data-design-text-token="headline-lg">
+                Everything a modern workspace needs, without the bloat
+              </h2>
             </div>
           </div>
 
-          <div class="tabpanel" role="tabpanel" id="panel-diagrams" aria-labelledby="tab-diagrams" tabindex="0" data-panel="diagrams">
-            <div class="tabpanel__copy">
-              <h2>Map systems so the whole team can follow</h2>
-              <ul class="checklist">
-                <li>Diagram flows, architectures, and processes fast</li>
-                <li>Auto-layout keeps every connection clean</li>
-                <li>Turn a prompt into a diagram in seconds</li>
-              </ul>
-              <a class="link-arrow" href="/solutions/diagramming/">Explore diagrams <span aria-hidden="true">→</span></a>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter-lg">
+            <div class="qf-card-lift p-gutter-lg rounded-lg bg-light-surface border border-light-outline-variant flex flex-col gap-gutter-sm">
+              <span class="material-symbols-outlined text-[28px] text-light-primary" aria-hidden="true">bolt</span>
+              <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Create Anything from Anything</h3>
+              <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                Turn a prompt, PDF, or research doc into a diagram, timeline, or presentation deck on one canvas.
+              </p>
             </div>
-            <div class="tabpanel__art">
-              <div class="art art--diagrams">
-                <div class="node sm node--a">Client</div>
-                <div class="node sm node--b">API</div>
-                <div class="node sm node--c">Data</div>
-                <svg viewBox="0 0 400 240" class="art__lines">
-                  <path d="M90 70 C 150 70, 150 150, 200 150" />
-                  <path d="M250 150 C 300 150, 300 190, 340 190" />
+            <div class="qf-card-lift p-gutter-lg rounded-lg bg-light-surface border border-light-outline-variant flex flex-col gap-gutter-sm">
+              <span class="material-symbols-outlined text-[28px] text-light-tertiary" aria-hidden="true">hub</span>
+              <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Native Tool Integrations</h3>
+              <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                Pull shared context straight from Jira, Slack, Figma, Notion, GitHub, and Google Drive.
+              </p>
+            </div>
+            <div class="qf-card-lift p-gutter-lg rounded-lg bg-light-surface border border-light-outline-variant flex flex-col gap-gutter-sm">
+              <span class="material-symbols-outlined text-[28px] text-light-secondary" aria-hidden="true">school</span>
+              <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Ready for Classrooms &amp; Orgs</h3>
+              <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                Unlimited boards, starred spaces, and role-based permissions for schools, startups, and enterprises.
+              </p>
+            </div>
+            <div class="qf-card-lift p-gutter-lg rounded-lg bg-light-surface border border-light-outline-variant flex flex-col gap-gutter-sm">
+              <span class="material-symbols-outlined text-[28px] text-light-primary" aria-hidden="true">dashboard_customize</span>
+              <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">100+ Starter Templates</h3>
+              <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                Launch Kanban boards, customer journey maps, wireframes, and mind maps in a single click.
+              </p>
+            </div>
+            <div class="qf-card-lift p-gutter-lg rounded-lg bg-light-surface border border-light-outline-variant flex flex-col gap-gutter-sm">
+              <span class="material-symbols-outlined text-[28px] text-success" aria-hidden="true">shield_lock</span>
+              <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Enterprise-Grade Security</h3>
+              <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                ISO 42001 ready, ISO 27001 certified, SOC 2 compliant, and GDPR compliant out of the box.
+              </p>
+            </div>
+            <div class="qf-card-lift p-gutter-lg rounded-lg bg-light-surface border border-light-outline-variant flex flex-col gap-gutter-sm">
+              <span class="material-symbols-outlined text-[28px] text-light-tertiary" aria-hidden="true">support_agent</span>
+              <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Responsive Human Support</h3>
+              <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                Dedicated onboarding specialists and QuantalFlow Academy guides whenever your team needs help.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Split Collaboration + Video Modal Section -->
+      <section class="py-section-sm lg:py-section bg-light-surface">
+        <div class="max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl grid grid-cols-1 lg:grid-cols-12 gap-gutter-xl items-center">
+          <div class="lg:col-span-5 flex flex-col gap-gutter-md">
+            <h2 class="font-headline text-headline-lg-mobile lg:text-headline-lg text-light-on-surface text-balance" data-design-text-token="headline-lg">
+              Our platform keeps every team and classroom aligned
+            </h2>
+            <p class="font-body text-body-md text-light-on-surface-variant text-pretty" data-design-text-token="body-md">
+              Move beyond isolated AI chat windows. Give your entire group one visual space where research, decisions, and next steps stay connected.
+            </p>
+            <div class="pt-gutter-sm">
+              <button type="button" onclick="document.getElementById('video-modal').classList.remove('hidden')" data-component-id="button-with-icon" data-component-type="button" data-component-variant="with-icon" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-surface-container-lowest text-light-on-surface border border-light-outline-variant font-label text-label-lg transition-colors duration-state-change hover:bg-light-surface-container-low">
+                <span class="material-symbols-outlined text-[20px] text-light-primary" aria-hidden="true">play_circle</span>
+                <span data-design-text-token="label-lg">Watch 60s Overview</span>
+              </button>
+            </div>
+          </div>
+          <div class="lg:col-span-7">
+            <div class="rounded-xl overflow-hidden border border-light-outline-variant shadow-[0_20px_48px_-12px_rgba(26,28,28,0.12)] bg-light-surface-container-lowest p-gutter-sm">
+              <img src="https://lh3.googleusercontent.com/aida/ALJJyrDFO_ME-GtImlSkQEDjvy7oZ9VRxltYb9Q8WueqcTeO3D2BdlBW-ghR47Zrb1pymy8uv20PUmIZJPtGL388-JqbbXJ5QCVkxb-i1nGWckQs3y1C9-VusZ7qRPILMD9uTvg2fDOLh5rG3I-frFUO2IY6YbtTOfq0OgogAO5Z3pC_bjhoUA8dS0QuG7Tq7D4YVjo9rYZcHIgE8-X1Nl0lTZGOe9y4weihlfX7dztFK78UygR4b6_gsHnHiNch1ywS6Q" alt="Team and students collaborating around a table with laptops" onerror="this.style.display='none'" class="w-full aspect-[4/3] object-cover rounded-lg">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Staggered 2x2 Audience & Solutions Grid -->
+      <section id="audiences" class="py-section-sm lg:py-section bg-light-surface">
+        <div class="max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl grid grid-cols-1 lg:grid-cols-12 gap-gutter-xl items-start">
+          <div class="lg:col-span-4 flex flex-col gap-gutter-md lg:pt-gutter-xl">
+            <h2 class="font-headline text-headline-lg-mobile lg:text-headline-lg text-light-on-surface text-balance" data-design-text-token="headline-lg">
+              Built for <span class="text-light-primary">every team</span>, classroom, and creator
+            </h2>
+            <p class="font-body text-body-md text-light-on-surface-variant text-pretty" data-design-text-token="body-md">
+              Whether you are running a university seminar, scaling an enterprise org, or organizing solo research, QuantalFlow adapts to your workflow.
+            </p>
+            <div class="pt-gutter-sm">
+              <a href="/solutions/" data-component-id="button-primary" data-component-type="button" data-component-variant="primary" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-primary text-light-on-primary font-label text-label-lg transition-colors duration-state-change hover:bg-light-primary-container">
+                <span data-design-text-token="label-lg">Explore Solutions</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-gutter-lg items-start">
+            <!-- Column 1 -->
+            <div class="flex flex-col gap-gutter-lg">
+              <article data-component-id="card-elevated" data-component-type="card" data-component-variant="elevated" class="bg-light-surface-container-lowest rounded-lg p-gutter-xl border border-light-outline-variant shadow-[0_20px_48px_-12px_rgba(26,28,28,0.10)] flex flex-col gap-gutter-md">
+                <header class="flex items-center gap-gutter-md">
+                  <div class="w-12 h-12 rounded-md bg-light-surface-variant text-light-primary flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-[24px]" aria-hidden="true">corporate_fare</span>
+                  </div>
+                  <div>
+                    <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Enterprise Teams</h3>
+                  </div>
+                </header>
+                <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                  Align cross-functional departments with shared roadmaps, executive dashboards, and SOC 2 compliant AI workflows.
+                </p>
+              </article>
+
+              <article data-component-id="card-elevated" data-component-type="card" data-component-variant="elevated" class="bg-light-surface-container-lowest rounded-lg p-gutter-xl border border-light-outline-variant shadow-[0_20px_48px_-12px_rgba(26,28,28,0.10)] flex flex-col gap-gutter-md">
+                <header class="flex items-center gap-gutter-md">
+                  <div class="w-12 h-12 rounded-md bg-light-secondary-container text-light-secondary flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-[24px]" aria-hidden="true">groups</span>
+                  </div>
+                  <div>
+                    <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Builders &amp; Designers</h3>
+                  </div>
+                </header>
+                <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                  Generate architecture diagrams, wireframes, and sprint plans straight from GitHub repos and Cursor via MCP.
+                </p>
+              </article>
+            </div>
+
+            <!-- Column 2 (Staggered downward on sm+) -->
+            <div class="flex flex-col gap-gutter-lg sm:translate-y-8">
+              <article data-component-id="card-elevated" data-component-type="card" data-component-variant="elevated" class="bg-light-surface-container-lowest rounded-lg p-gutter-xl border border-light-outline-variant shadow-[0_20px_48px_-12px_rgba(26,28,28,0.10)] flex flex-col gap-gutter-md">
+                <header class="flex items-center gap-gutter-md">
+                  <div class="w-12 h-12 rounded-md bg-light-surface-container-low text-light-tertiary flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-[24px]" aria-hidden="true">school</span>
+                  </div>
+                  <div>
+                    <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Campus &amp; Research</h3>
+                  </div>
+                </header>
+                <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                  Run interactive studio critiques, lab group projects, and visual syllabi with free educator and student workspaces.
+                </p>
+              </article>
+
+              <article data-component-id="card-action" data-component-type="card" data-component-variant="action" class="bg-light-surface-container-lowest rounded-lg p-gutter-xl border border-light-outline-variant shadow-[0_20px_48px_-12px_rgba(26,28,28,0.10)] flex flex-col justify-between gap-gutter-md">
+                <header class="flex items-center gap-gutter-md">
+                  <div class="w-12 h-12 rounded-md bg-light-surface-variant text-light-primary flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-[24px]" aria-hidden="true">person</span>
+                  </div>
+                  <div>
+                    <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Solo Creators</h3>
+                  </div>
+                </header>
+                <p class="font-body text-body-md text-light-on-surface-variant" data-design-text-token="body-md">
+                  Organize your Knowledge Hub, draft client quotations, and turn rough notes into polished decks in minutes.
+                </p>
+                <footer class="pt-gutter-sm border-t border-light-outline-variant">
+                  <a href="/app/" class="font-label text-label-lg text-light-primary hover:underline" data-design-text-token="label-lg">Start free personal board →</a>
+                </footer>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dark Full-Width CTA Banner -->
+      <section id="cta" class="relative overflow-hidden bg-brand-navy py-section lg:py-24 mt-gutter-lg">
+        <img src="https://lh3.googleusercontent.com/aida/ALJJyrCXaIn2-QbFzwI-qt7WqsuAacPtWYg-yELsGpOu80Er3k1OQtFkwgYq-KBym-iazqTr8hTMZOFZq39wW4S9gA4tu2p67NbcX1REf_qeO7YijJqo6WnmlNvUGb5xa1gzUT3qOIaVQyZ1N4eyVHLqiYyMgS28_B1-3kitj3Q69t9WtUG9R92lTnPt6h8vXHGYSMJABIZGFIKNvJ-qnCSlzSmnXnhkfqj_0cK0Ew4eTRwdE43ouPX5WVtAbg" alt="Dark studio desk background" onerror="this.style.display='none'" class="absolute inset-0 w-full h-full object-cover opacity-55">
+        <div class="absolute inset-0 bg-brand-navy/65"></div>
+        <div class="relative z-10 max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl text-center flex flex-col items-center gap-gutter-lg">
+          <h2 class="font-headline text-display-md-mobile lg:text-display-md text-light-on-primary text-balance max-w-2xl" data-design-text-token="display-md">
+            Create your first Intelligent Canvas with QuantalFlow today
+          </h2>
+          <div class="flex flex-wrap items-center justify-center gap-gutter-md">
+            <a href="/get-started/" data-component-id="button-primary" data-component-type="button" data-component-variant="primary" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-primary text-light-on-primary font-label text-label-lg transition-colors duration-state-change hover:bg-light-primary-container">
+              <span data-design-text-token="label-lg">Get Started Free</span>
+            </a>
+            <a href="/enterprise/contact/" data-component-id="button-secondary" data-component-type="button" data-component-variant="secondary" class="inline-flex items-center justify-center gap-gutter-sm px-gutter-lg py-3 rounded bg-light-surface-container-lowest text-light-on-surface font-label text-label-lg transition-colors duration-state-change hover:bg-light-surface-container-low">
+              <span data-design-text-token="label-lg">Contact Sales</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Animated Templates & Supported Formats -->
+      <section id="resources" class="py-section-sm lg:py-section bg-light-surface">
+        <div class="max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl flex flex-col gap-gutter-xl">
+          <div class="flex flex-col md:flex-row md:items-end justify-between gap-gutter-md">
+            <div class="flex flex-col gap-gutter-xs">
+              <h2 class="font-headline text-headline-lg-mobile lg:text-headline-lg text-light-on-surface" data-design-text-token="headline-lg">
+                Every visual format, <span class="text-light-primary">live on one canvas</span>
+              </h2>
+              <p class="font-body text-body-md text-light-on-surface-variant max-w-xl" data-design-text-token="body-md">
+                Launch whiteboards, diagrams, flowcharts, Mermaid specs, Kanban boards, timelines, mind maps, docs, and slides in a single workspace.
+              </p>
+            </div>
+            <a href="/resources/templates/" class="font-label text-label-lg text-light-on-surface hover:text-light-primary transition-colors shrink-0" data-design-text-token="label-lg">
+              Browse All Templates →
+            </a>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter-lg items-stretch">
+            <!-- 1. Whiteboards -->
+            <a href="/app/?module=whiteboard" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden flex items-center justify-center border-b border-light-outline-variant">
+                <div class="grid grid-cols-2 gap-2 w-full max-w-[240px]">
+                  <div class="qf-float-slow p-2.5 rounded bg-light-surface-variant border border-light-outline-variant shadow-sm">
+                    <p class="font-label text-label-sm text-light-primary" data-design-text-token="label-sm">User Pain</p>
+                    <p class="font-body text-body-sm text-light-on-surface" data-design-text-token="body-sm">Slow handoffs</p>
+                  </div>
+                  <div class="qf-float-alt p-2.5 rounded bg-light-secondary-container border border-light-outline-variant shadow-sm">
+                    <p class="font-label text-label-sm text-light-on-secondary-container" data-design-text-token="label-sm">Idea</p>
+                    <p class="font-body text-body-sm text-light-on-surface" data-design-text-token="body-sm">Auto-cluster</p>
+                  </div>
+                </div>
+                <span class="qf-float-alt absolute bottom-3 right-4 px-2 py-0.5 rounded-full bg-light-primary text-light-on-primary font-label text-label-sm" data-design-text-token="label-sm">Andrey</span>
+              </div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Online Whiteboards</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Infinite sticky-note clustering, freehand sketching, and multiplayer cursors.</p>
+              </div>
+            </a>
+
+            <!-- 2. Diagrams -->
+            <a href="/product/diagrams/" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden flex items-center justify-center border-b border-light-outline-variant">
+                <svg class="w-full h-full max-w-[260px]" viewBox="0 0 260 120" fill="none" aria-hidden="true">
+                  <path d="M58 60 H108" stroke="currentColor" stroke-width="2" class="text-light-primary qf-dash-flow"></path>
+                  <path d="M152 60 H202" stroke="currentColor" stroke-width="2" class="text-light-tertiary qf-dash-flow"></path>
+                  <rect x="8" y="38" width="50" height="44" rx="8" fill="currentColor" class="text-light-surface-container-lowest stroke-light-outline-variant" stroke-width="1.5"></rect>
+                  <rect x="108" y="38" width="44" height="44" rx="8" fill="currentColor" class="text-light-surface-variant stroke-light-primary" stroke-width="1.5"></rect>
+                  <rect x="202" y="38" width="50" height="44" rx="8" fill="currentColor" class="text-light-surface-container-lowest stroke-light-tertiary" stroke-width="1.5"></rect>
                 </svg>
+                <div class="absolute inset-0 flex items-center justify-between px-6 pointer-events-none max-w-[260px] mx-auto">
+                  <span class="font-label text-label-sm text-light-on-surface" data-design-text-token="label-sm">API</span>
+                  <span class="font-label text-label-sm text-light-primary" data-design-text-token="label-sm">MCP</span>
+                  <span class="font-label text-label-sm text-light-tertiary" data-design-text-token="label-sm">DB</span>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div class="tabpanel" role="tabpanel" id="panel-workshops" aria-labelledby="tab-workshops" tabindex="0" data-panel="workshops">
-            <div class="tabpanel__copy">
-              <h2>Run workshops that actually move work forward</h2>
-              <ul class="checklist">
-                <li>Facilitate with timers, voting, and breakout boards</li>
-                <li>Capture decisions as they happen</li>
-                <li>Leave with a plan, not just a wall of notes</li>
-              </ul>
-              <a class="link-arrow" href="/solutions/workshops/">Explore workshops <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="tabpanel__art">
-              <div class="art art--workshops">
-                <div class="sticky sticky--pink sm">Idea <svg class="sticky__icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></div>
-                <div class="sticky sticky--yellow sm">Vote <svg class="sticky__icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg></div>
-                <div class="sticky sticky--mint sm">Decide <svg class="sticky__icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg></div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">System Diagrams</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Live architecture, cloud topology, and entity-relationship schematics.</p>
               </div>
-            </div>
-          </div>
+            </a>
 
-          <div class="tabpanel" role="tabpanel" id="panel-journey" aria-labelledby="tab-journey" tabindex="0" data-panel="journey">
-            <div class="tabpanel__copy">
-              <h2>See the customer journey end to end</h2>
-              <ul class="checklist">
-                <li>Map every touchpoint across stages and teams</li>
-                <li>Spot friction and moments that matter</li>
-                <li>Turn insight into experience improvements</li>
-              </ul>
-              <a class="link-arrow" href="/solutions/customer-journeys/">Explore journey mapping <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="tabpanel__art">
-              <div class="art art--journey">
-                <div class="journey__col"><span>Aware</span></div>
-                <div class="journey__col"><span>Evaluate</span></div>
-                <div class="journey__col"><span>Buy</span></div>
-                <div class="journey__col"><span>Advocate</span></div>
-                <svg viewBox="0 0 400 120" class="art__lines">
-                  <path d="M20 80 C 100 20, 140 100, 200 60 S 320 20, 380 70" />
+            <!-- 3. Flowcharts -->
+            <a href="/solutions/flowcharts/" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden flex flex-col items-center justify-center gap-2 border-b border-light-outline-variant">
+                <div class="qf-float-slow px-3 py-1.5 rounded bg-light-surface-container-lowest border border-light-outline-variant font-label text-label-sm text-light-on-surface" data-design-text-token="label-sm">Trigger Event</div>
+                <svg class="w-24 h-5" viewBox="0 0 96 20" fill="none" aria-hidden="true">
+                  <path d="M48 0 V10 H16 V20 M48 10 H80 V20" stroke="currentColor" stroke-width="2" class="text-light-primary qf-dash-flow"></path>
                 </svg>
+                <div class="flex items-center gap-3">
+                  <span class="px-2.5 py-1 rounded bg-light-surface-variant text-light-primary font-label text-label-sm" data-design-text-token="label-sm">Approve</span>
+                  <span class="px-2.5 py-1 rounded bg-light-secondary-container text-light-on-secondary-container font-label text-label-sm" data-design-text-token="label-sm">Iterate</span>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div class="tabpanel" role="tabpanel" id="panel-design" aria-labelledby="tab-design" tabindex="0" data-panel="design">
-            <div class="tabpanel__copy">
-              <h2>Design products in the open</h2>
-              <ul class="checklist">
-                <li>Wireframe, prototype, and critique on one canvas</li>
-                <li>Keep research, design, and engineering in sync</li>
-                <li>Go from prompt to prototype in minutes</li>
-              </ul>
-              <a class="link-arrow" href="/product/prototypes/">Explore product design <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="tabpanel__art">
-              <div class="art art--design">
-                <div class="wire"><div class="wire__bar"></div><div class="wire__row"><i></i><i></i><i></i></div><div class="wire__block"></div></div>
-                <div class="wire wire--alt"><div class="wire__bar"></div><div class="wire__block"></div><div class="wire__row"><i></i><i></i></div></div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Flowcharts</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Decision trees, user journeys, and automated process mapping.</p>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+            </a>
 
-    <!-- ============ PROOF / STAT CARDS ============ -->
-    <section class="proof section">
-      <div class="container">
-        <h2 class="section__title reveal">The only thing more important than moving fast<br />is moving the needle</h2>
-        <p class="section__sub reveal">See how over 250,000 companies are getting great done in QuantalFlow</p>
-
-        <div class="proof__grid">
-          <article class="stat-card reveal">
-            <div class="stat-card__media media--a">
-              <div class="mini-board">
-                <div class="sticky sticky--yellow sm">Sprint 24</div>
-                <div class="sticky sticky--mint sm">Done</div>
-                <div class="cursor cursor--sm"><span class="cursor__dot"></span><span class="cursor__label">Aida</span></div>
+            <!-- 4. Mermaid Diagrams -->
+            <a href="/product/diagrams/" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-brand-navy p-gutter-md relative overflow-hidden flex flex-col justify-center gap-2 border-b border-light-outline-variant">
+                <div class="flex items-center justify-between">
+                  <span class="font-label text-label-sm text-dark-primary" data-design-text-token="label-sm">MERMAID.JS</span>
+                  <span class="px-2 py-0.5 rounded bg-light-surface-container-lowest/15 text-light-on-primary font-label text-label-sm" data-design-text-token="label-sm">LIVE SYNC</span>
+                </div>
+                <p class="font-label text-label-sm text-on-plum-footer" data-design-text-token="label-sm">graph LR; Prompt--&gt;AI--&gt;Canvas</p>
+                <div class="qf-float-slow flex items-center gap-2 pt-1">
+                  <span class="px-2 py-1 rounded bg-light-primary text-light-on-primary font-label text-label-sm" data-design-text-token="label-sm">Prompt</span>
+                  <span class="text-dark-primary font-label text-label-sm" data-design-text-token="label-sm">→</span>
+                  <span class="px-2 py-1 rounded bg-light-tertiary text-light-on-tertiary font-label text-label-sm" data-design-text-token="label-sm">Canvas</span>
+                </div>
               </div>
-            </div>
-            <div class="stat-card__foot">
-              <p class="stat-card__num">3.6x</p>
-              <p class="stat-card__label">faster time to market</p>
-            </div>
-          </article>
-
-          <article class="stat-card reveal">
-            <div class="stat-card__media media--b">
-              <div class="mini-board">
-                <div class="sticky sticky--violet sm">Kickoff</div>
-                <div class="sticky sticky--blue sm">Scope</div>
-                <div class="sticky sticky--pink sm">Timeline</div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Mermaid Diagrams</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Paste or generate Mermaid syntax from AI agents and edit visually.</p>
               </div>
-            </div>
-            <div class="stat-card__foot">
-              <p class="stat-card__num">50%</p>
-              <p class="stat-card__label">shorter planning process</p>
-            </div>
-          </article>
+            </a>
 
-          <article class="stat-card reveal">
-            <div class="stat-card__media media--c">
-              <div class="mini-board">
-                <div class="flow-node">Idea</div>
-                <div class="flow-node flow-node--alt">Build</div>
-                <div class="flow-node flow-node--end">Launch</div>
+            <!-- 5. Kanban Boards -->
+            <a href="/app/?module=kanban" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden grid grid-cols-3 gap-2 items-start border-b border-light-outline-variant">
+                <div class="p-2 rounded bg-light-surface-container-lowest border border-light-outline-variant flex flex-col gap-1.5">
+                  <span class="font-label text-label-sm text-light-on-surface-variant" data-design-text-token="label-sm">TODO</span>
+                  <div class="h-5 rounded bg-light-surface-container"></div>
+                </div>
+                <div class="p-2 rounded bg-light-surface-container-lowest border border-light-primary/40 flex flex-col gap-1.5 qf-float-slow">
+                  <span class="font-label text-label-sm text-light-primary" data-design-text-token="label-sm">DOING</span>
+                  <div class="h-5 rounded bg-light-surface-variant"></div>
+                </div>
+                <div class="p-2 rounded bg-light-surface-container-lowest border border-light-outline-variant flex flex-col gap-1.5">
+                  <span class="font-label text-label-sm text-success" data-design-text-token="label-sm">DONE</span>
+                  <div class="h-5 rounded bg-light-surface-container"></div>
+                </div>
               </div>
-            </div>
-            <div class="stat-card__foot">
-              <p class="stat-card__num">2x</p>
-              <p class="stat-card__label">faster time to market</p>
-            </div>
-          </article>
-        </div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Kanban Boards</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Track sprint tasks, owners, and status columns right beside your specs.</p>
+              </div>
+            </a>
 
-        <div class="numbers">
-          <div class="number reveal">
-            <p class="number__value" data-count="100" data-suffix="M+">0</p>
-            <p class="number__label">people collaborating on QuantalFlow</p>
-          </div>
-          <div class="number reveal">
-            <p class="number__value" data-count="250" data-suffix="+">0</p>
-            <p class="number__label">apps and integrations</p>
-          </div>
-          <div class="number reveal">
-            <p class="number__value" data-count="6000" data-suffix="+">0</p>
-            <p class="number__label">templates</p>
-          </div>
-        </div>
-      </div>
-    </section>
+            <!-- 6. Timelines -->
+            <a href="/app/?template=project-planning" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden flex flex-col justify-center gap-2.5 border-b border-light-outline-variant">
+                <div class="flex items-center gap-2">
+                  <span class="font-label text-label-sm text-light-on-surface-variant w-10" data-design-text-token="label-sm">W1</span>
+                  <div class="qf-float-slow h-5 w-28 rounded-full bg-light-primary text-light-on-primary px-2.5 flex items-center font-label text-label-sm" data-design-text-token="label-sm">Discovery</div>
+                </div>
+                <div class="flex items-center gap-2 pl-8">
+                  <span class="font-label text-label-sm text-light-on-surface-variant w-10" data-design-text-token="label-sm">W2</span>
+                  <div class="qf-float-alt h-5 w-32 rounded-full bg-light-tertiary text-light-on-tertiary px-2.5 flex items-center font-label text-label-sm" data-design-text-token="label-sm">Build &amp; QA</div>
+                </div>
+                <div class="flex items-center gap-2 pl-16">
+                  <span class="font-label text-label-sm text-light-on-surface-variant w-10" data-design-text-token="label-sm">W3</span>
+                  <div class="h-5 w-24 rounded-full bg-light-secondary text-light-on-secondary px-2.5 flex items-center font-label text-label-sm" data-design-text-token="label-sm">Launch</div>
+                </div>
+              </div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Timelines &amp; Roadmaps</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Schedule quarters, dependencies, and milestones in clean visual tracks.</p>
+              </div>
+            </a>
 
-    <!-- ============ INTELLIGENT CANVAS FEATURES ============ -->
-    <section class="canvas section" id="intelligent-canvas">
-      <div class="container">
-        <h2 class="section__title reveal">Experience the Intelligent Canvas</h2>
+            <!-- 7. Mind Maps -->
+            <a href="/app/?module=mindmap" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden flex items-center justify-center border-b border-light-outline-variant">
+                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 280 160" fill="none" aria-hidden="true">
+                  <path d="M140 80 C 100 80, 90 42, 60 42 M140 80 C 100 80, 90 118, 60 118 M140 80 C 180 80, 190 42, 220 42 M140 80 C 180 80, 190 118, 220 118" stroke="currentColor" stroke-width="2" class="text-light-secondary qf-dash-flow"></path>
+                </svg>
+                <span class="relative z-10 px-3 py-1.5 rounded-full bg-light-secondary text-light-on-secondary font-label text-label-sm shadow-sm" data-design-text-token="label-sm">Core Topic</span>
+                <span class="qf-float-slow absolute top-7 left-5 px-2.5 py-1 rounded bg-light-surface-container-lowest border border-light-outline-variant font-label text-label-sm text-light-on-surface" data-design-text-token="label-sm">Goals</span>
+                <span class="qf-float-alt absolute bottom-7 right-5 px-2.5 py-1 rounded bg-light-surface-container-lowest border border-light-outline-variant font-label text-label-sm text-light-on-surface" data-design-text-token="label-sm">Actions</span>
+              </div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Mind Maps</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Branch out ideas from a central prompt with AI-assisted expansion.</p>
+              </div>
+            </a>
 
-        <div class="bento">
-          <article class="bento__card bento__card--wide reveal">
-            <div class="bento__copy">
-              <h3>Intelligent Canvas</h3>
-              <p>See and shape the work on a shared visual canvas and decide what happens next</p>
-              <a class="link-arrow" href="/product/intelligent-canvas/">Learn more <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="bento__art art-canvas">
-              <div class="sticky sticky--yellow sm">Goals</div>
-              <div class="sticky sticky--mint sm">Metrics</div>
-              <div class="sticky sticky--violet sm">Next</div>
-            </div>
-          </article>
+            <!-- 8. Docs -->
+            <a href="/product/docs/" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden flex items-center justify-center border-b border-light-outline-variant">
+                <div class="qf-float-slow w-full max-w-[220px] bg-light-surface-container-lowest rounded-md border border-light-outline-variant p-3 shadow-sm flex flex-col gap-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-label text-label-sm text-light-primary" data-design-text-token="label-sm">PRD · v2.4</span>
+                    <span class="font-label text-label-sm text-light-tertiary" data-design-text-token="label-sm">AI Draft</span>
+                  </div>
+                  <div class="h-2.5 w-4/5 rounded bg-light-surface-container-high"></div>
+                  <div class="h-2.5 w-full rounded bg-light-surface-container"></div>
+                  <div class="h-2.5 w-2/3 rounded bg-light-surface-variant"></div>
+                </div>
+              </div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Collaborative Docs</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Rich specs, meeting notes, and Knowledge Hub pages embedded on board.</p>
+              </div>
+            </a>
 
-          <article class="bento__card reveal">
-            <div class="bento__copy">
-              <h3>Create anything from anything</h3>
-              <p>Turn a prompt, a doc, or your data into a diagram, a timeline, or a deck, all on one canvas.</p>
-              <a class="link-arrow" href="/product/ai-workflows/">Learn more <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="bento__art art-prompt">
-              <div class="prompt-bar"><span class="prompt-dot"></span>Turn this doc into a diagram</div>
-              <div class="prompt-out"><i></i><i></i><i></i></div>
-            </div>
-          </article>
-
-          <article class="bento__card reveal">
-            <div class="bento__copy">
-              <h3>MCP</h3>
-              <p>Any agent can work on the canvas</p>
-              <a class="link-arrow" href="/product/mcp/">Learn more <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="bento__art art-mcp">
-              <div class="chip">Claude</div>
-              <div class="chip">ChatGPT</div>
-              <div class="chip chip--center">QuantalFlow MCP</div>
-              <div class="chip">Cursor</div>
-            </div>
-          </article>
-
-          <article class="bento__card bento__card--wide reveal">
-            <div class="bento__copy">
-              <h3>Connect your tools</h3>
-              <p>Teams and AI work from shared context pulled from the tools you already use</p>
-              <a class="link-arrow" href="/product/integrations/">Learn more <span aria-hidden="true">→</span></a>
-            </div>
-            <div class="bento__art art-tools">
-              <div class="tool">Jira</div>
-              <div class="tool">Slack</div>
-              <div class="tool">Figma</div>
-              <div class="tool">Notion</div>
-              <div class="tool">GitHub</div>
-              <div class="tool">Drive</div>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ AI PLATFORM CTA ============ -->
-    <section class="platform section">
-      <div class="container">
-        <div class="platform__card reveal">
-          <div class="platform__glow" aria-hidden="true"></div>
-          <div class="platform__copy">
-            <p class="platform__eyebrow">✦ The AI platform for teamwork</p>
-            <h2>Move beyond individual AI productivity to team and cross-team collaboration with AI.</h2>
-            <a class="btn btn--yellow" href="/product/intelligent-canvas/">Explore Intelligent Canvas</a>
-          </div>
-          <div class="platform__art">
-            <div class="avatar avatar--1">C</div>
-            <div class="avatar avatar--2">✦</div>
-            <div class="avatar avatar--3">A</div>
-            <div class="avatar avatar--4">R</div>
-            <div class="cursor cursor--platform"><span class="cursor__dot cursor__dot--blue"></span><span class="cursor__label">Chris</span></div>
+            <!-- 9. Slides -->
+            <a href="/product/slides/" class="qf-card-lift bg-light-surface-container-lowest rounded-lg overflow-hidden border border-light-outline-variant flex flex-col h-full">
+              <div class="h-44 bg-light-surface-container-low p-gutter-md relative overflow-hidden flex items-center justify-center border-b border-light-outline-variant">
+                <div class="relative w-full max-w-[220px] h-28">
+                  <div class="absolute inset-0 translate-x-2 translate-y-2 rounded-md bg-light-secondary-container border border-light-outline-variant"></div>
+                  <div class="qf-float-alt relative w-full h-full rounded-md bg-light-surface-container-lowest border border-light-outline-variant p-3 shadow-sm flex flex-col justify-between">
+                    <span class="font-label text-label-sm text-light-primary" data-design-text-token="label-sm">SLIDE 01 · DECK</span>
+                    <p class="font-title text-title-md text-light-on-surface" data-design-text-token="title-md">Q4 Review</p>
+                    <div class="h-1.5 w-16 rounded-full bg-light-primary"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="p-gutter-lg flex flex-col gap-gutter-xs flex-1">
+                <h3 class="font-title text-title-lg text-light-on-surface" data-design-text-token="title-lg">Instant Slides</h3>
+                <p class="font-body text-body-sm text-light-on-surface-variant" data-design-text-token="body-sm">Turn any canvas section into a presentation deck with one click.</p>
+              </div>
+            </a>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ============ HELP CARDS ============ -->
-    <section class="help section">
-      <div class="container">
-        <h2 class="section__title reveal">Need help getting started?</h2>
-        <div class="help__grid">
-          <a class="help__card reveal" href="/pricing/">
-            <div class="help__thumb thumb--1"></div>
-            <p class="help__eyebrow">Pricing</p>
-            <h3>Select a plan</h3>
-          </a>
-          <a class="help__card reveal" href="/resources/templates/">
-            <div class="help__thumb thumb--2"></div>
-            <p class="help__eyebrow">Templates</p>
-            <h3>Get started fast</h3>
-          </a>
-          <a class="help__card reveal" href="/resources/partners/">
-            <div class="help__thumb thumb--3"></div>
-            <p class="help__eyebrow">Solution Partners</p>
-            <h3>Explore the network</h3>
-          </a>
-          <a class="help__card reveal" href="/resources/community/">
-            <div class="help__thumb thumb--4"></div>
-            <p class="help__eyebrow">Community</p>
-            <h3>Connect with QuantalFlow users</h3>
-          </a>
-          <a class="help__card reveal" href="/resources/blog/">
-            <div class="help__thumb thumb--5"></div>
-            <p class="help__eyebrow">Blog</p>
-            <h3>Dive in to ways of working</h3>
-          </a>
-          <a class="help__card reveal" href="/resources/academy/">
-            <div class="help__thumb thumb--6"></div>
-            <p class="help__eyebrow">Academy</p>
-            <h3>Get started with QuantalFlow</h3>
-          </a>
-        </div>
-      </div>
-    </section>
-  </main>
+    </main>
 
-  <!-- ============ FOOTER ============ -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer__grid">
-        <div class="footer__col">
-          <p class="footer__head">Product</p>
-          <a href="/product/intelligent-canvas/">Intelligent Canvas</a>
-          <a href="/product/integrations/">Apps &amp; Integrations</a>
-          <a href="/resources/templates/">Templates</a>
-          <a href="/resources/developers/">QuantalFlow Developer Platform</a>
-          <a href="/resources/apps/">QuantalFlow for Devices</a>
-          <a href="/enterprise/guard/">Enterprise Guard</a>
-          <a href="/product/mcp/">MCP Agent Server</a>
-          <a href="/app/">QuantalFlow Canvas App</a>
+    <!-- Deep Plum Editorial Footer -->
+    <footer class="footer bg-plum-footer text-on-plum-footer pt-section-sm pb-gutter-xl">
+      <div class="max-w-[1200px] mx-auto px-gutter-lg lg:px-gutter-xl flex flex-col gap-gutter-xl">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-gutter-xl pb-gutter-xl border-b border-on-plum-footer/15">
+          <div class="lg:col-span-4 flex flex-col gap-gutter-md">
+            <div class="flex items-center gap-gutter-sm">
+              <img src="/assets/img/logo.png?v=d12f8ae3" alt="QuantalFlow logo" class="w-7 h-7 rounded object-contain bg-light-surface-container-lowest p-0.5">
+              <span class="font-headline text-headline-sm text-on-plum-footer" data-design-text-token="headline-sm">QuantalFlow</span>
+            </div>
+            <p class="font-body text-body-sm text-plum-footer-muted max-w-xs" data-design-text-token="body-sm">
+              The Intelligent Canvas where businesses, schools, universities, and teams think, plan, and build at the speed of AI.
+            </p>
+            <div class="flex flex-wrap gap-gutter-xs pt-gutter-xs">
+              <span class="px-2 py-1 rounded bg-on-plum-footer/10 font-label text-label-sm text-plum-footer-muted" data-design-text-token="label-sm">ISO 42001</span>
+              <span class="px-2 py-1 rounded bg-on-plum-footer/10 font-label text-label-sm text-plum-footer-muted" data-design-text-token="label-sm">ISO 27001</span>
+              <span class="px-2 py-1 rounded bg-on-plum-footer/10 font-label text-label-sm text-plum-footer-muted" data-design-text-token="label-sm">SOC 2</span>
+              <span class="px-2 py-1 rounded bg-on-plum-footer/10 font-label text-label-sm text-plum-footer-muted" data-design-text-token="label-sm">GDPR</span>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 flex flex-col gap-gutter-sm">
+            <h3 class="font-title text-title-md text-on-plum-footer" data-design-text-token="title-md">Product</h3>
+            <ul class="flex flex-col gap-gutter-xs font-body text-body-sm text-plum-footer-muted">
+              <li><a href="/product/intelligent-canvas/" class="hover:text-on-plum-footer transition-colors">Intelligent Canvas</a></li>
+              <li><a href="/product/mcp/" class="hover:text-on-plum-footer transition-colors">MCP Agent Server</a></li>
+              <li><a href="/resources/templates/" class="hover:text-on-plum-footer transition-colors">Templates</a></li>
+              <li><a href="/product/integrations/" class="hover:text-on-plum-footer transition-colors">Integrations</a></li>
+            </ul>
+          </div>
+
+          <div class="lg:col-span-2 flex flex-col gap-gutter-sm">
+            <h3 class="font-title text-title-md text-on-plum-footer" data-design-text-token="title-md">Solutions</h3>
+            <ul class="flex flex-col gap-gutter-xs font-body text-body-sm text-plum-footer-muted">
+              <li><a href="/solutions/business-operations/" class="hover:text-on-plum-footer transition-colors">Businesses &amp; Teams</a></li>
+              <li><a href="/solutions/education/" class="hover:text-on-plum-footer transition-colors">Schools &amp; Universities</a></li>
+              <li><a href="/solutions/engineering/" class="hover:text-on-plum-footer transition-colors">Engineering &amp; UX</a></li>
+              <li><a href="/solutions/startups/" class="hover:text-on-plum-footer transition-colors">Individuals</a></li>
+            </ul>
+          </div>
+
+          <div class="lg:col-span-2 flex flex-col gap-gutter-sm">
+            <h3 class="font-title text-title-md text-on-plum-footer" data-design-text-token="title-md">Resources</h3>
+            <ul class="flex flex-col gap-gutter-xs font-body text-body-sm text-plum-footer-muted">
+              <li><a href="/resources/academy/" class="hover:text-on-plum-footer transition-colors">QuantalFlow Academy</a></li>
+              <li><a href="/resources/customers/" class="hover:text-on-plum-footer transition-colors">Customer Stories</a></li>
+              <li><a href="/resources/help/" class="hover:text-on-plum-footer transition-colors">Help Center</a></li>
+              <li><a href="/enterprise/security/" class="hover:text-on-plum-footer transition-colors">Security</a></li>
+            </ul>
+          </div>
+
+          <div class="lg:col-span-2 flex flex-col gap-gutter-sm">
+            <h3 class="font-title text-title-md text-on-plum-footer" data-design-text-token="title-md">Plans</h3>
+            <ul class="flex flex-col gap-gutter-xs font-body text-body-sm text-plum-footer-muted">
+              <li><a href="/pricing/" class="hover:text-on-plum-footer transition-colors">Pricing</a></li>
+              <li><a href="/enterprise/" class="hover:text-on-plum-footer transition-colors">Enterprise</a></li>
+              <li><a href="/solutions/education/" class="hover:text-on-plum-footer transition-colors">Education</a></li>
+              <li><a href="/enterprise/contact/" class="hover:text-on-plum-footer transition-colors">Contact Sales</a></li>
+            </ul>
+          </div>
         </div>
-        <div class="footer__col">
-          <p class="footer__head">Solutions</p>
-          <a href="/product/ai/">AI Platform</a>
-          <a href="/solutions/product-operating-system/">Product Acceleration</a>
-          <a href="/solutions/business-operations/">Business Acceleration</a>
-          <a href="/solutions/engineering/">Engineering Teams</a>
-          <a href="/solutions/design/">Product Design &amp; UX</a>
-          <a href="/product/">Platform &amp; Capabilities</a>
-        </div>
-        <div class="footer__col">
-          <p class="footer__head">Tools &amp; Formats</p>
-          <a href="/solutions/agile/">Agile Tools</a>
-          <a href="/product/diagrams/">Diagrams &amp; Mermaid</a>
-          <a href="/solutions/brainstorming/">Online Sticky Notes</a>
-          <a href="/solutions/customer-journeys/">Customer Journey Mapping</a>
-          <a href="/product/prototypes/">Wireframes &amp; Prototypes</a>
-          <a href="/product/kanban/">Kanban Board</a>
-          <a href="/product/whiteboard/">Online Whiteboard</a>
-          <a href="/solutions/flowcharts/">Flowchart Online</a>
-          <a href="/solutions/mind-maps/">Mind Maps</a>
-          <a href="/product/timelines/">Timelines &amp; Roadmaps</a>
-        </div>
-        <div class="footer__col">
-          <p class="footer__head">Resources</p>
-          <a href="/resources/customers/">Customer Stories</a>
-          <a href="/resources/academy/">QuantalFlow Academy</a>
-          <a href="/resources/help/">Help Center</a>
-          <a href="/resources/blog/">Blog</a>
-          <a href="/resources/community/">QuantalFlow Community</a>
-          <a href="/resources/events/">QuantalFlow Events</a>
-          <a href="/resources/partners/">Solution Partners</a>
-          <a href="/enterprise/security/">QuantalFlow Security</a>
-        </div>
-        <div class="footer__col">
-          <p class="footer__head">Plans &amp; Pricing</p>
-          <a href="/pricing/">Pricing</a>
-          <a href="/enterprise/">Enterprise</a>
-          <a href="/solutions/startups/">Startups</a>
-          <a href="/solutions/education/">Education</a>
-          <a href="/solutions/professional-services/">Consultants</a>
-          <a href="/enterprise/contact/">Contact sales</a>
+
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-gutter-md font-body text-body-sm text-plum-footer-muted">
+          <p data-design-text-token="body-sm">QuantalFlow © 2026</p>
+          <p data-design-text-token="body-sm">English (US)</p>
         </div>
       </div>
+    </footer>
 
-      <div class="footer__badges">
-        <span class="badge"><i class="badge__dot"></i>ISO 42001 READY</span>
-        <span class="badge"><i class="badge__dot"></i>ISO 27001 CERTIFIED</span>
-        <span class="badge"><i class="badge__dot"></i>SOC 2 COMPLIANT</span>
-        <span class="badge"><i class="badge__dot"></i>GDPR COMPLIANT</span>
-      </div>
-      <p class="footer__reviews">20,000+ reviews from Capterra, G2 and Trustradius</p>
+  </div>
 
-      <div class="footer__bottom">
-        <div class="footer__brand">
-          <img class="footer__logo-mark" src="/assets/img/logo.png?v=d12f8ae3" width="26" height="26" alt="" />
-          <span>QuantalFlow &copy; 2026</span>
-        </div>
-        <button class="lang" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          English
+  <!-- 60s Overview Modal -->
+  <div id="video-modal" class="hidden fixed inset-0 z-50 bg-brand-navy/80 flex items-center justify-center p-gutter-lg" role="dialog" aria-modal="true" aria-labelledby="video-modal-title">
+    <div class="bg-light-surface-container-lowest rounded-xl max-w-xl w-full p-gutter-xl border border-light-outline-variant shadow-2xl flex flex-col gap-gutter-md">
+      <div class="flex items-center justify-between gap-gutter-md">
+        <h3 id="video-modal-title" class="font-headline text-headline-sm text-light-on-surface" data-design-text-token="headline-sm">QuantalFlow 60-Second Walkthrough</h3>
+        <button type="button" onclick="document.getElementById('video-modal').classList.add('hidden')" aria-label="Close modal" class="w-9 h-9 rounded-full border border-light-outline-variant flex items-center justify-center text-light-on-surface hover:bg-light-surface-container-low">
+          <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
         </button>
       </div>
+      <div class="aspect-video rounded-lg bg-brand-navy text-light-on-primary flex flex-col items-center justify-center gap-gutter-sm p-gutter-lg text-center">
+        <span class="material-symbols-outlined text-[48px] text-brand-coral" aria-hidden="true">play_circle</span>
+        <p class="font-title text-title-md" data-design-text-token="title-md">Interactive Canvas + MCP Agents Demo</p>
+        <p class="font-body text-body-sm text-plum-footer-muted max-w-sm" data-design-text-token="body-sm">See how teams and universities turn research notes into live workflows in under a minute.</p>
+      </div>
     </div>
-  </footer>
+  </div>
 
+  <script>
+    function switchCanvasTab(targetId) {
+      var tabs = document.querySelectorAll('.canvas-tab');
+      var panels = document.querySelectorAll('.canvas-panel');
+      tabs.forEach(function (tab) {
+        var isTarget = tab.id === 'tab-' + targetId;
+        tab.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+        tab.setAttribute('tabindex', isTarget ? '0' : '-1');
+        if (isTarget) {
+          tab.classList.add('bg-light-surface-container-lowest', 'text-light-primary', 'shadow-sm');
+          tab.classList.remove('text-light-on-surface-variant');
+        } else {
+          tab.classList.remove('bg-light-surface-container-lowest', 'text-light-primary', 'shadow-sm');
+          tab.classList.add('text-light-on-surface-variant');
+        }
+      });
+      panels.forEach(function (panel) {
+        if (panel.id === 'panel-' + targetId) {
+          panel.removeAttribute('hidden');
+          panel.classList.remove('qf-panel-animate');
+          void panel.offsetWidth;
+          panel.classList.add('qf-panel-animate');
+        } else {
+          panel.setAttribute('hidden', '');
+          panel.classList.remove('qf-panel-animate');
+        }
+      });
+    }
 
-  <script src="/assets/js/save-state.js?v=d063b18d"></script>
-  <script src="/assets/js/main.js?v=35eb8531"></script>
-  <script src="/assets/js/tool-pages.js?v=7b0cb297"></script>
+    // Hero email capture wired to /api/leads + visual confirmation
+    (function () {
+      var heroForm = document.getElementById('hero-signup-form');
+      var emailInput = document.getElementById('hero-email');
+      var feedback = document.getElementById('hero-signup-feedback');
+      var submitBtn = document.getElementById('hero-signup-btn');
+      if (heroForm && emailInput && feedback) {
+        heroForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var email = (emailInput.value || '').trim();
+          if (!email) return;
+          if (submitBtn) submitBtn.disabled = true;
+          fetch('/api/leads', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source: 'hero', email: email })
+          })
+            .catch(function () {})
+            .finally(function () {
+              feedback.classList.remove('hidden');
+              heroForm.reset();
+              if (submitBtn) submitBtn.disabled = false;
+            });
+        });
+      }
+
+      // Close video modal on backdrop click or Escape
+      var modal = document.getElementById('video-modal');
+      if (modal) {
+        modal.addEventListener('click', function (e) {
+          if (e.target === modal) modal.classList.add('hidden');
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+          }
+        });
+      }
+
+      // Reflect signed-in session in top navigation
+      fetch('/api/auth/me', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data || !data.user) return;
+          var loginLink = document.getElementById('home-login-link');
+          var ctaLink = document.getElementById('home-cta-link');
+          var ctaLabel = document.getElementById('home-cta-label');
+          if (loginLink) {
+            loginLink.href = '/profile/';
+            loginLink.textContent = (data.user.name && data.user.name.trim()) ? data.user.name.trim() : 'Profile';
+          }
+          if (ctaLink) ctaLink.href = '/dashboard/';
+          if (ctaLabel) ctaLabel.textContent = 'Open Dashboard';
+        })
+        .catch(function () {});
+    })();
+  </script>
 </body>
 </html>

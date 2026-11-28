@@ -14,7 +14,9 @@
     "build:vercel": "node src/tools/build.js && node scripts/assemble-public.mjs",
     "audit:links": "node src/tools/link-audit.mjs",
     "seed": "node server/seed.js",
-    "convex:push": "convex dev --once --env-file .env.convex-dev",
+    "convex:dev": "node scripts/convex-push.mjs --watch",
+    "convex:push": "node scripts/convex-push.mjs",
+    "convex:codegen": "convex codegen",
     "convex:backfill": "node scripts/convex-backfill.mjs",
     "redis:verify": "node scripts/verify-redis.mjs",
     "test": "node --test server/tests/*.test.js"

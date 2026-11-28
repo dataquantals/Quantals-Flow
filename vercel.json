@@ -12,6 +12,8 @@
     { "source": "/dashboard/quotation/", "destination": "/quotation/index.html" },
     { "source": "/dashboard/invoice", "destination": "/invoice/index.html" },
     { "source": "/dashboard/invoice/", "destination": "/invoice/index.html" },
+    { "source": "/dashboard/receipt", "destination": "/receipt/index.html" },
+    { "source": "/dashboard/receipt/", "destination": "/receipt/index.html" },
     { "source": "/dashboard/knowledge", "destination": "/knowledge/index.html" },
     { "source": "/dashboard/knowledge/", "destination": "/knowledge/index.html" },
     { "source": "/dashboard/documents", "destination": "/documents/index.html" },
@@ -22,6 +24,8 @@
     { "source": "/dashboard/leaf/", "destination": "/leaf/index.html" },
     { "source": "/dashboard/crm", "destination": "/crm/index.html" },
     { "source": "/dashboard/crm/", "destination": "/crm/index.html" },
+    { "source": "/dashboard/templates", "destination": "/resources/templates/index.html" },
+    { "source": "/dashboard/templates/", "destination": "/resources/templates/index.html" },
     { "source": "/dashboard/(.*)", "destination": "/dashboard/index.html" }
   ],
   "functions": {

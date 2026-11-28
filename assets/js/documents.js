@@ -880,6 +880,13 @@
     renderSources();
     renderTypes();
     renderLists();
+    try {
+      var targetDocId = new URLSearchParams(window.location.search || '').get('doc') || sessionStorage.getItem('qf_open_doc_id') || '';
+      if (targetDocId) {
+        sessionStorage.removeItem('qf_open_doc_id');
+        openDoc(targetDocId);
+      }
+    } catch (e) {}
     hydrateEcosystem();
   }
 

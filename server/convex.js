@@ -528,6 +528,37 @@ export async function getInvoiceFromConvex(userId) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Receipts (receipts + receiptItems)
+ * ------------------------------------------------------------------ */
+
+export function syncReceiptToConvex(userId, receiptObj, updatedAt) {
+  if (!userId || !receiptObj || config.isTest) return Promise.resolve(null);
+  const receiptJson =
+    typeof receiptObj === 'string' ? receiptObj : JSON.stringify(receiptObj);
+  return convexMutation('receipts:upsertReceipt', {
+    userId: String(userId),
+    receiptJson,
+    updatedAt: Number(updatedAt || Date.now())
+  });
+}
+
+export async function getReceiptFromConvex(userId) {
+  if (!userId || config.isTest) return null;
+  const doc = await convexQuery('receipts:getReceipt', {
+    userId: String(userId)
+  });
+  if (!doc || !doc.dataJson) return null;
+  try {
+    return {
+      data: JSON.parse(doc.dataJson),
+      updatedAt: Number(doc.updatedAt || Date.now())
+    };
+  } catch {
+    return null;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Note Pad (userNotepads)
  * ------------------------------------------------------------------ */
 
@@ -681,19 +712,46 @@ export function createLeadInConvex({ source, email, name, company, teamSize, mes
 
 export async function checkConvexConnection() {
   const info = {
-    configured: Boolean(config.convex.cloudUrl),
+    configured: Boolean(config.convex.cloudUrl && config.convex.syncSecret),
     cloudUrl: config.convex.cloudUrl,
     siteUrl: config.convex.siteUrl,
-    deployment: 'preview:data-quantals:quantals-flow',
-    reachable: false
+    deployment: config.convex.deployment || 'dev:agreeable-starfish-202',
+    reachable: false,
+    authenticated: false,
+    latencyMs: null
   };
-  if (config.isTest) return info;
+  if (config.isTest || !info.configured) return info;
+
+  const startedAt = Date.now();
   try {
-    const res = await fetch(config.convex.cloudUrl, {
+    const ping = await convexQuery('health:ping', {});
+    if (ping && ping.ok) {
+      info.reachable = true;
+      info.authenticated = true;
+      info.latencyMs = Date.now() - startedAt;
+      return info;
+    }
+    // Fallback if `health:ping` has not been pushed yet: test an existing authenticated query
+    const userProbe = await convexQuery('users:findByEmail', {
+      email: config.seed?.email || 'dataquantals@gmail.com'
+    });
+    if (userProbe !== null) {
+      info.reachable = true;
+      info.authenticated = true;
+      info.latencyMs = Date.now() - startedAt;
+      return info;
+    }
+  } catch {
+    /* fall through to HTTP edge check */
+  }
+
+  try {
+    const res = await fetch(`${config.convex.cloudUrl}/version`, {
       method: 'GET',
-      signal: AbortSignal.timeout(3000)
+      signal: AbortSignal.timeout(10000)
     });
     info.reachable = res.status < 500;
+    info.latencyMs = Date.now() - startedAt;
   } catch {
     info.reachable = false;
   }

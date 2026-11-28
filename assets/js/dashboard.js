@@ -213,7 +213,7 @@
       var delLabel = 'Delete ' + safeTitle;
       var boardHref = buildBoardPath(b.id, b.activeModule || '', b.title);
       var perm = b.permission || 'owner';
-      var canDel = perm === 'owner' || perm === 'admin';
+      var canDel = perm === 'owner' || perm === 'admin' || b.canDelete === true;
       var permLabels = { owner: 'Owner', admin: 'Admin', editor: 'Can Edit', commenter: 'Can Comment', viewer: 'Can View' };
       var sharedTag = b.isShared
         ? ' &bull; <span class="dash-card__role-tag">Shared (' + escapeHtml(permLabels[perm] || perm) + ')</span>'
@@ -222,7 +222,7 @@
         '<div class="dash-card dash-card--interactive dash-card--tinted" data-board-id="' + safeId + '" style="--dash-tint:' + (tintMap[b.id] || CARD_HUES[0]) + '">' +
           '<div class="dash-card__actions">' +
             '<button class="dash-icon-btn ' + starClass + '" data-star-id="' + safeId + '" type="button" aria-pressed="' + (b.starred ? 'true' : 'false') + '" title="' + starLabel + '" aria-label="' + starLabel + '">&#9733;</button>' +
-            (canDel ? '<button class="dash-icon-btn dash-icon-btn--del" data-del-id="' + safeId + '" type="button" title="' + delLabel + '" aria-label="' + delLabel + '">&times;</button>' : '') +
+            (canDel ? '<button class="dash-icon-btn dash-icon-btn--del" data-del-id="' + safeId + '" type="button" title="' + delLabel + '" aria-label="' + delLabel + '"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' : '') +
           '</div>' +
           '<a class="dash-card__link" href="' + boardHref + '">' +
             '<p>' + safeTitle + '</p>' +
@@ -525,7 +525,15 @@
     var initialItems = Array.isArray(built.items) ? built.items : [];
     var initialConnectors = Array.isArray(built.connectors) ? built.connectors : [];
     var modulesMap = {};
-    if (mod !== 'project-planning' && initialItems.length) {
+    if (mod === 'whiteboard' && built.whiteboardState) {
+      modulesMap.whiteboard = {
+        version: 2,
+        items: initialItems,
+        connectors: initialConnectors,
+        paths: [],
+        whiteboardState: built.whiteboardState
+      };
+    } else if (mod !== 'project-planning' && initialItems.length) {
       modulesMap[mod] = {
         version: 2,
         items: initialItems,

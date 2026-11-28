@@ -92,9 +92,40 @@
           }
         });
 
-        var logo = topbar.querySelector('.logo');
-        if (logo && logo.nextSibling) topbar.insertBefore(wrap, logo.nextSibling);
-        else topbar.appendChild(wrap);
+        var topRight = topbar.querySelector('.dash-top__right');
+        if (topRight) {
+          topRight.insertBefore(wrap, topRight.firstChild);
+        } else {
+          topbar.appendChild(wrap);
+        }
+      })
+      .catch(function () {});
+
+    // Hydrate topbar Profile avatar & name on every workspace page consistently
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.user) return;
+        var u = d.user;
+        var name = (u.name && u.name.trim()) ? u.name.trim() : (u.email || 'Profile');
+        var nameEl = document.getElementById('dash-profile-name');
+        var initEl = document.getElementById('dash-initial');
+        if (nameEl && (nameEl.textContent === 'Profile' || !nameEl.textContent.trim())) {
+          nameEl.textContent = name;
+        }
+        if (initEl) {
+          var imgUrl = u.avatar_url || u.avatarUrl || u.imageUrl || '';
+          if (imgUrl && !initEl.querySelector('img')) {
+            initEl.textContent = '';
+            var img = document.createElement('img');
+            img.src = imgUrl;
+            img.alt = '';
+            img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;';
+            initEl.appendChild(img);
+          } else if (!initEl.querySelector('img')) {
+            initEl.textContent = name.charAt(0).toUpperCase();
+          }
+        }
       })
       .catch(function () {});
   }

@@ -1,0 +1,271 @@
+---
+title: Organisational Memory | QuantalFlow
+description: AI-powered institutional intelligence capturing Decisions, Lessons Learned, Best Practices, Risks, and Project Histories.
+route: /memory/
+layout: standalone
+body_class: dash-body
+scripts: /assets/js/workspace-nav.js, /assets/js/workspace-router.js, /assets/js/memory.js
+---
+  <link rel="stylesheet" href="/assets/css/memory.css" />
+
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span id="dash-profile-name">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="btn btn--blue dash-sidebar__create" href="/app/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </a>
+
+      <nav class="dash-nav" aria-label="Primary">
+        <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>All Boards</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/starred/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred Boards</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-notepad" href="/dashboard/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-knowledge" href="/dashboard/knowledge/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M12 18v-5"/></svg>
+          <span>Knowledge Hub</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>
+          <span>Whiteboarding</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
+          <span>Project Planning</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
+          <span>Mind Map</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+          <span>Kanban Board</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Perspective</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
+          <span>Brainstorm</span>
+        </a>
+
+        <a class="dash-nav__item" href="/resources/templates/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-documents" href="/dashboard/documents/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <span>Document Generation</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-leaf" href="/dashboard/leaf/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          <span>Leaf</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Other Services</div>
+
+        <a class="dash-nav__item" id="nav-crm" href="/dashboard/crm/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M21 20c0-2.5-1.5-4-4-4.6"/></svg>
+          <span>CRM</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/quotation/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Quotation</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-receipt" href="/dashboard/receipt/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8"/><path d="M8 12h6"/><path d="m9 16 2 2 4-4"/></svg>
+          <span>Receipt</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Account</div>
+        <a class="dash-nav__item is-active" id="nav-memory" href="/dashboard/memory/" aria-current="page" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.8 1.6 5.2 4 6.3V18a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.7c2.4-1.1 4-3.5 4-6.3a7 7 0 0 0-7-7Z"/><path d="M9 22h6"/></svg>
+          <span>Organisational Memory</span>
+        </a>
+        <a class="dash-nav__item" id="nav-people" href="/dashboard/people/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>People &amp; Teams</span>
+        </a>
+        <a class="dash-nav__item" id="nav-activity" href="/dashboard/activity/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Activity Log</span>
+        </a>
+        <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Team Members</span>
+        </a>
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Profile &amp; Settings</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="dash mem-main">
+      <section class="dash__hero mem-hero">
+        <div class="mem-hero__row">
+          <div>
+            <h1>Organisational Memory</h1>
+            <p>Institutional register of decisions, lessons learned, and recommendations derived from workspace activity.</p>
+            <div class="mem-meta-row">
+              <span id="mem-total-label">Loading register&hellip;</span>
+              <button type="button" class="mem-review-btn" id="mem-needs-review-btn">Needs review: 0</button>
+              <a class="mem-audit-link" href="/dashboard/activity/">Open Activity Log (Audit Trail) &rarr;</a>
+            </div>
+          </div>
+          <div class="mem-hero__actions">
+            <button type="button" class="btn btn--blue" id="mem-synthesize">Run AI Memory Engine</button>
+            <button type="button" class="btn btn--ghost" id="mem-add-btn">+ Capture Insight</button>
+          </div>
+        </div>
+      </section>
+
+      <nav class="mem-nav" id="mem-nav" aria-label="Organisational Memory types"></nav>
+
+      <section class="mem-filters" id="mem-filters" aria-label="Filter memory register">
+        <input type="search" id="mem-search" placeholder="Search records, projects, or recommendations…" aria-label="Search memory records" />
+        <select id="mem-source" aria-label="Filter by source">
+          <option value="all">All sources</option>
+          <option value="ai">AI Engine</option>
+          <option value="manual">Manual</option>
+        </select>
+        <select id="mem-status" aria-label="Filter by status">
+          <option value="active">Active (Proposed &amp; Validated)</option>
+          <option value="Proposed">Needs review (Proposed)</option>
+          <option value="Validated">Validated</option>
+          <option value="Archived">Archived</option>
+        </select>
+        <label class="mem-threshold-wrap" title="Minimum supporting Activity Log events required before the AI Memory Engine creates a record">
+          <span>Min evidence:</span>
+          <select id="mem-threshold" aria-label="Minimum evidence threshold">
+            <option value="2">2 events</option>
+            <option value="3" selected>3 events</option>
+            <option value="4">4 events</option>
+            <option value="5">5 events</option>
+            <option value="6">6 events</option>
+            <option value="8">8 events</option>
+            <option value="10">10 events</option>
+          </select>
+        </label>
+      </section>
+
+      <div id="mem-content"></div>
+    </main>
+  </div>
+
+  <!-- Slide-Over Detail Panel -->
+  <div class="mem-panel-bg" id="mem-panel-bg" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="mem-panel-title">
+    <div class="mem-panel">
+      <div class="mem-panel__head">
+        <div>
+          <span class="mem-status" id="mem-panel-status">Proposed</span>
+          <h3 class="mem-panel__title" id="mem-panel-title">Record</h3>
+          <div class="mem-muted" id="mem-panel-meta"></div>
+        </div>
+        <button type="button" class="mem-panel__close" id="mem-panel-close" aria-label="Close detail panel">&times;</button>
+      </div>
+      <div class="mem-panel__body" id="mem-panel-body"></div>
+      <div class="mem-panel__foot" id="mem-panel-foot"></div>
+    </div>
+  </div>
+
+  <!-- Capture / Edit Insight Modal -->
+  <div class="mem-modal-bg" id="mem-modal-bg" hidden role="dialog" aria-modal="true" aria-labelledby="mem-modal-h">
+    <div class="mem-modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 id="mem-modal-h" style="margin:0;font-size:16px">Capture Insight</h3>
+        <button type="button" class="btn btn--ghost" id="mem-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <form id="mem-capture-form" class="mem-form" novalidate>
+        <input type="hidden" name="editId" id="mem-edit-id" value="" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <label for="mf-category">Type</label>
+            <select id="mf-category" name="category">
+              <option value="decision">Decision</option>
+              <option value="lesson">Lesson</option>
+              <option value="best_practice">Best practice</option>
+              <option value="risk">Risk</option>
+              <option value="process">Process improvement</option>
+              <option value="research">Research insight</option>
+            </select>
+          </div>
+          <div>
+            <label for="mf-project">Project / Area</label>
+            <input id="mf-project" name="projectName" placeholder="e.g. Q4 Launch, Billing, CRM" value="Workspace" />
+          </div>
+        </div>
+        <div>
+          <label for="mf-title">Title * (min 8 characters)</label>
+          <input id="mf-title" name="title" placeholder="Clear, specific headline for future teams" required />
+          <div class="mem-field-err" data-err="title"></div>
+        </div>
+        <div>
+          <label for="mf-summary">Summary * (min 20 characters)</label>
+          <textarea id="mf-summary" name="summary" rows="2" placeholder="Concise summary of the situation and outcome" required></textarea>
+          <div class="mem-field-err" data-err="summary"></div>
+        </div>
+        <div>
+          <label for="mf-why">Why it happened * (required)</label>
+          <textarea id="mf-why" name="whyHappened" rows="2" placeholder="Root cause or context behind this event or decision" required></textarea>
+          <div class="mem-field-err" data-err="whyHappened"></div>
+        </div>
+        <div>
+          <label for="mf-lesson">What was learned</label>
+          <textarea id="mf-lesson" name="lessonLearned" rows="2" placeholder="Key takeaway for the organisation"></textarea>
+        </div>
+        <div>
+          <label for="mf-rec">What future teams should know / Recommendation</label>
+          <textarea id="mf-rec" name="recommendation" rows="2" placeholder="Actionable playbook guidance"></textarea>
+        </div>
+        <div class="mem-field-err" id="mem-form-general-err"></div>
+        <button type="submit" class="btn btn--blue" id="mem-form-submit">Save Validated Record</button>
+      </form>
+    </div>
+  </div>

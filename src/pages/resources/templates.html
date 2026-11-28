@@ -1,316 +1,188 @@
 ---
-title: Template Library | QuantalFlow
-description: Hand-built starting points for planning, mapping and aligning — agile workspaces, board templates, and 26 EdrawMax mind map, concept map, and bubble diagram templates.
+title: Templates | QuantalFlow
+description: Start from a ready-made board, mind map, project plan, kanban workflow, or document instead of a blank canvas.
 route: /resources/templates/
-nav: resources
-scripts: /assets/js/mindmap-templates-catalog.js
+layout: standalone
+body_class: dash-body
+scripts: /assets/js/workspace-nav.js, /assets/js/workspace-router.js, /assets/js/mindmap-templates-catalog.js, /assets/js/template-blueprints.js, /assets/js/workspace-frameworks.js, /assets/js/templates.js
 ---
-    <section class="tpl-hero">
-      <div class="tpl-container">
-        <h1 class="tpl-hero__title">Templates</h1>
-      </div>
-    </section>
+  <link rel="stylesheet" href="/assets/css/templates.css" />
 
-    <nav class="subnav" aria-label="Page navigation">
-      <div class="container subnav__inner">
-        <a href="#project-planning">Agile workspaces</a>
-        <a href="#boards">Board templates</a>
-        <a href="#how">How it works</a>
-      </div>
-    </nav>
+  <header class="dash-top">
+    <a class="logo" href="/" aria-label="QuantalFlow home">
+      <img class="logo__mark" src="/assets/img/logo.png" width="30" height="30" alt="" />
+      <span class="logo__word">QuantalFlow</span>
+    </a>
 
-    <section class="tpl-section" id="project-planning">
-      <div class="tpl-container">
-        <div class="tpl-section__head">
-          <div>
-            <p class="tpl-label">Agile workspaces</p>
-            <h2 class="tpl-h2">Plan the work, not the setup.</h2>
+    <div class="dash-search-bar">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="dash-search-input" placeholder="Search boards, spaces, or templates…" aria-label="Search templates" />
+    </div>
+
+    <div class="dash-top__right">
+      <a class="btn btn--ghost dash-profile-btn" id="clerk-user-mount" href="/profile/" title="Profile Settings" style="padding: 6px 14px; font-size: 13px; text-decoration: none;">
+        <span class="dash-profile-avatar" id="dash-initial">&mdash;</span>
+        <span id="dash-profile-name">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="dash-layout">
+    <aside class="dash-sidebar" aria-label="Workspace navigation">
+      <a class="btn btn--blue dash-sidebar__create" href="/app/" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span>New Board</span>
+      </a>
+
+      <nav class="dash-nav" aria-label="Primary">
+        <a class="dash-nav__item" href="/dashboard/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>All Boards</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/starred/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>Starred Boards</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-notepad" href="/dashboard/notepad/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          <span>Note Pad</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-knowledge" href="/dashboard/knowledge/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M12 18v-5"/></svg>
+          <span>Knowledge Hub</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Workspaces &amp; Pages</div>
+
+        <a class="dash-nav__item" href="/app/?template=whiteboard&amp;module=whiteboard" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 9h4m-4 4h10"/></svg>
+          <span>Whiteboarding</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?board=project-planning-workspace&amp;template=project-planning" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
+          <span>Project Planning</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=mindmap&amp;module=mindmap" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m9.5 10.5-3-3m5 4.5 3-3m-5 3-3 3m5-3 3 3"/></svg>
+          <span>Mind Map</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=kanban&amp;module=kanban" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+          <span>Kanban Board</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=perspective&amp;module=perspective" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span>Perspective</span>
+        </a>
+
+        <a class="dash-nav__item" href="/app/?template=brainstorm&amp;module=brainstorm" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V16c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7Z"/></svg>
+          <span>Brainstorm</span>
+        </a>
+
+        <a class="dash-nav__item is-active" id="nav-templates" href="/resources/templates/" aria-current="page" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Templates</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-documents" href="/dashboard/documents/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+          <span>Document Generation</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-leaf" href="/dashboard/leaf/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          <span>Leaf</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Other Services</div>
+
+        <a class="dash-nav__item" id="nav-crm" href="/dashboard/crm/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M17 11a3 3 0 1 0 0-6"/><path d="M21 20c0-2.5-1.5-4-4-4.6"/></svg>
+          <span>CRM</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-files" href="/dashboard/files/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Files</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/quotation/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Quotation</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/invoice/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/></svg>
+          <span>Invoice</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-receipt" href="/dashboard/receipt/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8"/><path d="M8 12h6"/><path d="m9 16 2 2 4-4"/></svg>
+          <span>Receipt</span>
+        </a>
+
+        <div class="dash-sidebar__section-label">Account</div>
+
+        <a class="dash-nav__item" id="nav-memory" href="/dashboard/memory/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.8 1.6 5.2 4 6.3V18a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.7c2.4-1.1 4-3.5 4-6.3a7 7 0 0 0-7-7Z"/><path d="M9 22h6"/></svg>
+          <span>Organisational Memory</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-people" href="/dashboard/people/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>People &amp; Teams</span>
+        </a>
+
+        <a class="dash-nav__item" id="nav-activity" href="/dashboard/activity/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Activity Log</span>
+        </a>
+
+        <a class="dash-nav__item" href="/dashboard/team/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Team Members</span>
+        </a>
+
+        <a class="dash-nav__item" href="/profile/" style="text-decoration:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Profile &amp; Settings</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="dash qf-tpl-main" id="tpl-gallery-app">
+      <section class="qf-tpl-panel">
+        <aside class="qf-tpl-rail" id="tpl-rail" aria-label="Template filters"></aside>
+        <div class="qf-tpl-content">
+          <div class="qf-tpl-head">
+            <div>
+              <h1>Templates</h1>
+              <p>Start from a ready-made board, map, plan or document instead of a blank canvas.</p>
+            </div>
+            <button type="button" class="qf-tpl-btn primary" data-tpl-act="create">+ Save as template</button>
           </div>
-          <p class="tpl-section__note">Four connected modules that share one board. Open any of them and the rest stay in reach from the sidebar.</p>
-        </div>
-
-        <div class="tpl-suite">
-          <a class="tpl-suite__card" href="/app/?board=project-planning-suite&amp;template=project-planning&amp;module=gantt">
-            <span class="tpl-suite__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5V6M16 2.5V6M7.5 13h5M7.5 17h9"/></svg>
-            </span>
-            <span class="tpl-suite__body">
-              <span class="tpl-suite__row">
-                <span class="tpl-suite__title">Project Planning Suite</span>
-                <span class="tpl-badge">Enterprise</span>
-              </span>
-              <span class="tpl-suite__desc">Timeline, dependencies and the critical path in a single view.</span>
-              <span class="tpl-suite__meta">Timeline <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            </span>
-          </a>
-
-          <a class="tpl-suite__card" href="/app/?board=project-planning-suite&amp;template=project-planning&amp;module=tasks">
-            <span class="tpl-suite__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="6" rx="1.5"/></svg>
-            </span>
-            <span class="tpl-suite__body">
-              <span class="tpl-suite__row">
-                <span class="tpl-suite__title">Kanban &amp; WBS Tree</span>
-              </span>
-              <span class="tpl-suite__desc">Nested deliverables on a board you can actually move.</span>
-              <span class="tpl-suite__meta">Deliverables <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            </span>
-          </a>
-
-          <a class="tpl-suite__card" href="/app/?board=project-planning-suite&amp;template=project-planning&amp;module=resources">
-            <span class="tpl-suite__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5v-1a5 5 0 0 1 5-5h1a5 5 0 0 1 5 5v1"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6M17 13.6a5 5 0 0 1 3.5 4.8v1.1"/></svg>
-            </span>
-            <span class="tpl-suite__body">
-              <span class="tpl-suite__row">
-                <span class="tpl-suite__title">Resources &amp; Timesheets</span>
-              </span>
-              <span class="tpl-suite__desc">Who is booked, for how long, and what it costs.</span>
-              <span class="tpl-suite__meta">Capacity <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            </span>
-          </a>
-
-          <a class="tpl-suite__card" href="/app/?board=project-planning-suite&amp;template=project-planning&amp;module=risk">
-            <span class="tpl-suite__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19.5H3L12 3.5Z"/><path d="M12 10v3.5M12 16.5v.01"/></svg>
-            </span>
-            <span class="tpl-suite__body">
-              <span class="tpl-suite__row">
-                <span class="tpl-suite__title">RAID &amp; Change Control</span>
-              </span>
-              <span class="tpl-suite__desc">Risks, assumptions, issues and dependencies in one register.</span>
-              <span class="tpl-suite__meta">Risk <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            </span>
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <section class="tpl-section tpl-section--tint" id="boards">
-      <div class="tpl-container">
-        <div class="tpl-section__head">
-          <div>
-            <p class="tpl-label">Board templates</p>
-            <h2 class="tpl-h2">Eight ways to begin.</h2>
+          <div class="qf-tpl-searchbar">
+            <div class="box">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input id="tpl-q" type="search" aria-label="Search templates" placeholder="Search templates, for example project plan, SWOT, onboarding" />
+            </div>
+            <select id="tpl-sort" aria-label="Sort templates">
+              <option value="pop">Most used</option>
+              <option value="new">Newest</option>
+              <option value="az">Name A to Z</option>
+            </select>
           </div>
-          <p class="tpl-section__note">Every template opens empty of your content, with only the structure in place.</p>
+          <div class="qf-tpl-tabs" id="tpl-tabs" role="tablist" aria-label="Template views"></div>
+          <div id="tpl-body"></div>
         </div>
-
-        <div class="tpl-toolbar">
-          <label class="tpl-search" for="tpl-search-input">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
-            <input id="tpl-search-input" type="search" placeholder="Find a template" aria-label="Search board templates" autocomplete="off" aria-describedby="tpl-count" />
-            <kbd class="tpl-kbd" aria-hidden="true">/</kbd>
-          </label>
-          <p class="tpl-count" id="tpl-count" aria-live="polite">Showing all 8</p>
-        </div>
-
-        <div class="tpl-grid" id="tpl-grid">
-          <a class="tpl-card" href="/app/?board=blank-canvas&amp;template=blank" data-tpl="blank canvas empty freeform open space">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="24" y="10" width="72" height="36" rx="4" stroke-dasharray="4 4"/><path d="M60 21v14M53 28h14" stroke-linecap="round"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">Blank canvas</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">Nothing but space and a starter toolbar.</span>
-            </span>
-          </a>
-
-          <a class="tpl-card" href="/app/?board=mind-map-template&amp;template=mindmap" data-tpl="mind map idea branches brainstorm hierarchy">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="60" cy="28" r="9"/><circle cx="26" cy="14" r="4.5"/><circle cx="26" cy="42" r="4.5"/><circle cx="94" cy="14" r="4.5"/><circle cx="94" cy="42" r="4.5"/><path d="m51 23-20-7M51 33l-20 7M69 23l20-7M69 33l20 7"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">Mind map</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">One idea in the centre, branches radiating out.</span>
-            </span>
-          </a>
-
-          <a class="tpl-card" href="/app/?board=flowchart-template&amp;template=flow" data-tpl="flowchart process decision diagram flow">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="8" y="20" width="24" height="16" rx="3"/><path d="M44 28h10"/><path d="m66 18 12 10-12 10-12-10 12-10Z"/><path d="M90 28h6"/><rect x="98" y="20" width="16" height="16" rx="8"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">Flowchart</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">Start, process, decision, end — connected.</span>
-            </span>
-          </a>
-
-          <a class="tpl-card" href="/app/?board=kanban-template&amp;template=kanban" data-tpl="kanban board sprint columns todo doing done">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="16" y="8" width="26" height="40" rx="3"/><rect x="47" y="8" width="26" height="40" rx="3"/><rect x="78" y="8" width="26" height="40" rx="3"/><path d="M21 15h16M52 15h16M83 15h16" stroke-linecap="round"/><rect x="21" y="22" width="16" height="8" rx="2"/><rect x="52" y="22" width="16" height="8" rx="2"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">Kanban board</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">Empty To do, Doing and Done columns.</span>
-            </span>
-          </a>
-
-          <a class="tpl-card" href="/app/?board=retrospective-template&amp;template=retro" data-tpl="retrospective retro sprint review went well improve actions">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="15" y="8" width="30" height="40" rx="3"/><rect x="52" y="8" width="30" height="40" rx="3"/><rect x="89" y="8" width="16" height="40" rx="3"/><path d="M21 16h18M58 16h18M95 16h4" stroke-linecap="round"/><circle cx="24" cy="26" r="3"/><circle cx="32" cy="26" r="3"/><circle cx="61" cy="26" r="3"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">Retrospective</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">Went well, to improve, action items.</span>
-            </span>
-          </a>
-
-          <a class="tpl-card" href="/app/?board=brainstorm-template&amp;template=brainstorm" data-tpl="brainstorm sticky notes ideation workshop voting">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="14" y="9" width="14" height="14" rx="2"/><rect x="92" y="9" width="14" height="14" rx="2"/><rect x="14" y="33" width="14" height="14" rx="2"/><rect x="92" y="33" width="14" height="14" rx="2"/><circle cx="60" cy="28" r="10"/><path d="M30 18h8a3 3 0 0 1 3 3v1M90 18h-8a3 3 0 0 0-3 3v1M30 38h8a3 3 0 0 0 3-3v-1M90 38h-8a3 3 0 0 1-3-3v-1"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">Brainstorm</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">A topic in the middle and blank stickies around it.</span>
-            </span>
-          </a>
-
-          <a class="tpl-card" href="/app/?board=swot-template&amp;template=swot" data-tpl="swot analysis strengths weaknesses opportunities threats strategy">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="22" y="8" width="38" height="20" rx="3"/><rect x="62" y="8" width="38" height="20" rx="3"/><rect x="22" y="30" width="38" height="20" rx="3"/><rect x="62" y="30" width="38" height="20" rx="3"/><path d="M30 17h14M70 17h14M30 39h14M70 39h14" stroke-linecap="round" stroke-dasharray="2 3"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">SWOT analysis</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">Strengths, weaknesses, opportunities, threats.</span>
-            </span>
-          </a>
-
-          <a class="tpl-card" href="/app/?board=customer-journey-template&amp;template=journey" data-tpl="customer journey map experience stages touchpoints research">
-            <span class="tpl-card__preview">
-              <svg viewBox="0 0 120 56" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M20 18h80" stroke-dasharray="3 4"/><circle cx="24" cy="18" r="4.5"/><circle cx="48" cy="18" r="4.5"/><circle cx="72" cy="18" r="4.5"/><circle cx="96" cy="18" r="4.5"/><rect x="14" y="31" width="20" height="14" rx="2.5"/><rect x="38" y="31" width="20" height="14" rx="2.5"/><rect x="62" y="31" width="20" height="14" rx="2.5"/><rect x="86" y="31" width="20" height="14" rx="2.5"/></svg>
-            </span>
-            <span class="tpl-card__body">
-              <span class="tpl-card__row"><span class="tpl-card__title">Customer journey</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-              <span class="tpl-card__desc">Stages across, touchpoints beneath.</span>
-            </span>
-          </a>
-        </div>
-
-        <p class="tpl-empty" id="tpl-empty">No template matches that. <button class="tpl-textlink" type="button" id="tpl-clear">Clear search</button></p>
-      </div>
-    </section>
-
-    <section class="tpl-section" id="how">
-      <div class="tpl-container">
-        <div class="tpl-section__head">
-          <div>
-            <p class="tpl-label">How it works</p>
-            <h2 class="tpl-h2">Set up once. Move on.</h2>
-          </div>
-        </div>
-
-        <ol class="tpl-steps">
-          <li class="tpl-step">
-            <span class="tpl-step__n" aria-hidden="true">01</span>
-            <h3>Pick a starting point</h3>
-            <p>The template opens in a new board with its structure already in place — columns, frames, connectors and all.</p>
-          </li>
-          <li class="tpl-step">
-            <span class="tpl-step__n" aria-hidden="true">02</span>
-            <h3>Make it yours</h3>
-            <p>Rename, reorder, delete. A template is a first draft, not a rulebook, so nothing is locked.</p>
-          </li>
-          <li class="tpl-step">
-            <span class="tpl-step__n" aria-hidden="true">03</span>
-            <h3>Bring the team in</h3>
-            <p>Share the board link. Everyone edits at the same time and sees changes as they happen.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <section class="tpl-section tpl-section--last">
-      <div class="tpl-container">
-        <div class="tpl-cta">
-          <div class="tpl-cta__copy">
-            <h2 class="tpl-h2">Nothing here fits?</h2>
-            <p class="tpl-section__note">Start with empty space. You can drop a template onto the board later, once you know what you need.</p>
-          </div>
-          <div class="tpl-cta__actions">
-            <a class="btn btn--blue" href="/app/?board=blank-canvas&amp;template=blank">Open a blank board</a>
-            <a class="tpl-textlink" href="/get-started/">Create a free account</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <script>
-      (function () {
-        var input = document.getElementById('tpl-search-input');
-        var grid = document.getElementById('tpl-grid');
-        var empty = document.getElementById('tpl-empty');
-        var clear = document.getElementById('tpl-clear');
-        var count = document.getElementById('tpl-count');
-        if (!input || !grid || !count) return;
-
-        // Append all 26 imported EdrawMax Mind Map / Concept Map / Bubble Diagram templates
-        if (Array.isArray(window.QFEdrawMindMapTemplates) && window.QFEdrawMindMapTemplates.length) {
-          var esc = function (s) {
-            return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-              return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
-            });
-          };
-          var frag = document.createDocumentFragment();
-          window.QFEdrawMindMapTemplates.forEach(function (tpl) {
-            if (!tpl || !tpl.id) return;
-            var a = document.createElement('a');
-            a.className = 'tpl-card';
-            a.href = '/app/?board=' + encodeURIComponent(tpl.id) + '&template=mindmap&module=mindmap&edraw=' + encodeURIComponent(tpl.id);
-            a.dataset.tpl = ('mind map edraw ' + (tpl.tag || '') + ' ' + (tpl.label || '') + ' ' + (tpl.blurb || '')).toLowerCase();
-            a.innerHTML =
-              '<span class="tpl-card__preview" style="padding:8px;background:#ffffff;">' +
-                (tpl.previewImg
-                  ? '<img src="' + esc(tpl.previewImg) + '" alt="' + esc(tpl.label) + '" loading="lazy" style="width:100%;height:100%;object-fit:contain;display:block;" />'
-                  : '') +
-              '</span>' +
-              '<span class="tpl-card__body">' +
-                '<span class="tpl-card__row"><span class="tpl-card__title">' + esc(tpl.label) + '</span><svg class="tpl-card__arrow" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>' +
-                '<span class="tpl-card__desc">' + esc(tpl.tag || 'Mind Map') + ' · ' + esc(tpl.structure || tpl.blurb || '') + '</span>' +
-              '</span>';
-            frag.appendChild(a);
-          });
-          grid.appendChild(frag);
-        }
-
-        var cards = Array.prototype.slice.call(grid.querySelectorAll('.tpl-card'));
-        var total = cards.length;
-        count.textContent = 'Showing all ' + total;
-
-        function apply() {
-          var q = input.value.trim().toLowerCase();
-          var shown = 0;
-          cards.forEach(function (card) {
-            var hay = (card.dataset.tpl || '') + ' ' + card.textContent.toLowerCase();
-            var match = !q || hay.indexOf(q) !== -1;
-            card.classList.toggle('is-hidden', !match);
-            if (match) shown++;
-          });
-          count.textContent = q ? 'Showing ' + shown + ' of ' + total : 'Showing all ' + total;
-          if (empty) empty.classList.toggle('is-on', shown === 0);
-        }
-
-        input.addEventListener('input', apply);
-        input.addEventListener('keydown', function (e) {
-          if (e.key === 'Escape') {
-            input.value = '';
-            apply();
-          }
-        });
-        if (clear) {
-          clear.addEventListener('click', function () {
-            input.value = '';
-            apply();
-            input.focus();
-          });
-        }
-
-        document.addEventListener('keydown', function (e) {
-          var tag = (e.target && e.target.tagName) || '';
-          if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
-            e.preventDefault();
-            input.focus();
-          }
-        });
-      })();
-    </script>
+      </section>
+    </main>
+  </div>

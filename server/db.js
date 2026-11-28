@@ -25,6 +25,8 @@ import {
   getQuotationFromConvex,
   syncInvoiceToConvex,
   getInvoiceFromConvex,
+  syncReceiptToConvex,
+  getReceiptFromConvex,
   syncNotepadToConvex,
   getNotepadFromConvex
 } from './convex.js';
@@ -280,11 +282,19 @@ function ownsRow(row, userId) {
 /** Create the caller's own blank planning workspace once (never rewritten). */
 function ensureUserBlankBoard(userId) {
   const internalId = scopeBoardId(BLANK_PROJECT_PLANNING_BOARD_ID, userId);
-  const now = Date.now();
-  const inserted = db.prepare(`
+  // Use epoch `0` for auto-seeded local placeholders so any real board hydrated
+  // from Convex (`updatedAt > 0`) always wins conflict resolution instead of
+  // a cold SQLite cache overwriting the user's saved Convex board.
+  db.prepare(`
     INSERT OR IGNORE INTO boards (id, user_id, title, category, starred, state_json, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 0, '{}', ?, ?)
-  `).run(internalId, userId, 'New Project Planning Workspace', 'AI & Product Strategy', now, now);
+    VALUES (?, ?, ?, ?, 0, ?, 0, 0)
+  `).run(
+    internalId,
+    userId,
+    'New Project Planning Workspace',
+    'AI & Product Strategy',
+    JSON.stringify({ workspaceMode: 'project-planning' })
+  );
 
   // The board opens the planning suite (not a blank canvas) via its
   // `workspaceMode` marker. It is merged in, never replaced, so a canvas save
@@ -296,19 +306,6 @@ function ensureUserBlankBoard(userId) {
     state.workspaceMode = 'project-planning';
     db.prepare('UPDATE boards SET state_json = ? WHERE id = ? AND user_id = ?')
       .run(JSON.stringify(state), internalId, userId);
-  }
-  if (inserted.changes > 0 && row) {
-    syncBoardToConvex(
-      {
-        id: BLANK_PROJECT_PLANNING_BOARD_ID,
-        title: row.title,
-        category: row.category,
-        starred: Boolean(row.starred),
-        state
-      },
-      userId,
-      internalId
-    );
   }
 }
 
@@ -425,6 +422,8 @@ export async function hydrateBoardFromConvex(id, userId) {
 export function listBoards({ query = '', starredOnly = false, userId } = {}) {
   if (userId == null) throw forbidden();
   ensureUserBlankBoard(userId);
+  const callerRow = db.prepare('SELECT role FROM users WHERE id = ?').get(userId);
+  const callerIsOwner = Boolean(callerRow && (callerRow.role === 'owner' || callerRow.role === 'admin'));
 
   let sql = `
     SELECT b.id, b.user_id, b.title, b.category, b.starred, b.state_json, b.created_at, b.updated_at,
@@ -462,7 +461,10 @@ export function listBoards({ query = '', starredOnly = false, userId } = {}) {
     }
     const state = parseStateJson(row.state_json);
     const activeModule = state.activeModule || (state.workspaceMode === 'project-planning' ? 'project-planning' : '');
-    const permission = row.user_id === userId ? 'owner' : (row.board_perm || row.ws_perm || 'viewer');
+    const permission = row.user_id === userId
+      ? 'owner'
+      : (callerIsOwner ? 'owner' : (row.board_perm || row.ws_perm || 'viewer'));
+    const caps = capabilitiesForRole(permission);
     results.push({
       id: publicBoardId(row.id),
       title: row.title,
@@ -473,6 +475,7 @@ export function listBoards({ query = '', starredOnly = false, userId } = {}) {
       activeModule,
       hasSavedState: Boolean(row.state_json && row.state_json !== '{}'),
       permission,
+      canDelete: Boolean(caps.canDelete),
       isShared: row.user_id !== userId,
       ownerName: row.owner_name || '',
       ownerEmail: row.owner_email || ''
@@ -501,13 +504,16 @@ export function resolveBoardAccess(id, userId) {
     return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole('owner') };
   }
 
+  const callerRow = db.prepare('SELECT role FROM users WHERE id = ?').get(userId);
+  const callerIsOwner = Boolean(callerRow && (callerRow.role === 'owner' || callerRow.role === 'admin'));
+
   const bm = db.prepare(`
     SELECT permission FROM board_members
      WHERE board_id = ? AND member_user_id = ? AND status = 'active'
      LIMIT 1
   `).get(row.id, userId);
   if (bm) {
-    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole(bm.permission) };
+    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole(callerIsOwner ? 'owner' : bm.permission) };
   }
 
   const wm = db.prepare(`
@@ -516,7 +522,7 @@ export function resolveBoardAccess(id, userId) {
      LIMIT 1
   `).get(row.user_id, userId);
   if (wm && !USER_SCOPED_BOARD_IDS.has(publicBoardId(row.id))) {
-    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole(wm.permission) };
+    return { row, internalId: row.id, ownerUserId: row.user_id, ...capabilitiesForRole(callerIsOwner ? 'owner' : wm.permission) };
   }
 
   return null;
@@ -1549,6 +1555,79 @@ export async function saveUserInvoice(userId, data) {
   try {
     const res = await syncInvoiceToConvex(userId, data, now);
     convexSynced = Boolean(res && (res.invoiceId || res.updatedAt || res.invoiceNumber));
+  } catch {
+    convexSynced = false;
+  }
+
+  return { updatedAt: now, convexSynced };
+}
+
+
+/* ---------- Receipt (one working document per user) ---------- */
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_receipts (
+    user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    data_json  TEXT    NOT NULL DEFAULT '{}',
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+/** Returns the saved receipt object, or null when the user has none yet. */
+export async function getUserReceipt(userId) {
+  if (userId == null) return null;
+  const row = db.prepare('SELECT data_json, updated_at FROM user_receipts WHERE user_id = ?').get(userId);
+  if (row) {
+    try {
+      const parsed = JSON.parse(row.data_json);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { data: parsed, updatedAt: row.updated_at };
+      }
+    } catch {
+      // fall through to Convex hydration
+    }
+  }
+
+  try {
+    const remote = await getReceiptFromConvex(userId);
+    const rcpData = remote && remote.data ? remote.data : remote;
+    if (rcpData && typeof rcpData === 'object' && !Array.isArray(rcpData) && Array.isArray(rcpData.items)) {
+      const now = Number((remote && remote.updatedAt) || rcpData.updatedAt || Date.now());
+      db.prepare(`
+        INSERT INTO user_receipts (user_id, data_json, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+      `).run(userId, JSON.stringify(rcpData), now);
+      return { data: rcpData, updatedAt: now };
+    }
+  } catch {
+    // Convex unavailable or not configured — treat as no saved receipt.
+  }
+
+  return null;
+}
+
+export async function saveUserReceipt(userId, data) {
+  if (userId == null) throw forbidden();
+  if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.items)) {
+    const err = new Error('A receipt needs a list of line items.');
+    err.status = 400;
+    throw err;
+  }
+  if (data.items.length > 500) {
+    const err = new Error('A receipt can hold at most 500 line items.');
+    err.status = 400;
+    throw err;
+  }
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO user_receipts (user_id, data_json, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+  `).run(userId, JSON.stringify(data), now);
+
+  let convexSynced = false;
+  try {
+    const res = await syncReceiptToConvex(userId, data, now);
+    convexSynced = Boolean(res && (res.receiptId || res.updatedAt || res.receiptNumber));
   } catch {
     convexSynced = false;
   }

@@ -55,6 +55,8 @@ const ASSETS = [
   '/assets/css/onboarding.css',
   '/assets/css/org-switcher.css',
   '/assets/css/people.css',
+  '/assets/css/memory.css',
+  '/assets/css/templates.css',
   '/assets/css/mobile-ux.css',
   '/assets/js/save-state.js',
   '/assets/js/qf-dialog.js',
@@ -69,6 +71,7 @@ const ASSETS = [
   '/assets/js/workspace-nav.js',
   '/assets/js/workspace-router.js',
   '/assets/js/mindmap-templates-catalog.js',
+  '/assets/js/template-blueprints.js',
   '/assets/js/workspace-frameworks.js',
   '/assets/js/canvas-icons.js',
   '/assets/js/canvas-clipart.js',
@@ -82,18 +85,23 @@ const ASSETS = [
   '/assets/js/html2pdf.bundle.min.js',
   '/assets/js/quotation.js',
   '/assets/js/invoice.js',
+  '/assets/js/receipt.js',
   '/assets/js/notepad.js',
   '/assets/js/notepad-page.js',
   '/assets/js/leaf.js',
   '/assets/js/crm.js',
   '/assets/js/activity.js',
+  '/assets/js/world-geo-data.js',
   '/assets/js/onboarding.js',
   '/assets/js/org-switcher.js',
   '/assets/js/people.js',
+  '/assets/js/memory.js',
+  '/assets/js/templates.js',
   '/assets/js/clerk-auth-bridge.js',
   '/assets/js/dash-shell.js',
   '/assets/img/logo.png',
   '/assets/img/quotation-logo.jpg',
+  '/assets/img/paid-stamp.png',
   '/assets/img/favicon.ico',
   '/assets/img/favicon.png',
   '/assets/img/favicon-192.png',
@@ -143,6 +151,16 @@ function render(page) {
   const { meta, body } = parseFrontMatter(read(path.join(pagesDir, page)));
   const route = meta.route || '/';
   const layout = meta.layout || 'base';
+
+  if (layout === 'raw') {
+    let rawHtml = body.trimStart();
+    rawHtml = rawHtml
+      .replace(/\{\{TITLE\}\}/g, meta.title || 'QuantalFlow')
+      .replace(/\{\{DESCRIPTION\}\}/g, meta.description || '')
+      .replace(/\{\{CANONICAL\}\}/g, SITE + route);
+    rawHtml = versionAssets(rawHtml);
+    return { route, html: rawHtml, meta };
+  }
 
   const template = templates[layout];
   if (!template) throw new Error(`Unknown layout "${layout}" in ${page}`);
